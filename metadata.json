@@ -1,0 +1,8 @@
+{
+  "name": "Docenty PRO CRM & WhatsApp AI Seller",
+  "description": "CRM con Inteligencia Artificial que vende Docenty PRO por WhatsApp, gestiona clientes potenciales y valida comprobantes de pago mediante reconocimiento de imágenes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
