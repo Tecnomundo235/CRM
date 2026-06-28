@@ -756,6 +756,13 @@ async function startServer() {
   // Initialize Database Connection
   await initDatabase();
 
+  // If on Vercel, static files are handled by the vercel.json configuration.
+  // We don't need to listen on ports or setup Vite.
+  if (process.env.VERCEL) {
+    console.log("Running on Vercel Serverless Function. Skipping Vite integration and app.listen().");
+    return;
+  }
+
   // Vite integration
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
