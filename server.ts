@@ -332,8 +332,8 @@ app.post(["/api/webhook", "/webhook"], async (req, res) => {
           }
         );
         console.log(`WhatsApp webhook reply sent successfully to ${from}`);
-      } catch (sendErr: any) {
-        console.error("Error sending message via WhatsApp API in webhook:", sendErr.response?.data || sendErr.message);
+      } catch (error: any) {
+        console.error("Detalle del error de Meta:", error.response?.data || error.message);
       }
     }
 
