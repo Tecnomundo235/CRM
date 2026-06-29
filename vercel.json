@@ -15,6 +15,18 @@
   ],
   "routes": [
     {
+      "src": "/api/webhook",
+      "dest": "api/index.ts"
+    },
+    {
+      "src": "/api/leads",
+      "dest": "api/index.ts"
+    },
+    {
+      "src": "/api/config",
+      "dest": "api/index.ts"
+    },
+    {
       "src": "/api/(.*)",
       "dest": "api/index.ts"
     },
