@@ -3,7 +3,6 @@ import path from "path";
 import dotenv from "dotenv";
 import axios from "axios";
 import { GoogleGenAI, Type } from "@google/genai";
-import { createServer as createViteServer } from "vite";
 import {
   initDatabase,
   getAllLeads,
@@ -765,7 +764,8 @@ async function startServer() {
 
   // Vite integration
   if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
+    const { createServer } = await import("vite");
+    const vite = await createServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
