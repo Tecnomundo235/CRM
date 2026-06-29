@@ -15,7 +15,7 @@ import {
   saveSystemConfigs,
   Lead,
   Message
-} from "./database";
+} from "./database.js";
 
 dotenv.config();
 
@@ -37,10 +37,10 @@ app.use(express.json({ limit: "10mb" }));
 
 // WhatsApp Integration Configuration
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN || "";
-const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "docenty_verify_token_2026";
+const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "token_docenty_2026";
 
 // 1. ENDPOINT DE VERIFICACIÓN (Requerido por Meta para activar el Webhook)
-app.get("/api/webhook", (req, res) => {
+app.get(["/api/webhook", "/webhook"], (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
@@ -82,7 +82,7 @@ async function downloadWhatsAppMedia(mediaId: string): Promise<string | null> {
 }
 
 // 2. ENDPOINT PRINCIPAL (Recibe los mensajes de los docentes de WhatsApp)
-app.post("/api/webhook", async (req, res) => {
+app.post(["/api/webhook", "/webhook"], async (req, res) => {
   try {
     const entry = req.body.entry?.[0];
     const changes = entry?.changes?.[0];
