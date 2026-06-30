@@ -37,6 +37,7 @@ app.use(express.json({ limit: "10mb" }));
 // WhatsApp Integration Configuration
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN || "";
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "token_docenty_2026";
+const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID || "1235155319675980";
 
 // 1. ENDPOINT DE VERIFICACIÓN (Requerido por Meta para activar el Webhook)
 app.get(["/api/webhook", "/webhook"], (req, res) => {
@@ -93,7 +94,7 @@ app.post(["/api/webhook", "/webhook"], async (req, res) => {
       return res.sendStatus(200);
     }
 
-    const phone_number_id = value.metadata?.phone_number_id;
+    const phone_number_id = value.metadata?.phone_number_id || PHONE_NUMBER_ID;
     const from = message.from; // Teléfono del docente que escribe
     const senderName = value.contacts?.[0]?.profile?.name || `Docente WhatsApp (${from})`;
 
