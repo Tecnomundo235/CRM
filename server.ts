@@ -316,6 +316,90 @@ app.post(["/api/webhook", "/webhook"], async (req, res) => {
         await updateLead(lead);
       }
     }
+    // Caso C: Nota de Voz (Audio)
+    else if (message.type === "audio") {
+      const mediaId = message.audio.id;
+      const mimeType = message.audio.mime_type || "audio/ogg";
+      const base64Str = await downloadWhatsAppMedia(mediaId);
+
+      if (base64Str) {
+        let cleanMimeType = mimeType;
+        if (cleanMimeType.includes(";")) {
+          cleanMimeType = cleanMimeType.split(";")[0].trim();
+        }
+
+        const clientMsg: Message = {
+          sender: "client",
+          text: "🎤 [Nota de voz recibida - Analizada con Inteligencia Artificial]",
+          timestamp: new Date().toISOString(),
+          isAudio: true,
+          audioData: {
+            base64: base64Str,
+            mimeType: cleanMimeType,
+          },
+        };
+        lead.messages.push(clientMsg);
+        if (lead.status === "prospect") {
+          lead.status = "interested";
+        }
+
+        try {
+          const historyContext = lead.messages
+            .slice(0, -1)
+            .map((m) => `${m.sender === "bot" ? "Docenty AI" : lead.name}: ${m.text}`)
+            .join("\n");
+
+          const promptString = `Historial de la conversación de WhatsApp hasta ahora:
+${historyContext}
+
+El cliente ${lead.name} te acaba de enviar una nota de voz. Por favor, "escucha" y analiza con cuidado el contenido del audio (su intención, preguntas, tono y detalles).
+Genera una respuesta en texto en tu personalidad de Docenty AI (Camila).
+Recuerda que la referencia asignada a este cliente es: ${lead.assignedRef}.
+No inventes referencias de otros clientes. Si el cliente pregunta qué plan tiene disponible, recuérdale que tiene reservada la Suscripción Premium de $2 USD (al cambio oficial del BCV en bolívares) con esa referencia.`;
+
+          const response = await ai.models.generateContent({
+            model: "gemini-3.5-flash",
+            contents: [
+              {
+                inlineData: {
+                  mimeType: cleanMimeType,
+                  data: base64Str,
+                },
+              },
+              {
+                text: promptString,
+              },
+            ],
+            config: {
+              systemInstruction: systemConfigs.botSystemPrompt,
+              temperature: 0.7,
+            },
+          });
+
+          botReply = response.text || "Disculpe, ¿podría repetir su consulta? Estoy aquí para ayudarle con Docenty PRO.";
+        } catch (err: any) {
+          console.error("Gemini Error processing audio in WhatsApp webhook:", err);
+          botReply = `¡Hola, ${lead.name}! Gracias por tu nota de voz. El sistema está configurando tu cuenta. Para confirmar la activación de la Suscripción Premium ($2 USD al cambio oficial BCV en bolívares) por favor realiza el Pago Móvil de referencia **${lead.assignedRef}** al Banco de Venezuela (Teléfono: 04262953484, Cédula: 24755720) y mándanos el comprobante por este chat.`;
+        }
+
+        const botMsg: Message = {
+          sender: "bot",
+          text: botReply,
+          timestamp: new Date().toISOString(),
+        };
+        lead.messages.push(botMsg);
+        await updateLead(lead);
+      } else {
+        botReply = `⚠️ No se pudo descargar ni procesar el audio de WhatsApp. Por favor, escríbeme tu mensaje o intenta de nuevo.`;
+        const botMsg: Message = {
+          sender: "bot",
+          text: botReply,
+          timestamp: new Date().toISOString(),
+        };
+        lead.messages.push(botMsg);
+        await updateLead(lead);
+      }
+    }
 
     // Enviar respuesta por WhatsApp mediante la Cloud API de Meta
     if (WHATSAPP_TOKEN && phone_number_id) {
@@ -438,10 +522,10 @@ app.post("/api/config", async (req, res) => {
 // Chat with Gemini AI as Sales Agent
 app.post("/api/leads/:id/chat", async (req, res) => {
   const { id } = req.params;
-  const { message } = req.body;
+  const { message, isAudio, audioBase64, audioMimeType } = req.body;
 
-  if (!message) {
-    return res.status(400).json({ error: "Mensaje es requerido" });
+  if (!message && !isAudio) {
+    return res.status(400).json({ error: "Mensaje o audio es requerido" });
   }
 
   try {
@@ -454,9 +538,18 @@ app.post("/api/leads/:id/chat", async (req, res) => {
     // Add client message
     const clientMsg: Message = {
       sender: "client",
-      text: message,
+      text: message || "🎤 [Nota de voz enviada]",
       timestamp: new Date().toISOString(),
     };
+
+    if (isAudio && audioBase64) {
+      clientMsg.isAudio = true;
+      clientMsg.audioData = {
+        base64: audioBase64,
+        mimeType: audioMimeType || "audio/ogg",
+      };
+    }
+
     lead.messages.push(clientMsg);
 
     // Update lead status to interested if they were just prospect and show active conversation
@@ -467,21 +560,70 @@ app.post("/api/leads/:id/chat", async (req, res) => {
     const systemConfigs = await getSystemConfigs();
 
     try {
-      // Compile history for Gemini context
+      // Compile history for Gemini context (excluding the current audio file if processing multimodal)
       const historyContext = lead.messages
+        .slice(0, isAudio ? -1 : undefined)
         .map((m) => `${m.sender === "bot" ? "Docenty AI" : lead.name}: ${m.text}`)
         .join("\n");
 
-      const prompt = `Historial de la conversación de WhatsApp hasta ahora:\n${historyContext}\n\nResponde el último mensaje del cliente en WhatsApp con tu personalidad de Docenty AI (Camila). Recuerda que la referencia asignada a este cliente es: ${lead.assignedRef}.\nNo inventes referencias de otros clientes. Si el cliente pregunta qué plan tiene disponible, recuérdale que tiene reservada la Suscripción Premium de $2 USD (al cambio oficial del BCV en bolívares) con esa referencia.`;
+      let response;
+      const isMockAudio = isAudio && audioBase64 === "UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==";
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
-        contents: prompt,
-        config: {
-          systemInstruction: systemConfigs.botSystemPrompt,
-          temperature: 0.7,
-        },
-      });
+      if (isAudio && audioBase64) {
+        let promptString = `Historial de la conversación de WhatsApp hasta ahora:\n${historyContext}\n\n`;
+
+        if (isMockAudio) {
+          // Simulator helper mock prompt
+          promptString += `El cliente ${lead.name} te acaba de enviar una nota de voz. 
+[Simulación] La nota de voz dice exactamente lo siguiente: "Hola Camila, me interesa saber si Docenty PRO me puede ayudar a automatizar la carga de notas finales de mi colegio y la asistencia de mis alumnos, y cuánto cuesta la activación anual".
+Por favor, responde a este audio en texto con tu personalidad de Docenty AI (Camila), con un tono amable, explicando brevemente los beneficios (automatización, asistencia) y las opciones de pago de $2 USD con tu referencia ${lead.assignedRef}.`;
+
+          response = await ai.models.generateContent({
+            model: "gemini-3.5-flash",
+            contents: promptString,
+            config: {
+              systemInstruction: systemConfigs.botSystemPrompt,
+              temperature: 0.7,
+            },
+          });
+        } else {
+          // Real audio multimodal processing
+          promptString += `El cliente ${lead.name} te acaba de enviar una nota de voz. Por favor, "escucha" y analiza con cuidado el contenido del audio (su intención, preguntas, tono y detalles).
+Genera una respuesta en texto en tu personalidad de Docenty AI (Camila).
+Recuerda que la referencia asignada a este cliente es: ${lead.assignedRef}.\nNo inventes referencias de otros clientes. Si el cliente pregunta qué plan tiene disponible, recuérdale que tiene reservada la Suscripción Premium de $2 USD (al cambio oficial del BCV en bolívares) con esa referencia.`;
+
+          response = await ai.models.generateContent({
+            model: "gemini-3.5-flash",
+            contents: [
+              {
+                inlineData: {
+                  mimeType: audioMimeType || "audio/ogg",
+                  data: audioBase64,
+                },
+              },
+              {
+                text: promptString,
+              },
+            ],
+            config: {
+              systemInstruction: systemConfigs.botSystemPrompt,
+              temperature: 0.7,
+            },
+          });
+        }
+      } else {
+        // Standard text reply
+        const prompt = `Historial de la conversación de WhatsApp hasta ahora:\n${historyContext}\n\nResponde el último mensaje del cliente en WhatsApp con tu personalidad de Docenty AI (Camila). Recuerda que la referencia asignada a este cliente es: ${lead.assignedRef}.\nNo inventes referencias de otros clientes. Si el cliente pregunta qué plan tiene disponible, recuérdale que tiene reservada la Suscripción Premium de $2 USD (al cambio oficial del BCV en bolívares) con esa referencia.`;
+
+        response = await ai.models.generateContent({
+          model: "gemini-3.5-flash",
+          contents: prompt,
+          config: {
+            systemInstruction: systemConfigs.botSystemPrompt,
+            temperature: 0.7,
+          },
+        });
+      }
 
       const botReply = response.text || "Disculpe, ¿podría repetir su consulta? Estoy aquí para ayudarle con Docenty PRO.";
 
@@ -497,9 +639,10 @@ app.post("/api/leads/:id/chat", async (req, res) => {
     } catch (err: any) {
       console.error("Gemini Error:", err);
       // Graceful fallback if API key is not configured or fails
-      let fallbackReply = `¡Hola, ${lead.name}! Gracias por tu mensaje. El sistema está configurando tu cuenta. Para confirmar la activación de la Suscripción Premium ($2 USD al cambio oficial BCV en bolívares) por favor realiza el Pago Móvil de referencia **${lead.assignedRef}** al Banco de Venezuela (Teléfono: 04262953484, Cédula: 24755720) y mándanos el comprobante por este chat.`;
+      let fallbackReply = `¡Hola, ${lead.name}! Gracias por tu nota de voz o mensaje. El sistema está configurando tu cuenta. Para confirmar la activación de la Suscripción Premium ($2 USD al cambio oficial BCV en bolívares) por favor realiza el Pago Móvil de referencia **${lead.assignedRef}** al Banco de Venezuela (Teléfono: 04262953484, Cédula: 24755720) y mándanos el comprobante por este chat.`;
       
-      if (message.toLowerCase().includes("plan") || message.toLowerCase().includes("costo") || message.toLowerCase().includes("precio")) {
+      const msgLower = (message || "").toLowerCase();
+      if (isAudio || msgLower.includes("plan") || msgLower.includes("costo") || msgLower.includes("precio")) {
         fallbackReply = `Claro que sí. La suscripción de Docenty PRO cuesta solo $2 USD (al cambio oficial de la tasa BCV del día en Bolívares). Puedes realizar el Pago Móvil con tu código de referencia único **${lead.assignedRef}** al Banco de Venezuela (Teléfono: 04262953484, Cédula: 24755720). ¡Mándanos la captura de pantalla por este chat!`;
       }
 

@@ -9,6 +9,9 @@ import {
   Trash2,
   Search,
   Image as ImageIcon,
+  Mic,
+  Square,
+  Volume2,
   FileText,
   Send,
   Check,
@@ -233,6 +236,144 @@ export default function App() {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  // Recording state and references
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  // Start microphone recording
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType || "audio/ogg" });
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const base64WithPrefix = reader.result as string;
+          const cleanBase64 = base64WithPrefix.replace(/^data:audio\/\w+;base64,/, "");
+          await handleSendAudioMsg(cleanBase64, audioBlob.type || "audio/ogg");
+        };
+        reader.readAsDataURL(audioBlob);
+
+        // Stop all tracks to release the mic
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      showToast("Grabando nota de voz... ¡Habla ahora!", "info");
+    } catch (err) {
+      console.error("Mic error:", err);
+      showToast("Micrófono no disponible o denegado en este iframe.", "error");
+    }
+  };
+
+  // Stop microphone recording
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  // Handle local audio file upload
+  const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64WithPrefix = reader.result as string;
+      const cleanBase64 = base64WithPrefix.replace(/^data:audio\/\w+;base64,/, "");
+      const mimeType = file.type || "audio/ogg";
+      await handleSendAudioMsg(cleanBase64, mimeType);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Send audio message to Camila
+  const handleSendAudioMsg = async (audioBase64: string, mimeType: string) => {
+    if (!selectedLeadId) return;
+    setSendingMsg(true);
+
+    try {
+      let cleanMimeType = mimeType;
+      if (cleanMimeType.includes(";")) {
+        cleanMimeType = cleanMimeType.split(";")[0].trim();
+      }
+
+      // Prepend audio message to UI
+      setLeads((prev) =>
+        prev.map((l) => {
+          if (l.id === selectedLeadId) {
+            return {
+              ...l,
+              status: l.status === "prospect" ? "interested" : l.status,
+              messages: [
+                ...l.messages,
+                {
+                  sender: "client",
+                  text: "🎤 [Nota de voz enviada]",
+                  timestamp: new Date().toISOString(),
+                  isAudio: true,
+                  audioData: {
+                    base64: audioBase64,
+                    mimeType: cleanMimeType,
+                  },
+                },
+              ],
+            };
+          }
+          return l;
+        })
+      );
+
+      const res = await fetch(`/api/leads/${selectedLeadId}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: "🎤 [Nota de voz enviada]",
+          isAudio: true,
+          audioBase64,
+          audioMimeType: cleanMimeType,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setLeads((prev) => prev.map((l) => (l.id === selectedLeadId ? data.lead : l)));
+        if (data.apiError) {
+          showToast("Demostración: Llave de API ausente, usando agente simulado.", "info");
+        } else {
+          showToast("Camila procesó tu nota de voz!");
+        }
+      } else {
+        showToast("Error al procesar nota de voz con Camila", "error");
+      }
+    } catch (err) {
+      showToast("Error de conexión", "error");
+    } finally {
+      setSendingMsg(false);
+    }
+  };
+
+  // Simulate a preset voice note from client
+  const handleSimulatePresetVoiceNote = async () => {
+    // 44-byte silent WAV file
+    const silentWavBase64 = "UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==";
+    await handleSendAudioMsg(silentWavBase64, "audio/wav");
   };
 
   // Send message on WhatsApp simulator (as Client/Buyer)
@@ -1094,6 +1235,21 @@ export default function App() {
                                     </div>
                                   )}
 
+                                  {/* Custom audio player if audio message */}
+                                  {msg.isAudio && msg.audioData && (
+                                    <div className="mb-2 p-2 rounded-lg bg-black/5 border border-slate-100 flex flex-col gap-1 w-full min-w-[240px]">
+                                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-700">
+                                        <Mic className="h-3 w-3 text-teal-600 animate-pulse" />
+                                        <span>Mensaje de Voz</span>
+                                      </div>
+                                      <audio
+                                        controls
+                                        src={`data:${msg.audioData.mimeType};base64,${msg.audioData.base64}`}
+                                        className="w-full h-8 mt-1"
+                                      />
+                                    </div>
+                                  )}
+
                                   {/* Message text with basic styling for line breaks */}
                                   <p className="text-xs leading-relaxed whitespace-pre-wrap select-text">{msg.text}</p>
                                   
@@ -1143,7 +1299,7 @@ export default function App() {
                         {/* Chat Footer Input bar */}
                         <div className="bg-[#f0f2f5] p-3 flex items-center gap-2 border-t border-slate-200">
                           {/* File input proxy button */}
-                          <label className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-200 rounded-lg cursor-pointer transition flex items-center justify-center">
+                          <label className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-200 rounded-lg cursor-pointer transition flex items-center justify-center" title="Subir Imagen de Comprobante">
                             <ImageIcon className="h-5 w-5" />
                             <input
                               type="file"
@@ -1152,6 +1308,47 @@ export default function App() {
                               onChange={handleImageUpload}
                             />
                           </label>
+
+                          {/* Audio upload proxy button */}
+                          <label className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-200 rounded-lg cursor-pointer transition flex items-center justify-center" title="Subir Archivo de Audio">
+                            <Volume2 className="h-5 w-5" />
+                            <input
+                              type="file"
+                              accept="audio/*"
+                              className="hidden"
+                              onChange={handleAudioUpload}
+                            />
+                          </label>
+
+                          {/* Record audio button */}
+                          {isRecording ? (
+                            <button
+                              onClick={stopRecording}
+                              className="p-2 text-white bg-red-500 hover:bg-red-600 rounded-lg cursor-pointer transition flex items-center justify-center animate-pulse animate-duration-1000"
+                              title="Detener grabación"
+                            >
+                              <Square className="h-5 w-5 fill-white" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={startRecording}
+                              className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-200 rounded-lg cursor-pointer transition flex items-center justify-center"
+                              title="Grabar nota de voz"
+                            >
+                              <Mic className="h-5 w-5" />
+                            </button>
+                          )}
+
+                          {/* Simular nota de voz button */}
+                          <button
+                            type="button"
+                            onClick={handleSimulatePresetVoiceNote}
+                            className="px-2.5 py-1.5 text-[10px] bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-800 font-bold rounded-xl cursor-pointer transition flex items-center gap-1 shrink-0"
+                            title="Simular nota de voz del cliente"
+                          >
+                            <Sparkles className="h-3 w-3 text-teal-600 animate-pulse" />
+                            <span>Simular Audio</span>
+                          </button>
 
                           <input
                             type="text"

@@ -13,6 +13,11 @@ export interface Message {
     analisis: string;
     imageUrl?: string;
   };
+  isAudio?: boolean;
+  audioData?: {
+    base64: string;
+    mimeType: string;
+  };
 }
 
 export interface Lead {
