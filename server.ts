@@ -110,7 +110,7 @@ app.post(["/api/webhook", "/webhook"], async (req, res) => {
 
     const phone_number_id = value.metadata?.phone_number_id || PHONE_NUMBER_ID;
     const from = message.from; // Teléfono del docente que escribe
-    const senderName = value.contacts?.[0]?.profile?.name || `Docente WhatsApp (${from})`;
+    const senderName = value.contacts?.[0]?.profile?.name || `Docenty WhatsApp (${from})`;
 
     // Buscar o registrar prospecto por su número de celular
     const leadsList = await getAllLeads();
@@ -934,7 +934,7 @@ app.post("/api/leads/:id/verify-receipt", async (req, res) => {
         status: "APPROVED" as const,
         monto: lead.plan === "annual" ? "$29.00 USD" : "$9.00 USD",
         referencia: lead.assignedRef,
-        banco: "Banco del Docente",
+        banco: "Banco Docenty PRO",
         fecha: new Date().toISOString().split("T")[0],
         analisis: "(Modo de demostración - Análisis local exitoso) Se detectó un comprobante legible de transferencia bancaria por " + (lead.plan === "annual" ? "$29 USD" : "$9 USD") + " con el código de referencia " + lead.assignedRef + " perfectamente visible. Aprobado de forma inmediata.",
       };

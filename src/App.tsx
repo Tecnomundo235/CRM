@@ -749,7 +749,7 @@ export default function App() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans antialiased text-slate-800" id="crm-app-root">
+    <div className="min-h-screen bg-carbon flex flex-col font-sans antialiased text-zinc-100" id="crm-app-root">
       {/* Toast Notification */}
       <AnimatePresence>
         {notification && (
@@ -759,18 +759,18 @@ export default function App() {
             exit={{ opacity: 0, y: -20, scale: 0.95 }}
             className={`fixed top-4 right-4 z-50 p-4 rounded-xl shadow-lg border flex items-center gap-3 max-w-md ${
               notification.type === "success"
-                ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                ? "bg-teal-950 border-teal-800/80 text-teal-200 shadow-teal-950/40"
                 : notification.type === "error"
-                ? "bg-rose-50 border-rose-200 text-rose-800"
-                : "bg-sky-50 border-sky-200 text-sky-800"
+                ? "bg-rose-950 border-rose-900/80 text-rose-200 shadow-rose-950/40"
+                : "bg-zinc-900 border-zinc-800 text-zinc-200 shadow-black/40"
             }`}
           >
             {notification.type === "success" ? (
-              <CircleCheck className="h-5 w-5 text-emerald-600 flex-shrink-0" />
+              <CircleCheck className="h-5 w-5 text-teal-400 flex-shrink-0" />
             ) : notification.type === "error" ? (
-              <AlertTriangle className="h-5 w-5 text-rose-600 flex-shrink-0" />
+              <AlertTriangle className="h-5 w-5 text-rose-400 flex-shrink-0" />
             ) : (
-              <AlertCircle className="h-5 w-5 text-sky-600 flex-shrink-0" />
+              <AlertCircle className="h-5 w-5 text-zinc-400 flex-shrink-0" />
             )}
             <p className="text-sm font-medium">{notification.text}</p>
           </motion.div>
@@ -778,17 +778,17 @@ export default function App() {
       </AnimatePresence>
 
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-20 shadow-xs" id="app-header">
+      <header className="bg-[#121212]/90 backdrop-blur-md border-b border-zinc-800/80 px-6 py-4 flex items-center justify-between sticky top-0 z-20" id="app-header">
         <div className="flex items-center gap-3">
-          <div className="bg-sky-600 text-white p-2.5 rounded-xl shadow-md shadow-sky-100 flex items-center justify-center">
+          <div className="bg-teal-600 text-white p-2.5 rounded-xl shadow-md shadow-teal-950/40 flex items-center justify-center">
             <Sparkles className="h-6 w-6" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="font-display font-bold text-xl tracking-tight text-slate-900">Docenty PRO</h1>
-              <span className="bg-sky-100 text-sky-800 text-[10px] font-bold px-1.5 py-0.5 rounded">CRM IA</span>
+              <h1 className="font-display font-bold text-xl tracking-tight text-white">Docenty PRO</h1>
+              <span className="bg-teal-950/60 text-teal-300 text-[10px] font-bold px-1.5 py-0.5 rounded border border-teal-800/50">CRM IA</span>
             </div>
-            <p className="text-xs text-slate-500">Gestor de WhatsApp & Ventas SaaS en Piloto Automático</p>
+            <p className="text-xs text-zinc-400">Gestor de WhatsApp & Ventas SaaS en Piloto Automático</p>
           </div>
         </div>
 
@@ -796,7 +796,7 @@ export default function App() {
         <div className="flex items-center gap-3">
           <button
             onClick={handleResetDb}
-            className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-sky-600 bg-slate-100 hover:bg-slate-200/80 px-3 py-2 rounded-lg font-medium transition cursor-pointer"
+            className="flex items-center gap-1.5 text-xs text-zinc-300 hover:text-teal-400 bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/50 px-3 py-2 rounded-lg font-medium transition cursor-pointer"
             title="Restablecer base de datos con leads demo"
           >
             <RefreshCw className="h-3.5 w-3.5" />
@@ -805,7 +805,7 @@ export default function App() {
           
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-1.5 text-xs text-white bg-sky-600 hover:bg-sky-700 px-3 py-2 rounded-lg font-semibold transition cursor-pointer shadow-md shadow-sky-100"
+            className="flex items-center gap-1.5 text-xs text-white bg-teal-600 hover:bg-teal-700 px-3 py-2 rounded-lg font-semibold transition cursor-pointer shadow-md shadow-teal-950/40"
           >
             <Plus className="h-4 w-4" />
             Nuevo Lead
@@ -816,21 +816,21 @@ export default function App() {
       {/* Main Workspace Layout */}
       <div className="flex-1 flex overflow-hidden">
         {/* Navigation Sidebar */}
-        <aside className="w-64 bg-white border-r border-slate-200 flex flex-col justify-between" id="app-sidebar">
+        <aside className="w-64 bg-[#121212]/90 border-r border-zinc-800/80 flex flex-col justify-between" id="app-sidebar">
           <div className="p-4 flex flex-col gap-1">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2">Módulos</p>
+            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider px-3 mb-2">Módulos</p>
             
             <button
               onClick={() => setActiveTab("crm")}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${
                 activeTab === "crm"
-                  ? "bg-sky-50 text-sky-700"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-950"
+                  ? "bg-teal-950/50 text-teal-400 border-l-2 border-teal-500 font-semibold"
+                  : "text-zinc-400 hover:bg-zinc-800/50 hover:text-white"
               }`}
             >
               <Users className="h-4 w-4" />
               <span>Embudo CRM Leads</span>
-              <span className="ml-auto bg-slate-100 text-slate-700 text-xs font-bold px-2 py-0.5 rounded-full">
+              <span className="ml-auto bg-zinc-800 text-zinc-300 text-xs font-bold px-2 py-0.5 rounded-full">
                 {leads.length}
               </span>
             </button>
@@ -839,14 +839,14 @@ export default function App() {
               onClick={() => setActiveTab("whatsapp")}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${
                 activeTab === "whatsapp"
-                  ? "bg-sky-50 text-sky-700"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-950"
+                  ? "bg-teal-950/50 text-teal-400 border-l-2 border-teal-500 font-semibold"
+                  : "text-zinc-400 hover:bg-zinc-800/50 hover:text-white"
               }`}
             >
               <MessageSquare className="h-4 w-4" />
-              <span>Simulador WhatsApp</span>
+              <span>WhatsApp</span>
               {pendingPayments > 0 && (
-                <span className="ml-auto bg-amber-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full animate-pulse">
+                <span className="ml-auto bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold px-1.5 py-0.5 rounded-full animate-pulse">
                   {pendingPayments}
                 </span>
               )}
@@ -856,8 +856,8 @@ export default function App() {
               onClick={() => setActiveTab("config")}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${
                 activeTab === "config"
-                  ? "bg-sky-50 text-sky-700"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-950"
+                  ? "bg-teal-950/50 text-teal-400 border-l-2 border-teal-500 font-semibold"
+                  : "text-zinc-400 hover:bg-zinc-800/50 hover:text-white"
               }`}
             >
               <Settings className="h-4 w-4" />
@@ -868,8 +868,8 @@ export default function App() {
               onClick={() => setActiveTab("about")}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${
                 activeTab === "about"
-                  ? "bg-sky-50 text-sky-700"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-950"
+                  ? "bg-teal-950/50 text-teal-400 border-l-2 border-teal-500 font-semibold"
+                  : "text-zinc-400 hover:bg-zinc-800/50 hover:text-white"
               }`}
             >
               <BookOpen className="h-4 w-4" />
@@ -878,19 +878,19 @@ export default function App() {
           </div>
 
           {/* Connected Device Card (WhatsApp) */}
-          <div className="p-4 border-t border-slate-100">
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+          <div className="p-4 border-t border-zinc-800/80">
+            <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3">
               <div className="flex items-center gap-2 mb-2">
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
                 </span>
-                <span className="text-[11px] font-bold text-slate-700 uppercase">WhatsApp Conectado</span>
+                <span className="text-[11px] font-bold text-zinc-300 uppercase">WhatsApp Conectado</span>
               </div>
-              <p className="text-xs text-slate-500 leading-relaxed mb-2">
+              <p className="text-xs text-zinc-400 leading-relaxed mb-2">
                 La IA está escuchando mensajes entrantes de clientes interesados en Docenty PRO.
               </p>
-              <div className="text-[10px] font-mono bg-white border border-slate-200 p-1.5 rounded text-slate-600">
+              <div className="text-[10px] font-mono bg-black/40 border border-zinc-800 p-1.5 rounded text-teal-400">
                 Línea: +1 (555) 234-AI56
               </div>
             </div>
@@ -898,11 +898,11 @@ export default function App() {
         </aside>
 
         {/* Content Container */}
-        <main className="flex-1 overflow-y-auto bg-slate-50">
+        <main className="flex-1 overflow-y-auto bg-carbon">
           {loading ? (
             <div className="h-full flex flex-col items-center justify-center p-8">
-              <RefreshCw className="h-8 w-8 text-sky-600 animate-spin mb-4" />
-              <p className="text-sm font-medium text-slate-500">Cargando base de datos del CRM...</p>
+              <RefreshCw className="h-8 w-8 text-teal-500 animate-spin mb-4" />
+              <p className="text-sm font-medium text-zinc-400">Cargando base de datos del CRM...</p>
             </div>
           ) : (
             <div className="h-full">
@@ -911,68 +911,68 @@ export default function App() {
                 <div className="p-6 max-w-7xl mx-auto space-y-6">
                   {/* Dashboard Hero stats */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+                    <div className="bg-[#121212]/90 p-4 rounded-2xl border border-zinc-800/80 shadow-xs flex items-center justify-between">
                       <div>
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Leads</p>
-                        <h3 className="text-2xl font-display font-bold text-slate-900 mt-1">{totalLeads}</h3>
+                        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Total Leads</p>
+                        <h3 className="text-2xl font-display font-bold text-white mt-1">{totalLeads}</h3>
                       </div>
-                      <div className="bg-slate-50 p-2.5 rounded-xl text-slate-600">
+                      <div className="bg-zinc-800/60 p-2.5 rounded-xl text-zinc-300">
                         <Users className="h-5 w-5" />
                       </div>
                     </div>
 
-                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+                    <div className="bg-[#121212]/90 p-4 rounded-2xl border border-zinc-800/80 shadow-xs flex items-center justify-between">
                       <div>
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tasa Conversión</p>
-                        <h3 className="text-2xl font-display font-bold text-emerald-600 mt-1">{conversionRate}%</h3>
+                        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Tasa Conversión</p>
+                        <h3 className="text-2xl font-display font-bold text-teal-400 mt-1">{conversionRate}%</h3>
                       </div>
-                      <div className="bg-emerald-50 p-2.5 rounded-xl text-emerald-600">
+                      <div className="bg-teal-950/40 p-2.5 rounded-xl text-teal-400 border border-teal-900/30">
                         <TrendingUp className="h-5 w-5" />
                       </div>
                     </div>
 
-                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+                    <div className="bg-[#121212]/90 p-4 rounded-2xl border border-zinc-800/80 shadow-xs flex items-center justify-between">
                       <div>
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Suscritos Activos</p>
-                        <h3 className="text-2xl font-display font-bold text-sky-600 mt-1">{activeSubscribers}</h3>
+                        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Suscritos Activos</p>
+                        <h3 className="text-2xl font-display font-bold text-teal-400 mt-1">{activeSubscribers}</h3>
                       </div>
-                      <div className="bg-sky-50 p-2.5 rounded-xl text-sky-600">
+                      <div className="bg-teal-950/40 p-2.5 rounded-xl text-teal-400 border border-teal-900/30">
                         <ShieldCheck className="h-5 w-5" />
                       </div>
                     </div>
 
-                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+                    <div className="bg-[#121212]/90 p-4 rounded-2xl border border-zinc-800/80 shadow-xs flex items-center justify-between">
                       <div>
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pendientes de Pago</p>
-                        <h3 className="text-2xl font-display font-bold text-amber-500 mt-1">{pendingPayments}</h3>
+                        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Pendientes de Pago</p>
+                        <h3 className="text-2xl font-display font-bold text-amber-400 mt-1">{pendingPayments}</h3>
                       </div>
-                      <div className="bg-amber-50 p-2.5 rounded-xl text-amber-500">
+                      <div className="bg-amber-950/40 p-2.5 rounded-xl text-amber-400 border border-amber-900/30">
                         <CreditCard className="h-5 w-5" />
                       </div>
                     </div>
 
-                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+                    <div className="bg-[#121212]/90 p-4 rounded-2xl border border-zinc-800/80 shadow-xs flex items-center justify-between">
                       <div>
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Ingreso Anual ARR</p>
-                        <h3 className="text-2xl font-display font-bold text-slate-900 mt-1">${potentialArr} USD</h3>
+                        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Ingreso Anual ARR</p>
+                        <h3 className="text-2xl font-display font-bold text-white mt-1">${potentialArr} USD</h3>
                       </div>
-                      <div className="bg-slate-50 p-2.5 rounded-xl text-slate-600">
+                      <div className="bg-zinc-800/60 p-2.5 rounded-xl text-zinc-300">
                         <Sparkles className="h-5 w-5" />
                       </div>
                     </div>
                   </div>
 
                   {/* Filter & Search Bar */}
-                  <div className="bg-white p-4 rounded-2xl border border-slate-200 flex flex-col sm:flex-row gap-3 items-center justify-between shadow-xs">
+                  <div className="bg-[#121212]/90 p-4 rounded-2xl border border-zinc-800/80 flex flex-col sm:flex-row gap-3 items-center justify-between shadow-xs">
                     {/* Search input */}
                     <div className="relative w-full sm:w-80">
-                      <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                      <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" />
                       <input
                         type="text"
                         placeholder="Buscar por nombre o teléfono..."
                         value={crmSearch}
                         onChange={(e) => setCrmSearch(e.target.value)}
-                        className="pl-9 pr-4 py-1.5 w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-sky-500 focus:outline-hidden rounded-lg text-sm transition"
+                        className="pl-9 pr-4 py-1.5 w-full bg-zinc-900/60 focus:bg-zinc-900 border border-zinc-800 focus:border-teal-500 focus:outline-hidden rounded-lg text-sm text-white placeholder-zinc-500 transition"
                       />
                     </div>
 
@@ -990,8 +990,8 @@ export default function App() {
                           onClick={() => setCrmFilter(tab.id)}
                           className={`text-xs px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition cursor-pointer ${
                             crmFilter === tab.id
-                              ? "bg-sky-600 text-white"
-                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                              ? "bg-teal-600 text-white"
+                              : "bg-zinc-800/60 text-zinc-300 hover:bg-zinc-800 border border-zinc-700/50"
                           }`}
                         >
                           {tab.label}
@@ -1001,23 +1001,23 @@ export default function App() {
                   </div>
 
                   {/* Leads Table/Card View */}
-                  <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
-                    <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-                      <h3 className="font-display font-bold text-base text-slate-900">Listado de Clientes en Embudo</h3>
-                      <span className="text-xs font-semibold text-slate-500">Mostrando {filteredLeads.length} leads</span>
+                  <div className="bg-[#121212]/90 rounded-2xl border border-zinc-800/80 overflow-hidden shadow-xs">
+                    <div className="px-6 py-4 border-b border-zinc-800/80 flex items-center justify-between">
+                      <h3 className="font-display font-bold text-base text-white">Listado de Clientes en Embudo</h3>
+                      <span className="text-xs font-semibold text-zinc-400">Mostrando {filteredLeads.length} leads</span>
                     </div>
 
                     {filteredLeads.length === 0 ? (
                       <div className="p-12 text-center">
-                        <Users className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                        <p className="text-sm font-semibold text-slate-600">No se encontraron prospectos</p>
-                        <p className="text-xs text-slate-500 mt-1">Prueba cambiando los filtros o agrega un prospecto nuevo.</p>
+                        <Users className="h-12 w-12 text-zinc-600 mx-auto mb-3" />
+                        <p className="text-sm font-semibold text-zinc-400">No se encontraron prospectos</p>
+                        <p className="text-xs text-zinc-500 mt-1">Prueba cambiando los filtros o agrega un prospecto nuevo.</p>
                       </div>
                     ) : (
-                      <div className="divide-y divide-slate-100 overflow-x-auto">
+                      <div className="divide-y divide-zinc-800/50 overflow-x-auto">
                         <table className="w-full text-left border-collapse min-w-[700px]">
                           <thead>
-                            <tr className="bg-slate-50/55 text-slate-500 text-xs font-bold uppercase tracking-wider border-b border-slate-100">
+                            <tr className="bg-zinc-900/40 text-zinc-400 text-xs font-bold uppercase tracking-wider border-b border-zinc-800/80">
                               <th className="px-6 py-3">Cliente</th>
                               <th className="px-6 py-3">Estado Embudo</th>
                               <th className="px-6 py-3">Plan de Interés</th>
@@ -1026,7 +1026,7 @@ export default function App() {
                               <th className="px-6 py-3 text-right">Acciones</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-100 text-sm">
+                          <tbody className="divide-y divide-zinc-800/30 text-sm">
                             {filteredLeads.map((lead) => (
                               <tr
                                 key={lead.id}
@@ -1034,11 +1034,11 @@ export default function App() {
                                   setSelectedLeadId(lead.id);
                                   setActiveTab("whatsapp");
                                 }}
-                                className="hover:bg-slate-50/70 transition cursor-pointer group"
+                                className="hover:bg-zinc-800/40 transition cursor-pointer group"
                               >
                                 <td className="px-6 py-4">
-                                  <div className="font-bold text-slate-900">{lead.name}</div>
-                                  <div className="text-xs text-slate-500 flex flex-col gap-0.5 mt-0.5">
+                                  <div className="font-bold text-white">{lead.name}</div>
+                                  <div className="text-xs text-zinc-400 flex flex-col gap-0.5 mt-0.5">
                                     <span>📱 {lead.phone}</span>
                                     {lead.email && <span>✉️ {lead.email}</span>}
                                   </div>
@@ -1047,23 +1047,23 @@ export default function App() {
                                   <span
                                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
                                       lead.status === "approved"
-                                        ? "bg-emerald-100 text-emerald-800"
+                                        ? "bg-teal-950/60 text-teal-300 border border-teal-800/30"
                                         : lead.status === "payment_sent"
-                                        ? "bg-amber-100 text-amber-800"
+                                        ? "bg-amber-950/60 text-amber-300 border border-amber-800/30"
                                         : lead.status === "interested"
-                                        ? "bg-sky-100 text-sky-800"
-                                        : "bg-slate-100 text-slate-700"
+                                        ? "bg-zinc-900 text-zinc-300 border border-zinc-800"
+                                        : "bg-zinc-900 text-zinc-400 border border-zinc-800/60"
                                     }`}
                                   >
                                     <span
                                       className={`h-1.5 w-1.5 rounded-full ${
                                         lead.status === "approved"
-                                          ? "bg-emerald-500"
+                                          ? "bg-teal-400"
                                           : lead.status === "payment_sent"
-                                          ? "bg-amber-500"
+                                          ? "bg-amber-400"
                                           : lead.status === "interested"
-                                          ? "bg-sky-500"
-                                          : "bg-slate-400"
+                                          ? "bg-zinc-400"
+                                          : "bg-zinc-500"
                                       }`}
                                     ></span>
                                     {lead.status === "approved"
@@ -1076,22 +1076,22 @@ export default function App() {
                                   </span>
                                 </td>
                                 <td className="px-6 py-4">
-                                  <span className="font-semibold text-slate-700 capitalize">
+                                  <span className="font-semibold text-zinc-300 capitalize">
                                     Docenty PRO ($2 USD)
                                   </span>
                                 </td>
                                 <td className="px-6 py-4">
-                                  <code className="bg-slate-100 border border-slate-200 px-2 py-0.5 rounded text-xs font-mono font-bold text-slate-700">
+                                  <code className="bg-zinc-950 border border-zinc-800 px-2 py-0.5 rounded text-xs font-mono font-bold text-teal-400">
                                     {lead.assignedRef}
                                   </code>
                                 </td>
                                 <td className="px-6 py-4 max-w-[200px] truncate">
                                   {lead.messages.length > 0 ? (
-                                    <span className="text-xs text-slate-500">
+                                    <span className="text-xs text-zinc-400">
                                       {lead.messages[lead.messages.length - 1].text}
                                     </span>
                                   ) : (
-                                    <span className="text-xs text-slate-400 italic">Sin mensajes todavía</span>
+                                    <span className="text-xs text-zinc-500 italic">Sin mensajes todavía</span>
                                   )}
                                 </td>
                                 <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
@@ -1101,14 +1101,14 @@ export default function App() {
                                         setSelectedLeadId(lead.id);
                                         setActiveTab("whatsapp");
                                       }}
-                                      className="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition"
+                                      className="p-1.5 text-zinc-400 hover:text-teal-400 hover:bg-teal-950/40 rounded-lg transition"
                                       title="Simular chat de WhatsApp"
                                     >
                                       <MessageCircle className="h-4 w-4" />
                                     </button>
                                     <button
                                       onClick={(e) => handleDeleteLead(lead.id, e)}
-                                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                                      className="p-1.5 text-zinc-500 hover:text-rose-400 hover:bg-rose-950/40 rounded-lg transition"
                                       title="Eliminar lead"
                                     >
                                       <Trash2 className="h-4 w-4" />
@@ -1129,15 +1129,15 @@ export default function App() {
               {activeTab === "whatsapp" && (
                 <div className="h-full flex" style={{ height: "calc(100vh - 73px)" }} id="whatsapp-simulator">
                   {/* Left Column: Chat List */}
-                  <div className="w-80 bg-white border-r border-slate-200 flex flex-col h-full flex-shrink-0">
+                  <div className="w-80 bg-[#121212]/95 border-r border-zinc-800/80 flex flex-col h-full flex-shrink-0">
                     {/* Search Chat */}
-                    <div className="p-3 border-b border-slate-200">
+                    <div className="p-3 border-b border-zinc-800/80">
                       <div className="relative">
-                        <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
+                        <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-zinc-500" />
                         <input
                           type="text"
                           placeholder="Buscar conversación..."
-                          className="pl-8 pr-3 py-1.5 w-full bg-slate-50 border border-slate-200 focus:border-teal-600 focus:outline-hidden rounded-lg text-xs transition"
+                          className="pl-8 pr-3 py-1.5 w-full bg-zinc-900/60 border border-zinc-800 focus:border-teal-500 focus:outline-hidden rounded-lg text-xs text-white placeholder-zinc-500 transition"
                           value={crmSearch}
                           onChange={(e) => setCrmSearch(e.target.value)}
                         />
@@ -1145,7 +1145,7 @@ export default function App() {
                     </div>
 
                     {/* Chat selection list */}
-                    <div className="flex-1 overflow-y-auto divide-y divide-slate-50">
+                    <div className="flex-1 overflow-y-auto divide-y divide-zinc-900/30">
                       {leads
                         .filter((lead) => lead.name.toLowerCase().includes(crmSearch.toLowerCase()))
                         .map((lead) => {
@@ -1157,33 +1157,33 @@ export default function App() {
                               key={lead.id}
                               onClick={() => setSelectedLeadId(lead.id)}
                               className={`w-full p-4 flex gap-3 text-left transition relative cursor-pointer ${
-                                isSelected ? "bg-slate-100/80 border-l-4 border-teal-600" : "hover:bg-slate-50/50"
+                                isSelected ? "bg-teal-950/40 border-l-4 border-teal-500" : "hover:bg-zinc-800/40"
                               }`}
                             >
-                              <div className="h-10 w-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-bold flex-shrink-0 uppercase text-sm">
+                              <div className="h-10 w-10 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-300 font-bold flex-shrink-0 uppercase text-sm">
                                 {lead.name.substring(0, 2)}
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex justify-between items-baseline mb-0.5">
-                                  <h4 className="font-semibold text-xs text-slate-900 truncate">{lead.name}</h4>
-                                  <span className="text-[10px] text-slate-400">
+                                  <h4 className="font-semibold text-xs text-white truncate">{lead.name}</h4>
+                                  <span className="text-[10px] text-zinc-500">
                                     {lastMsg ? "Reciente" : ""}
                                   </span>
                                 </div>
-                                <p className="text-xs text-slate-500 truncate mb-1">
+                                <p className="text-xs text-zinc-400 truncate mb-1">
                                   {lastMsg ? lastMsg.text : "Sin historial de chat"}
                                 </p>
                                 <div className="flex items-center gap-1.5">
-                                  <code className="text-[9px] font-mono bg-slate-100 px-1 py-0.2 rounded font-bold text-slate-500">
+                                  <code className="text-[9px] font-mono bg-zinc-950 border border-zinc-800 px-1 py-0.2 rounded font-bold text-teal-400">
                                     {lead.assignedRef}
                                   </code>
                                   <span
                                     className={`text-[8px] font-bold uppercase px-1.5 py-0.2 rounded-full ${
                                       lead.status === "approved"
-                                        ? "bg-emerald-100 text-emerald-800"
+                                        ? "bg-teal-950/60 text-teal-300 border border-teal-900/30"
                                         : lead.status === "payment_sent"
-                                        ? "bg-amber-100 text-amber-800"
-                                        : "bg-sky-100 text-sky-800"
+                                        ? "bg-amber-950/60 text-amber-300 border border-amber-900/30"
+                                        : "bg-zinc-900 text-zinc-400 border border-zinc-800"
                                     }`}
                                   >
                                     {lead.status === "approved"
@@ -1201,25 +1201,25 @@ export default function App() {
                   </div>
 
                   {/* Right Column: Chat Window */}
-                  <div className="flex-1 flex flex-col h-full bg-[#efeae2] relative">
+                  <div className="flex-1 flex flex-col h-full bg-[#0d0d0d] relative">
                     {activeLead ? (
                       <>
                         {/* Chat Header */}
-                        <div className="bg-[#005e54] text-white px-4 py-3 flex items-center justify-between shadow-xs z-10">
+                        <div className="bg-[#121212]/95 text-white px-4 py-3 flex items-center justify-between border-b border-zinc-800/80 shadow-xs z-10">
                           <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full bg-[#128c7e] text-white font-bold flex items-center justify-center text-sm uppercase">
+                            <div className="h-10 w-10 rounded-full bg-zinc-800 text-teal-400 font-bold flex items-center justify-center text-sm uppercase border border-zinc-700/50">
                               {activeLead.name.substring(0, 2)}
                             </div>
                             <div>
-                              <h3 className="font-bold text-sm">{activeLead.name}</h3>
+                              <h3 className="font-bold text-sm text-white">{activeLead.name}</h3>
                               {activeLead.isPaused ? (
-                                <p className="text-[10px] text-amber-300 flex items-center gap-1 font-semibold">
+                                <p className="text-[10px] text-amber-400 flex items-center gap-1 font-semibold">
                                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400 inline-block"></span>
                                   Camila está pausada (Modo Manual)
                                 </p>
                               ) : (
-                                <p className="text-[10px] text-teal-100 flex items-center gap-1">
-                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
+                                <p className="text-[10px] text-teal-400 flex items-center gap-1">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-teal-400 inline-block animate-pulse"></span>
                                   Camila responde en automático
                                 </p>
                               )}
@@ -1248,8 +1248,8 @@ export default function App() {
                               }}
                               className={`font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer ${
                                 activeLead.isPaused
-                                  ? "bg-amber-500 hover:bg-amber-600 text-white"
-                                  : "bg-[#128c7e] hover:bg-[#0b5c53] text-white border border-teal-500/30"
+                                  ? "bg-amber-600 hover:bg-amber-700 text-white"
+                                  : "bg-teal-600 hover:bg-teal-700 text-white border border-teal-500/30"
                               }`}
                               title={activeLead.isPaused ? "Reactivar respuestas automáticas de Camila" : "Pausar respuestas automáticas de Camila para chatear de forma manual"}
                             >
@@ -1261,10 +1261,10 @@ export default function App() {
                             <button
                               onClick={handleAutoSimulateBuyer}
                               disabled={simulatingBuyer || sendingMsg}
-                              className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer"
+                              className="bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700/60 hover:border-teal-500/50 disabled:opacity-50 text-zinc-100 font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer"
                               title="Genera un mensaje o duda de forma aleatoria basada en el contexto con Gemini para testear al vendedor AI"
                             >
-                              <Sparkles className="h-3.5 w-3.5" />
+                              <Sparkles className="h-3.5 w-3.5 text-teal-400" />
                               {simulatingBuyer ? "Pensando..." : "Simular Objeción de Cliente"}
                             </button>
 
@@ -1273,7 +1273,7 @@ export default function App() {
                                 setReceiptSim((prev) => ({ ...prev, refCode: activeLead.assignedRef }));
                                 setShowReceiptModal(true);
                               }}
-                              className="bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer"
+                              className="bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer"
                               title="Genera una transferencia bancaria con código de referencia"
                             >
                               <CreditCard className="h-3.5 w-3.5" />
@@ -1283,22 +1283,22 @@ export default function App() {
                         </div>
 
                         {/* Leads Context Sidebar Overlay for WhatsApp test */}
-                        <div className="bg-slate-100 px-4 py-2 text-xs border-b border-slate-200 flex items-center gap-4 text-slate-600 justify-between">
+                        <div className="bg-[#121212]/80 px-4 py-2 text-xs border-b border-zinc-800/80 flex items-center gap-4 text-zinc-300 justify-between">
                           <div className="flex items-center gap-3 flex-wrap">
                             <span>📋 **Notas del CRM:** {activeLead.notes || "Sin notas específicas"}</span>
-                            <span>🔑 **Código asignado:** <code className="bg-slate-200 px-1 rounded font-bold font-mono">{activeLead.assignedRef}</code></span>
-                            <span>📦 **Plan:** <span className="font-bold capitalize">Docenty PRO Premium ($2 USD / Pago Móvil)</span></span>
+                            <span>🔑 **Código asignado:** <code className="bg-zinc-950 border border-zinc-800 text-teal-400 px-1 rounded font-bold font-mono">{activeLead.assignedRef}</code></span>
+                            <span>📦 **Plan:** <span className="font-bold capitalize text-teal-400">Docenty PRO Premium ($2 USD / Pago Móvil)</span></span>
                           </div>
                           <span
                             className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                               activeLead.status === "approved"
-                                ? "bg-emerald-100 text-emerald-800"
+                                ? "bg-teal-950/60 text-teal-300 border border-teal-800/30"
                                 : activeLead.status === "payment_sent"
-                                ? "bg-amber-100 text-amber-800"
-                                : "bg-sky-100 text-sky-800"
+                                ? "bg-amber-950/60 text-amber-300 border border-amber-800/30"
+                                : "bg-zinc-900 text-zinc-400 border border-zinc-800/60"
                             }`}
                           >
-                            Estado: {activeLead.status}
+                            Estado: {activeLead.status === "approved" ? "Activo" : activeLead.status === "payment_sent" ? "Verificando" : "Prospecto"}
                           </span>
                         </div>
 
@@ -1307,16 +1307,16 @@ export default function App() {
                           className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col"
                           style={{
                             backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')",
-                            backgroundBlendMode: "overlay",
-                            backgroundColor: "#efeae2",
+                            backgroundBlendMode: "multiply",
+                            backgroundColor: "#0d0d0d",
                           }}
                         >
                           {/* Alert if no history */}
                           {activeLead.messages.length === 0 && (
-                            <div className="bg-white/80 border border-slate-200 p-4 rounded-xl max-w-sm mx-auto text-center shadow-xs">
-                              <MessageSquare className="h-8 w-8 text-sky-600 mx-auto mb-2" />
-                              <p className="text-xs font-semibold text-slate-700">Conversación Vacía</p>
-                              <p className="text-[11px] text-slate-500 mt-0.5">
+                            <div className="bg-[#121212]/85 border border-zinc-800/80 p-4 rounded-xl max-w-sm mx-auto text-center shadow-xs">
+                              <MessageSquare className="h-8 w-8 text-teal-400 mx-auto mb-2" />
+                              <p className="text-xs font-semibold text-zinc-200">Conversación Vacía</p>
+                              <p className="text-[11px] text-zinc-400 mt-0.5">
                                 Escribe una duda como cliente o presiona <strong>"Simular Objeción"</strong> para iniciar la venta de Docenty PRO.
                               </p>
                             </div>
@@ -1334,14 +1334,14 @@ export default function App() {
                                 <div
                                   className={`p-3 rounded-xl shadow-xs relative ${
                                     isBot
-                                      ? "bg-white text-slate-800 rounded-tl-none"
-                                      : "bg-[#d9fdd3] text-slate-800 rounded-tr-none"
+                                      ? "bg-zinc-800 text-zinc-100 rounded-tl-none border border-zinc-700/50"
+                                      : "bg-teal-900/60 text-teal-100 border border-teal-800/60 rounded-tr-none"
                                   }`}
                                 >
                                   {/* Custom header if receipt attachment */}
                                   {msg.isReceipt && msg.receiptData && (
-                                    <div className="mb-2 border border-dashed border-emerald-400 p-2 rounded-lg bg-emerald-50/50">
-                                      <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 mb-1">
+                                    <div className="mb-2 border border-dashed border-teal-500/50 p-2 rounded-lg bg-teal-950/40">
+                                      <div className="flex items-center gap-1.5 text-xs font-bold text-teal-300 mb-1">
                                         <ImageIcon className="h-3.5 w-3.5" />
                                         <span>Captura de Comprobante Recibido</span>
                                       </div>
@@ -1350,25 +1350,25 @@ export default function App() {
                                         <img
                                           src={msg.receiptData.imageUrl}
                                           alt="Receipt"
-                                          className="w-full max-h-48 object-contain rounded border border-slate-200 mb-2 bg-white"
+                                          className="w-full max-h-48 object-contain rounded border border-zinc-800 mb-2 bg-[#121212]"
                                         />
                                       )}
 
                                       {/* OCR Readout */}
-                                      <div className="text-[11px] space-y-1 bg-white p-2 rounded border border-emerald-100">
+                                      <div className="text-[11px] space-y-1 bg-[#121212] p-2 rounded border border-zinc-800">
                                         <div className="flex justify-between">
-                                          <span className="text-slate-500">Monto:</span>
-                                          <span className="font-bold text-slate-800">{msg.receiptData.monto}</span>
+                                          <span className="text-zinc-500">Monto:</span>
+                                          <span className="font-bold text-zinc-100">{msg.receiptData.monto}</span>
                                         </div>
                                         <div className="flex justify-between">
-                                          <span className="text-slate-500">Ref Leída:</span>
-                                          <span className="font-bold font-mono text-emerald-700">{msg.receiptData.referencia || "No legible"}</span>
+                                          <span className="text-zinc-500">Ref Leída:</span>
+                                          <span className="font-bold font-mono text-teal-400">{msg.receiptData.referencia || "No legible"}</span>
                                         </div>
                                         <div className="flex justify-between">
-                                          <span className="text-slate-500">Banco:</span>
-                                          <span className="text-slate-800">{msg.receiptData.banco || "Banca Digital"}</span>
+                                          <span className="text-zinc-500">Banco:</span>
+                                          <span className="text-zinc-300">{msg.receiptData.banco || "Banca Digital"}</span>
                                         </div>
-                                        <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[10px] text-slate-600 leading-relaxed italic">
+                                        <div className="mt-1.5 pt-1.5 border-t border-zinc-800/80 text-[10px] text-zinc-400 leading-relaxed italic">
                                           &ldquo;{msg.receiptData.analisis}&rdquo;
                                         </div>
                                       </div>
@@ -1377,9 +1377,9 @@ export default function App() {
 
                                   {/* Custom audio player if audio message */}
                                   {msg.isAudio && msg.audioData && (
-                                    <div className="mb-2 p-2 rounded-lg bg-black/5 border border-slate-100 flex flex-col gap-1 w-full min-w-[240px]">
-                                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-700">
-                                        <Mic className="h-3 w-3 text-teal-600 animate-pulse" />
+                                    <div className="mb-2 p-2 rounded-lg bg-zinc-900 border border-zinc-800 flex flex-col gap-1 w-full min-w-[240px]">
+                                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-300">
+                                        <Mic className="h-3 w-3 text-teal-400 animate-pulse" />
                                         <span>Mensaje de Voz</span>
                                       </div>
                                       <audio
@@ -1394,7 +1394,7 @@ export default function App() {
                                   <p className="text-xs leading-relaxed whitespace-pre-wrap select-text">{msg.text}</p>
                                   
                                   {/* Metadata footer */}
-                                  <div className="flex justify-end items-center gap-1 mt-1 text-[9px] text-slate-400">
+                                  <div className="flex justify-end items-center gap-1 mt-1 text-[9px] text-zinc-500">
                                     <span>
                                       {new Date(msg.timestamp).toLocaleTimeString([], {
                                         hour: "2-digit",
@@ -1402,7 +1402,7 @@ export default function App() {
                                       })}
                                     </span>
                                     {!isBot && (
-                                      <CheckCheck className="h-3.5 w-3.5 text-sky-500" />
+                                      <CheckCheck className="h-3.5 w-3.5 text-teal-400" />
                                     )}
                                   </div>
                                 </div>
@@ -1412,7 +1412,7 @@ export default function App() {
 
                           {/* Loading animations */}
                           {(sendingMsg || simulatingBuyer) && (
-                            <div className="self-start bg-white p-3 rounded-xl rounded-tl-none shadow-xs text-xs text-slate-500 flex items-center gap-2 max-w-[200px]">
+                            <div className="self-start bg-zinc-800 border border-zinc-700/50 p-3 rounded-xl rounded-tl-none shadow-xs text-xs text-zinc-300 flex items-center gap-2 max-w-[200px]">
                               <span className="flex h-2 w-2 relative">
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
                                 <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
@@ -1422,12 +1422,12 @@ export default function App() {
                           )}
 
                           {verifyingReceipt && (
-                            <div className="self-start bg-white p-4 rounded-xl shadow-md border border-emerald-100 flex flex-col gap-2 max-w-xs">
-                              <div className="flex items-center gap-2 text-xs font-semibold text-emerald-800 animate-pulse">
-                                <RefreshCw className="h-4 w-4 animate-spin text-emerald-600" />
+                            <div className="self-start bg-zinc-800 p-4 rounded-xl shadow-md border border-teal-500/30 flex flex-col gap-2 max-w-xs">
+                              <div className="flex items-center gap-2 text-xs font-semibold text-teal-300 animate-pulse">
+                                <RefreshCw className="h-4 w-4 animate-spin text-teal-400" />
                                 <span>IA analizando comprobante con Visión...</span>
                               </div>
-                              <p className="text-[10px] text-slate-500 leading-relaxed">
+                              <p className="text-[10px] text-zinc-400 leading-relaxed">
                                 Escaneando el comprobante en la imagen, decodificando los códigos OCR y cotejando la referencia con la asignada.
                               </p>
                             </div>
@@ -1437,9 +1437,9 @@ export default function App() {
                         </div>
 
                         {/* Chat Footer Input bar */}
-                        <div className="bg-[#f0f2f5] p-3 flex items-center gap-2 border-t border-slate-200">
+                        <div className="bg-[#121212] p-3 flex items-center gap-2 border-t border-zinc-800/80">
                           {/* File input proxy button */}
-                          <label className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-200 rounded-lg cursor-pointer transition flex items-center justify-center" title="Subir Imagen de Comprobante">
+                          <label className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg cursor-pointer transition flex items-center justify-center" title="Subir Imagen de Comprobante">
                             <ImageIcon className="h-5 w-5" />
                             <input
                               type="file"
@@ -1450,7 +1450,7 @@ export default function App() {
                           </label>
 
                           {/* Audio upload proxy button */}
-                          <label className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-200 rounded-lg cursor-pointer transition flex items-center justify-center" title="Subir Archivo de Audio">
+                          <label className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg cursor-pointer transition flex items-center justify-center" title="Subir Archivo de Audio">
                             <Volume2 className="h-5 w-5" />
                             <input
                               type="file"
@@ -1464,7 +1464,7 @@ export default function App() {
                           {isRecording ? (
                             <button
                               onClick={stopRecording}
-                              className="p-2 text-white bg-red-500 hover:bg-red-600 rounded-lg cursor-pointer transition flex items-center justify-center animate-pulse animate-duration-1000"
+                              className="p-2 text-white bg-red-600 hover:bg-red-700 rounded-lg cursor-pointer transition flex items-center justify-center animate-pulse animate-duration-1000"
                               title="Detener grabación"
                             >
                               <Square className="h-5 w-5 fill-white" />
@@ -1472,7 +1472,7 @@ export default function App() {
                           ) : (
                             <button
                               onClick={startRecording}
-                              className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-200 rounded-lg cursor-pointer transition flex items-center justify-center"
+                              className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg cursor-pointer transition flex items-center justify-center"
                               title="Grabar nota de voz"
                             >
                               <Mic className="h-5 w-5" />
@@ -1483,17 +1483,17 @@ export default function App() {
                           <button
                             type="button"
                             onClick={handleSimulatePresetVoiceNote}
-                            className="px-2.5 py-1.5 text-[10px] bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-800 font-bold rounded-xl cursor-pointer transition flex items-center gap-1 shrink-0"
+                            className="px-2.5 py-1.5 text-[10px] bg-teal-950/40 hover:bg-teal-950/80 border border-teal-800/40 text-teal-400 font-bold rounded-xl cursor-pointer transition flex items-center gap-1 shrink-0"
                             title="Simular nota de voz del cliente"
                           >
-                            <Sparkles className="h-3 w-3 text-teal-600 animate-pulse" />
+                            <Sparkles className="h-3 w-3 text-teal-400 animate-pulse" />
                             <span>Simular Audio</span>
                           </button>
 
                           <input
                             type="text"
                             placeholder={activeLead.isPaused ? "Escribe tu mensaje manual como operador..." : "Escribe como profesor interesado... (ej. ¿Qué planes tienen?)"}
-                            className="flex-1 bg-white border border-slate-200 px-4 py-2 rounded-xl text-xs focus:outline-hidden focus:border-teal-600"
+                            className="flex-1 bg-zinc-900 border border-zinc-800 px-4 py-2 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-hidden focus:border-teal-500"
                             value={chatInput}
                             onChange={(e) => setChatInput(e.target.value)}
                             onKeyDown={(e) => {
@@ -1516,17 +1516,17 @@ export default function App() {
                               }
                             }}
                             disabled={!chatInput.trim() || sendingMsg}
-                            className="p-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-xl transition cursor-pointer flex items-center justify-center shadow-md shadow-teal-100"
+                            className="p-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-30 text-white rounded-xl transition cursor-pointer flex items-center justify-center shadow-md shadow-teal-950/40"
                           >
                             <Send className="h-4 w-4" />
                           </button>
                         </div>
                       </>
                     ) : (
-                      <div className="h-full flex flex-col items-center justify-center p-8 bg-white/70">
-                        <MessageCircle className="h-16 w-16 text-slate-300 mb-3" />
-                        <p className="text-sm font-semibold text-slate-600">No hay chats activos</p>
-                        <p className="text-xs text-slate-400 mt-1">Crea un cliente nuevo en la pestaña CRM para simular.</p>
+                      <div className="h-full flex flex-col items-center justify-center p-8 bg-zinc-950/40">
+                        <MessageCircle className="h-16 w-16 text-zinc-700 mb-3" />
+                        <p className="text-sm font-semibold text-zinc-400">No hay chats activos</p>
+                        <p className="text-xs text-zinc-500 mt-1">Crea un cliente nuevo en la pestaña CRM para simular.</p>
                       </div>
                     )}
                   </div>
@@ -1536,25 +1536,25 @@ export default function App() {
               {/* TAB 3: AI SYSTEM CONFIGURATION */}
               {activeTab === "config" && (
                 <div className="p-6 max-w-4xl mx-auto space-y-6">
-                  <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
-                    <div className="flex items-center gap-3 mb-6 border-b border-slate-100 pb-4">
-                      <Settings className="h-6 w-6 text-sky-600" />
+                  <div className="bg-[#121212]/90 rounded-2xl border border-zinc-800/80 p-6 shadow-xs">
+                    <div className="flex items-center gap-3 mb-6 border-b border-zinc-800/60 pb-4">
+                      <Settings className="h-6 w-6 text-teal-400" />
                       <div>
-                        <h3 className="font-display font-bold text-lg text-slate-900">Personalización del Agente IA</h3>
-                        <p className="text-xs text-slate-500">Configura el comportamiento, personalidad y datos de transferencia de la IA de WhatsApp.</p>
+                        <h3 className="font-display font-bold text-lg text-white">Personalización del Agente IA</h3>
+                        <p className="text-xs text-zinc-400">Configura el comportamiento, personalidad y datos de transferencia de la IA de WhatsApp.</p>
                       </div>
                     </div>
 
                     <form onSubmit={handleSaveConfig} className="space-y-6">
                       {/* Bank Details section */}
                       <div className="space-y-3">
-                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">🏦 Datos Bancarios para Cobros</h4>
-                        <p className="text-xs text-slate-500 leading-relaxed">
+                        <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wide">🏦 Datos Bancarios para Cobros</h4>
+                        <p className="text-xs text-zinc-400 leading-relaxed">
                           Estos datos son inyectados en la conversación cuando la IA instruye al cliente a realizar la transferencia.
                         </p>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div className="space-y-1">
-                            <label className="text-xs font-semibold text-slate-600">Banco Receptor</label>
+                            <label className="text-xs font-semibold text-zinc-400">Banco Receptor</label>
                             <input
                               type="text"
                               value={config.bankDetails.banco}
@@ -1564,11 +1564,11 @@ export default function App() {
                                   bankDetails: { ...prev.bankDetails, banco: e.target.value },
                                 }))
                               }
-                              className="w-full bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs focus:bg-white focus:border-sky-500 focus:outline-hidden"
+                              className="w-full bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-lg text-xs text-zinc-100 placeholder-zinc-600 focus:outline-hidden focus:border-teal-500"
                             />
                           </div>
                           <div className="space-y-1">
-                            <label className="text-xs font-semibold text-slate-600">Teléfono Pago Móvil</label>
+                            <label className="text-xs font-semibold text-zinc-400">Teléfono Pago Móvil</label>
                             <input
                               type="text"
                               value={config.bankDetails.cuenta}
@@ -1578,11 +1578,11 @@ export default function App() {
                                   bankDetails: { ...prev.bankDetails, cuenta: e.target.value },
                                 }))
                               }
-                              className="w-full bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs focus:bg-white focus:border-sky-500 focus:outline-hidden"
+                              className="w-full bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-lg text-xs text-zinc-100 placeholder-zinc-600 focus:outline-hidden focus:border-teal-500"
                             />
                           </div>
                           <div className="space-y-1">
-                            <label className="text-xs font-semibold text-slate-600">Cédula del Titular</label>
+                            <label className="text-xs font-semibold text-zinc-400">Cédula del Titular</label>
                             <input
                               type="text"
                               value={config.bankDetails.beneficiario}
@@ -1592,7 +1592,7 @@ export default function App() {
                                   bankDetails: { ...prev.bankDetails, beneficiario: e.target.value },
                                 }))
                               }
-                              className="w-full bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs focus:bg-white focus:border-sky-500 focus:outline-hidden"
+                              className="w-full bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-lg text-xs text-zinc-100 placeholder-zinc-600 focus:outline-hidden focus:border-teal-500"
                             />
                           </div>
                         </div>
@@ -1600,20 +1600,20 @@ export default function App() {
 
                       {/* System Prompt section */}
                       <div className="space-y-2">
-                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wide">🧠 Prompt del Agente Vendedor (System Prompt)</h4>
-                        <p className="text-xs text-slate-500 leading-relaxed">
+                        <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wide">🧠 Prompt del Agente Vendedor (System Prompt)</h4>
+                        <p className="text-xs text-zinc-400 leading-relaxed">
                           Define el tono de voz de Camila, las reglas del negocio de Docenty PRO, manejo de objeciones y cierres de venta.
                         </p>
                         <textarea
                           rows={14}
                           value={config.botSystemPrompt}
                           onChange={(e) => setConfig((prev) => ({ ...prev, botSystemPrompt: e.target.value }))}
-                          className="w-full bg-slate-50 border border-slate-200 p-4 rounded-xl text-xs font-mono focus:bg-white focus:border-sky-500 focus:outline-hidden leading-relaxed"
+                          className="w-full bg-zinc-900 border border-zinc-800 p-4 rounded-xl text-xs font-mono text-zinc-100 placeholder-zinc-600 focus:outline-hidden focus:border-teal-500 leading-relaxed"
                           placeholder="Instrucciones del sistema para el agente..."
                         />
                       </div>
 
-                      <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                      <div className="pt-4 border-t border-zinc-800/80 flex items-center justify-between">
                         <button
                           type="button"
                           onClick={() => {
@@ -1687,7 +1687,7 @@ Protocolo de Seguridad:
                             }));
                             showToast("Prompt restaurado al valor de fábrica (No guardado aún)", "info");
                           }}
-                          className="text-xs text-slate-500 hover:text-rose-600 transition cursor-pointer"
+                          className="text-xs text-zinc-500 hover:text-rose-400 transition cursor-pointer"
                         >
                           Restaurar prompt por defecto
                         </button>
@@ -1695,7 +1695,7 @@ Protocolo de Seguridad:
                         <button
                           type="submit"
                           disabled={actionLoading === "config"}
-                          className="bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-semibold text-xs px-5 py-2.5 rounded-xl transition cursor-pointer shadow-md shadow-sky-100"
+                          className="bg-teal-600 hover:bg-teal-700 disabled:opacity-30 text-white font-semibold text-xs px-5 py-2.5 rounded-xl transition cursor-pointer shadow-md shadow-teal-950/40"
                         >
                           {actionLoading === "config" ? "Guardando..." : "Guardar Ajustes de IA"}
                         </button>
@@ -1709,15 +1709,15 @@ Protocolo de Seguridad:
               {activeTab === "about" && (
                 <div className="p-6 max-w-4xl mx-auto space-y-6">
                   {/* Digital Brochure */}
-                  <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xs">
+                  <div className="bg-[#121212]/90 rounded-3xl border border-zinc-800/80 overflow-hidden shadow-xs">
                     {/* Visual Hero Banner */}
-                    <div className="bg-gradient-to-r from-sky-600 to-indigo-700 px-8 py-10 text-white relative">
+                    <div className="bg-gradient-to-r from-teal-950 to-zinc-900 px-8 py-10 text-white relative border-b border-zinc-800">
                       <div className="max-w-2xl">
-                        <span className="bg-sky-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider mb-2 inline-block">
+                        <span className="bg-teal-900/80 text-teal-300 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider mb-2 inline-block border border-teal-800/50">
                           SaaS para Educación de Vanguardia
                         </span>
                         <h2 className="font-display font-bold text-3xl leading-tight">Docenty PRO</h2>
-                        <p className="text-sky-100 text-sm mt-2 max-w-xl leading-relaxed">
+                        <p className="text-zinc-300 text-sm mt-2 max-w-xl leading-relaxed">
                           La plataforma definitiva que simplifica la vida de los educadores, eliminando el caos administrativo para que puedan enfocarse en lo que realmente aman: enseñar.
                         </p>
                       </div>
@@ -1729,32 +1729,32 @@ Protocolo de Seguridad:
                     <div className="p-8 space-y-8">
                       {/* Section 1: Problem solved */}
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="space-y-2 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                          <div className="bg-rose-100 text-rose-700 h-8 w-8 rounded-lg flex items-center justify-center font-bold text-sm">
+                        <div className="space-y-2 p-4 bg-zinc-900 rounded-2xl border border-zinc-800">
+                          <div className="bg-zinc-800 text-teal-400 h-8 w-8 rounded-lg flex items-center justify-center font-bold text-sm border border-zinc-700/50">
                             1
                           </div>
-                          <h4 className="font-bold text-sm text-slate-800">Adiós al Caos de Excel</h4>
-                          <p className="text-xs text-slate-500 leading-relaxed">
+                          <h4 className="font-bold text-sm text-zinc-100">Adiós al Caos de Excel</h4>
+                          <p className="text-xs text-zinc-400 leading-relaxed">
                             Centraliza asistencias, notas, reportes y planes didácticos en una sola interfaz limpia y visual, evitando hojas de cálculo infinitas.
                           </p>
                         </div>
 
-                        <div className="space-y-2 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                          <div className="bg-sky-100 text-sky-700 h-8 w-8 rounded-lg flex items-center justify-center font-bold text-sm">
+                        <div className="space-y-2 p-4 bg-zinc-900 rounded-2xl border border-zinc-800">
+                          <div className="bg-zinc-800 text-teal-400 h-8 w-8 rounded-lg flex items-center justify-center font-bold text-sm border border-zinc-700/50">
                             2
                           </div>
-                          <h4 className="font-bold text-sm text-slate-800">Automatización de Tareas</h4>
-                          <p className="text-xs text-slate-500 leading-relaxed">
+                          <h4 className="font-bold text-sm text-zinc-100">Automatización de Tareas</h4>
+                          <p className="text-xs text-zinc-400 leading-relaxed">
                             Ahorra hasta 10 horas de trabajo extra a la semana al automatizar la planeación de clases y la creación instantánea de exámenes.
                           </p>
                         </div>
 
-                        <div className="space-y-2 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                          <div className="bg-emerald-100 text-emerald-700 h-8 w-8 rounded-lg flex items-center justify-center font-bold text-sm">
+                        <div className="space-y-2 p-4 bg-zinc-900 rounded-2xl border border-zinc-800">
+                          <div className="bg-zinc-800 text-teal-400 h-8 w-8 rounded-lg flex items-center justify-center font-bold text-sm border border-zinc-700/50">
                             3
                           </div>
-                          <h4 className="font-bold text-sm text-slate-800">Seguimiento Dinámico</h4>
-                          <p className="text-xs text-slate-500 leading-relaxed">
+                          <h4 className="font-bold text-sm text-zinc-100">Seguimiento Dinámico</h4>
+                          <p className="text-xs text-zinc-400 leading-relaxed">
                             Ofrece gráficas automáticas y alertas sobre el progreso de cada alumno de manera visual para mejorar la calidad educativa.
                           </p>
                         </div>
@@ -1762,17 +1762,17 @@ Protocolo de Seguridad:
 
                       {/* Section 2: Pricing Structure */}
                       <div className="space-y-4">
-                        <h3 className="font-display font-bold text-base text-slate-900 border-b border-slate-100 pb-2">Planes Comerciales de Docenty PRO</h3>
+                        <h3 className="font-display font-bold text-base text-zinc-100 border-b border-zinc-800 pb-2">Planes Comerciales de Docenty PRO</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {/* Plan único */}
-                          <div className="border border-slate-200 p-6 rounded-2xl space-y-3 hover:border-slate-300 transition bg-white">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase">Acceso Completo</span>
-                            <h4 className="font-display font-bold text-lg text-slate-800">Suscripción Premium</h4>
+                          <div className="border border-zinc-800 p-6 rounded-2xl space-y-3 hover:border-zinc-700 transition bg-zinc-900">
+                            <span className="text-[10px] font-bold text-teal-400 uppercase">Acceso Completo</span>
+                            <h4 className="font-display font-bold text-lg text-white">Suscripción Premium</h4>
                             <div className="flex items-baseline gap-1">
-                              <span className="text-3xl font-display font-bold text-slate-900">$2</span>
-                              <span className="text-xs text-slate-500">USD / año</span>
+                              <span className="text-3xl font-display font-bold text-white">$2</span>
+                              <span className="text-xs text-zinc-400">USD / año</span>
                             </div>
-                            <ul className="text-xs text-slate-600 space-y-2 pt-2">
+                            <ul className="text-xs text-zinc-300 space-y-2 pt-2">
                               <li className="flex items-center gap-1.5">✅ Registro ilimitado de asistencias y notas</li>
                               <li className="flex items-center gap-1.5">✅ Planeación de clases y rúbricas ilimitadas con IA</li>
                               <li className="flex items-center gap-1.5">✅ Generador inteligente de exámenes en 1 click</li>
@@ -1780,16 +1780,16 @@ Protocolo de Seguridad:
                           </div>
 
                           {/* Pago Móvil info */}
-                          <div className="border-2 border-sky-600 p-6 rounded-2xl space-y-3 relative overflow-hidden bg-sky-50/20">
-                            <div className="absolute top-0 right-0 bg-sky-600 text-white text-[9px] font-bold px-3 py-1 rounded-bl-xl uppercase">
+                          <div className="border-2 border-teal-600 p-6 rounded-2xl space-y-3 relative overflow-hidden bg-teal-950/20">
+                            <div className="absolute top-0 right-0 bg-teal-600 text-white text-[9px] font-bold px-3 py-1 rounded-bl-xl uppercase">
                               TASA OFICIAL BCV
                             </div>
-                            <span className="text-[10px] font-bold text-sky-600 uppercase">Cobro en Bolívares (Bs.)</span>
-                            <h4 className="font-display font-bold text-lg text-slate-900">Pago Móvil BDV</h4>
+                            <span className="text-[10px] font-bold text-teal-300 uppercase">Cobro en Bolívares (Bs.)</span>
+                            <h4 className="font-display font-bold text-lg text-white">Pago Móvil BDV</h4>
                             <div className="flex items-baseline gap-1">
-                              <span className="text-lg font-display font-bold text-sky-700">Banco de Venezuela</span>
+                              <span className="text-lg font-display font-bold text-teal-400">Banco de Venezuela</span>
                             </div>
-                            <ul className="text-xs text-slate-700 space-y-2 pt-2 font-medium">
+                            <ul className="text-xs text-zinc-300 space-y-2 pt-2 font-medium">
                               <li className="flex items-center gap-1.5">✨ Pago directo al cambio oficial del BCV del día</li>
                               <li className="flex items-center gap-1.5">✨ Teléfono: 04262953484</li>
                               <li className="flex items-center gap-1.5">✨ Cédula: 24755720</li>
@@ -1800,18 +1800,18 @@ Protocolo de Seguridad:
                       </div>
 
                       {/* Section 3: CRM AI value */}
-                      <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex flex-col md:flex-row gap-6 items-center justify-between">
+                      <div className="bg-[#121212] p-6 rounded-2xl border border-zinc-800 flex flex-col md:flex-row gap-6 items-center justify-between">
                         <div className="space-y-2 max-w-xl">
-                          <h4 className="font-bold text-sm text-slate-800">¿Cómo el CRM con IA impulsa este negocio?</h4>
-                          <p className="text-xs text-slate-500 leading-relaxed">
+                          <h4 className="font-bold text-sm text-zinc-200">¿Cómo el CRM con IA impulsa este negocio?</h4>
+                          <p className="text-xs text-zinc-400 leading-relaxed">
                             Dado que los profesores están sumamente ocupados y las instituciones educativas toman tiempo en decidir, este CRM automatiza el seguimiento en WhatsApp. Responde dudas, destaca el ahorro de tiempo, explica planes, provee datos de banco y confirma el pago reconociendo imágenes para crear cuentas de inmediato, escalando el negocio de forma masiva sin un equipo de ventas humano.
                           </p>
                         </div>
                         <button
                           onClick={() => setActiveTab("whatsapp")}
-                          className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-5 py-3 rounded-xl transition flex items-center gap-2 flex-shrink-0 cursor-pointer"
+                          className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-5 py-3 rounded-xl transition flex items-center gap-2 flex-shrink-0 cursor-pointer shadow-md shadow-teal-950/40"
                         >
-                          Ir al simulador de venta
+                          Ir al chat de venta
                           <ArrowRight className="h-4 w-4" />
                         </button>
                       </div>
@@ -1827,109 +1827,109 @@ Protocolo de Seguridad:
       {/* MODAL 1: CREATE NEW PROSPECT */}
       <AnimatePresence>
         {showCreateModal && (
-          <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl border border-slate-200 max-w-lg w-full p-6 shadow-2xl space-y-4"
+              className="bg-[#121212]/95 rounded-3xl border border-zinc-800/80 max-w-lg w-full p-6 shadow-2xl space-y-4 text-white"
             >
-              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                <h3 className="font-display font-bold text-base text-slate-900">Registrar Cliente Potencial (Lead)</h3>
+              <div className="flex justify-between items-center border-b border-zinc-800/80 pb-3">
+                <h3 className="font-display font-bold text-base text-white">Registrar Cliente Potencial (Lead)</h3>
                 <button
                   onClick={() => setShowCreateModal(false)}
-                  className="p-1 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+                  className="p-1 hover:bg-zinc-800 rounded-lg transition cursor-pointer text-zinc-400 hover:text-white"
                 >
-                  <X className="h-4 w-4 text-slate-500" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
 
               <form onSubmit={handleCreateLead} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-600">Nombre Completo *</label>
+                    <label className="text-xs font-semibold text-zinc-400">Nombre Completo *</label>
                     <input
                       type="text"
                       placeholder="Ej. Profesor Carlos Ruiz"
                       required
                       value={newLeadForm.name}
                       onChange={(e) => setNewLeadForm((prev) => ({ ...prev, name: e.target.value }))}
-                      className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-xs focus:bg-white focus:border-sky-500 focus:outline-hidden"
+                      className="w-full bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-lg text-xs text-white placeholder-zinc-600 focus:outline-hidden focus:border-teal-500"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-600">Número de WhatsApp *</label>
+                    <label className="text-xs font-semibold text-zinc-400">Número de WhatsApp *</label>
                     <input
                       type="tel"
                       placeholder="Ej. +52 55 1234 5678"
                       required
                       value={newLeadForm.phone}
                       onChange={(e) => setNewLeadForm((prev) => ({ ...prev, phone: e.target.value }))}
-                      className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-xs focus:bg-white focus:border-sky-500 focus:outline-hidden"
+                      className="w-full bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-lg text-xs text-white placeholder-zinc-600 focus:outline-hidden focus:border-teal-500"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-600">Correo Electrónico (Para envío de cuenta)</label>
+                  <label className="text-xs font-semibold text-zinc-400">Correo Electrónico (Para envío de cuenta)</label>
                   <input
                     type="email"
                     placeholder="carlos.ruiz@colegio.edu"
                     value={newLeadForm.email}
                     onChange={(e) => setNewLeadForm((prev) => ({ ...prev, email: e.target.value }))}
-                    className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-xs focus:bg-white focus:border-sky-500 focus:outline-hidden"
+                    className="w-full bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-lg text-xs text-white placeholder-zinc-600 focus:outline-hidden focus:border-teal-500"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-600">Plan de Interés</label>
+                    <label className="text-xs font-semibold text-zinc-400">Plan de Interés</label>
                     <select
                       value={newLeadForm.plan}
                       onChange={(e) => setNewLeadForm((prev) => ({ ...prev, plan: e.target.value as any }))}
-                      className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-xs focus:bg-white focus:border-sky-500 focus:outline-hidden"
+                      className="w-full bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-lg text-xs text-white focus:outline-hidden focus:border-teal-500"
                     >
-                      <option value="annual">Docenty PRO Premium ($2 USD)</option>
+                      <option value="annual" className="bg-[#121212]">Docenty PRO Premium ($2 USD)</option>
                     </select>
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-600">Estado Inicial</label>
+                    <label className="text-xs font-semibold text-zinc-400">Estado Inicial</label>
                     <select
                       value={newLeadForm.status}
                       onChange={(e) => setNewLeadForm((prev) => ({ ...prev, status: e.target.value as any }))}
-                      className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-xs focus:bg-white focus:border-sky-500 focus:outline-hidden"
+                      className="w-full bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-lg text-xs text-white focus:outline-hidden focus:border-teal-500"
                     >
-                      <option value="prospect">Prospecto (Sin interacción aún)</option>
-                      <option value="interested">Interesado (Tiene dudas)</option>
-                      <option value="payment_sent">Pago Recibido (A espera de validar)</option>
+                      <option value="prospect" className="bg-[#121212]">Prospecto (Sin interacción aún)</option>
+                      <option value="interested" className="bg-[#121212]">Interesado (Tiene dudas)</option>
+                      <option value="payment_sent" className="bg-[#121212]">Pago Recibido (A espera de validar)</option>
                     </select>
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-600">Notas sobre sus dolores / necesidades</label>
+                  <label className="text-xs font-semibold text-zinc-400">Notas sobre sus dolores / necesidades</label>
                   <textarea
                     rows={3}
                     placeholder="Ej. Enseña química, trabaja los domingos haciendo exámenes, cansado de planificar clases..."
                     value={newLeadForm.notes}
                     onChange={(e) => setNewLeadForm((prev) => ({ ...prev, notes: e.target.value }))}
-                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg text-xs focus:bg-white focus:border-sky-500 focus:outline-hidden"
+                    className="w-full bg-zinc-900 border border-zinc-800 p-3 rounded-lg text-xs text-white placeholder-zinc-600 focus:outline-hidden focus:border-teal-500"
                   />
                 </div>
 
-                <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
+                <div className="pt-3 border-t border-zinc-800/80 flex justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => setShowCreateModal(false)}
-                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-4 py-2.5 rounded-lg transition cursor-pointer"
+                    className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold px-4 py-2.5 rounded-lg transition cursor-pointer border border-zinc-700/50"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-4 py-2.5 rounded-lg transition cursor-pointer shadow-md shadow-sky-100"
+                    className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold px-4 py-2.5 rounded-lg transition cursor-pointer shadow-md shadow-teal-950/40"
                   >
                     Crear Prospecto
                   </button>
@@ -1943,32 +1943,32 @@ Protocolo de Seguridad:
       {/* MODAL 2: RECEIPT GENERATOR (CANVAS SIMULATION) */}
       <AnimatePresence>
         {showReceiptModal && (
-          <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-3xl border border-slate-200 max-w-md w-full p-6 shadow-2xl space-y-4"
+              className="bg-[#121212]/95 rounded-3xl border border-zinc-800/80 max-w-md w-full p-6 shadow-2xl space-y-4 text-white"
             >
-              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                <h3 className="font-display font-bold text-base text-slate-900 flex items-center gap-2">
-                  <CreditCard className="h-5 w-5 text-sky-600" />
+              <div className="flex justify-between items-center border-b border-zinc-800/80 pb-3">
+                <h3 className="font-display font-bold text-base text-white flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-teal-400" />
                   Simulador de Transferencia Bancaria
                 </h3>
                 <button
                   onClick={() => setShowReceiptModal(false)}
-                  className="p-1 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+                  className="p-1 hover:bg-zinc-800 rounded-lg transition cursor-pointer text-zinc-400 hover:text-white"
                 >
-                  <X className="h-4 w-4 text-slate-500" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
 
-              <div className="text-xs text-slate-500 leading-relaxed space-y-2">
+              <div className="text-xs text-zinc-400 leading-relaxed space-y-2">
                 <p>
                   Para demostrar cómo la IA lee imágenes y confirma el pedido de inmediato, crearemos un 
                   comprobante en un lienzo canvas y lo enviaremos por WhatsApp.
                 </p>
-                <div className="bg-amber-50 border border-amber-200 p-2.5 rounded-lg text-amber-800 font-medium">
+                <div className="bg-amber-950/20 border border-amber-900/40 p-2.5 rounded-lg text-amber-300 font-medium">
                   💡 <strong>Tip de Testeo:</strong> Puedes ingresar la referencia correcta para forzar la aprobación de la IA, 
                   o cambiarla por una incorrecta (o dejarla vacía) para ver cómo el sistema de visión la rechaza o la deja en espera.
                 </div>
@@ -1976,50 +1976,50 @@ Protocolo de Seguridad:
 
               <div className="space-y-3 pt-2">
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-600">Banco del Cliente Emisor</label>
+                  <label className="text-xs font-semibold text-zinc-400">Banco del Cliente Emisor</label>
                   <input
                     type="text"
                     value={receiptSim.bank}
                     onChange={(e) => setReceiptSim((prev) => ({ ...prev, bank: e.target.value }))}
-                    className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-xs focus:bg-white focus:border-sky-500 focus:outline-hidden"
+                    className="w-full bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-lg text-xs text-white placeholder-zinc-600 focus:outline-hidden focus:border-teal-500"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-600">Código Referencia Escrito</label>
+                    <label className="text-xs font-semibold text-zinc-400">Código Referencia Escrito</label>
                     <input
                       type="text"
                       value={receiptSim.refCode}
                       onChange={(e) => setReceiptSim((prev) => ({ ...prev, refCode: e.target.value }))}
-                      className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-xs focus:bg-white focus:border-sky-500 focus:outline-hidden font-mono font-bold"
+                      className="w-full bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-lg text-xs text-white focus:outline-hidden focus:border-teal-500 font-mono font-bold"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-600">Monto Transferido (USD)</label>
+                    <label className="text-xs font-semibold text-zinc-400">Monto Transferido (USD)</label>
                     <input
                       type="number"
                       value={receiptSim.amount}
                       onChange={(e) => setReceiptSim((prev) => ({ ...prev, amount: e.target.value }))}
-                      className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-xs focus:bg-white focus:border-sky-500 focus:outline-hidden font-bold"
+                      className="w-full bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-lg text-xs text-white focus:outline-hidden focus:border-teal-500 font-bold"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
+              <div className="pt-3 border-t border-zinc-800/80 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowReceiptModal(false)}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-4 py-2.5 rounded-lg transition cursor-pointer"
+                  className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold px-4 py-2.5 rounded-lg transition cursor-pointer border border-zinc-700/50"
                 >
                   Cancelar
                 </button>
                 <button
                   type="button"
                   onClick={handleGenerateAndSendReceipt}
-                  className="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-4 py-2.5 rounded-lg transition cursor-pointer shadow-md shadow-sky-100 flex items-center gap-1.5"
+                  className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold px-4 py-2.5 rounded-lg transition cursor-pointer shadow-md shadow-teal-950/40 flex items-center gap-1.5"
                 >
                   <Play className="h-3.5 w-3.5" />
                   Generar y Enviar a WhatsApp
