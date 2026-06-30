@@ -30,6 +30,7 @@ import {
   AlertTriangle,
   ExternalLink,
   MessageCircle,
+  ArrowLeft,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Lead, Message, BankDetails, SystemConfigs } from "./types";
@@ -80,6 +81,7 @@ export default function App() {
   });
   const [uploadedImageBase64, setUploadedImageBase64] = useState<string | null>(null);
   const [validationResult, setValidationResult] = useState<any>(null);
+  const [mobileChatView, setMobileChatView] = useState<"list" | "chat">("list");
 
   // Notifications / Feedback
   const [notification, setNotification] = useState<{
@@ -778,37 +780,38 @@ export default function App() {
       </AnimatePresence>
 
       {/* Header */}
-      <header className="bg-[#121212]/90 backdrop-blur-md border-b border-zinc-800/80 px-6 py-4 flex items-center justify-between sticky top-0 z-20" id="app-header">
-        <div className="flex items-center gap-3">
-          <div className="bg-teal-600 text-white p-2.5 rounded-xl shadow-md shadow-teal-950/40 flex items-center justify-center">
-            <Sparkles className="h-6 w-6" />
+      <header className="bg-[#121212]/90 backdrop-blur-md border-b border-zinc-800/80 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between sticky top-0 z-20" id="app-header">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="bg-teal-600 text-white p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl shadow-md shadow-teal-950/40 flex items-center justify-center">
+            <Sparkles className="h-4 w-4 sm:h-6 sm:w-6" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="font-display font-bold text-xl tracking-tight text-white">Docenty PRO</h1>
-              <span className="bg-teal-950/60 text-teal-300 text-[10px] font-bold px-1.5 py-0.5 rounded border border-teal-800/50">CRM IA</span>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <h1 className="font-display font-bold text-base sm:text-xl tracking-tight text-white">Docenty PRO</h1>
+              <span className="bg-teal-950/60 text-teal-300 text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded border border-teal-800/50">CRM IA</span>
             </div>
-            <p className="text-xs text-zinc-400">Gestor de WhatsApp & Ventas SaaS en Piloto Automático</p>
+            <p className="text-xs text-zinc-400 hidden sm:block">Gestor de WhatsApp & Ventas SaaS en Piloto Automático</p>
           </div>
         </div>
 
         {/* Top bar controls */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={handleResetDb}
-            className="flex items-center gap-1.5 text-xs text-zinc-300 hover:text-teal-400 bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/50 px-3 py-2 rounded-lg font-medium transition cursor-pointer"
+            className="flex items-center gap-1.5 text-xs text-zinc-300 hover:text-teal-400 bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/50 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg font-medium transition cursor-pointer"
             title="Restablecer base de datos con leads demo"
           >
             <RefreshCw className="h-3.5 w-3.5" />
-            Reiniciar Demo
+            <span className="hidden sm:inline">Reiniciar Demo</span>
           </button>
           
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-1.5 text-xs text-white bg-teal-600 hover:bg-teal-700 px-3 py-2 rounded-lg font-semibold transition cursor-pointer shadow-md shadow-teal-950/40"
+            className="flex items-center gap-1.5 text-xs text-white bg-teal-600 hover:bg-teal-700 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg font-semibold transition cursor-pointer shadow-md shadow-teal-950/40"
+            title="Crear un nuevo lead"
           >
             <Plus className="h-4 w-4" />
-            Nuevo Lead
+            <span className="hidden sm:inline">Nuevo Lead</span>
           </button>
         </div>
       </header>
@@ -816,7 +819,7 @@ export default function App() {
       {/* Main Workspace Layout */}
       <div className="flex-1 flex overflow-hidden">
         {/* Navigation Sidebar */}
-        <aside className="w-64 bg-[#121212]/90 border-r border-zinc-800/80 flex flex-col justify-between" id="app-sidebar">
+        <aside className="hidden md:flex w-64 bg-[#121212]/90 border-r border-zinc-800/80 flex-col justify-between" id="app-sidebar">
           <div className="p-4 flex flex-col gap-1">
             <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider px-3 mb-2">Módulos</p>
             
@@ -898,7 +901,7 @@ export default function App() {
         </aside>
 
         {/* Content Container */}
-        <main className="flex-1 overflow-y-auto bg-carbon">
+        <main className="flex-1 overflow-y-auto bg-carbon pb-20 md:pb-0">
           {loading ? (
             <div className="h-full flex flex-col items-center justify-center p-8">
               <RefreshCw className="h-8 w-8 text-teal-500 animate-spin mb-4" />
@@ -910,54 +913,54 @@ export default function App() {
               {activeTab === "crm" && (
                 <div className="p-6 max-w-7xl mx-auto space-y-6">
                   {/* Dashboard Hero stats */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                    <div className="bg-[#121212]/90 p-4 rounded-2xl border border-zinc-800/80 shadow-xs flex items-center justify-between">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+                    <div className="bg-[#121212]/90 p-3 sm:p-4 rounded-2xl border border-zinc-800/80 shadow-xs flex items-center justify-between">
                       <div>
-                        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Total Leads</p>
-                        <h3 className="text-2xl font-display font-bold text-white mt-1">{totalLeads}</h3>
+                        <p className="text-[10px] sm:text-xs font-semibold text-zinc-400 uppercase tracking-wider">Total Leads</p>
+                        <h3 className="text-xl sm:text-2xl font-display font-bold text-white mt-1">{totalLeads}</h3>
                       </div>
-                      <div className="bg-zinc-800/60 p-2.5 rounded-xl text-zinc-300">
-                        <Users className="h-5 w-5" />
+                      <div className="bg-zinc-800/60 p-2 sm:p-2.5 rounded-xl text-zinc-300">
+                        <Users className="h-4 sm:h-5 w-4 sm:w-5" />
                       </div>
                     </div>
 
-                    <div className="bg-[#121212]/90 p-4 rounded-2xl border border-zinc-800/80 shadow-xs flex items-center justify-between">
+                    <div className="bg-[#121212]/90 p-3 sm:p-4 rounded-2xl border border-zinc-800/80 shadow-xs flex items-center justify-between">
                       <div>
-                        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Tasa Conversión</p>
-                        <h3 className="text-2xl font-display font-bold text-teal-400 mt-1">{conversionRate}%</h3>
+                        <p className="text-[10px] sm:text-xs font-semibold text-zinc-400 uppercase tracking-wider">Tasa Conv.</p>
+                        <h3 className="text-xl sm:text-2xl font-display font-bold text-teal-400 mt-1">{conversionRate}%</h3>
                       </div>
-                      <div className="bg-teal-950/40 p-2.5 rounded-xl text-teal-400 border border-teal-900/30">
-                        <TrendingUp className="h-5 w-5" />
+                      <div className="bg-teal-950/40 p-2 sm:p-2.5 rounded-xl text-teal-400 border border-teal-900/30">
+                        <TrendingUp className="h-4 sm:h-5 w-4 sm:w-5" />
                       </div>
                     </div>
 
-                    <div className="bg-[#121212]/90 p-4 rounded-2xl border border-zinc-800/80 shadow-xs flex items-center justify-between">
+                    <div className="bg-[#121212]/90 p-3 sm:p-4 rounded-2xl border border-zinc-800/80 shadow-xs flex items-center justify-between">
                       <div>
-                        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Suscritos Activos</p>
-                        <h3 className="text-2xl font-display font-bold text-teal-400 mt-1">{activeSubscribers}</h3>
+                        <p className="text-[10px] sm:text-xs font-semibold text-zinc-400 uppercase tracking-wider">Premium Act.</p>
+                        <h3 className="text-xl sm:text-2xl font-display font-bold text-teal-400 mt-1">{activeSubscribers}</h3>
                       </div>
-                      <div className="bg-teal-950/40 p-2.5 rounded-xl text-teal-400 border border-teal-900/30">
-                        <ShieldCheck className="h-5 w-5" />
+                      <div className="bg-teal-950/40 p-2 sm:p-2.5 rounded-xl text-teal-400 border border-teal-900/30">
+                        <ShieldCheck className="h-4 sm:h-5 w-4 sm:w-5" />
                       </div>
                     </div>
 
-                    <div className="bg-[#121212]/90 p-4 rounded-2xl border border-zinc-800/80 shadow-xs flex items-center justify-between">
+                    <div className="bg-[#121212]/90 p-3 sm:p-4 rounded-2xl border border-zinc-800/80 shadow-xs flex items-center justify-between">
                       <div>
-                        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Pendientes de Pago</p>
-                        <h3 className="text-2xl font-display font-bold text-amber-400 mt-1">{pendingPayments}</h3>
+                        <p className="text-[10px] sm:text-xs font-semibold text-zinc-400 uppercase tracking-wider">Pend. Pago</p>
+                        <h3 className="text-xl sm:text-2xl font-display font-bold text-amber-400 mt-1">{pendingPayments}</h3>
                       </div>
-                      <div className="bg-amber-950/40 p-2.5 rounded-xl text-amber-400 border border-amber-900/30">
-                        <CreditCard className="h-5 w-5" />
+                      <div className="bg-amber-950/40 p-2 sm:p-2.5 rounded-xl text-amber-400 border border-amber-900/30">
+                        <CreditCard className="h-4 sm:h-5 w-4 sm:w-5" />
                       </div>
                     </div>
 
-                    <div className="bg-[#121212]/90 p-4 rounded-2xl border border-zinc-800/80 shadow-xs flex items-center justify-between">
+                    <div className="col-span-2 sm:col-span-1 bg-[#121212]/90 p-3 sm:p-4 rounded-2xl border border-zinc-800/80 shadow-xs flex items-center justify-between">
                       <div>
-                        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Ingreso Anual ARR</p>
-                        <h3 className="text-2xl font-display font-bold text-white mt-1">${potentialArr} USD</h3>
+                        <p className="text-[10px] sm:text-xs font-semibold text-zinc-400 uppercase tracking-wider">Ingreso Anual ARR</p>
+                        <h3 className="text-xl sm:text-2xl font-display font-bold text-white mt-1">${potentialArr} USD</h3>
                       </div>
-                      <div className="bg-zinc-800/60 p-2.5 rounded-xl text-zinc-300">
-                        <Sparkles className="h-5 w-5" />
+                      <div className="bg-zinc-800/60 p-2 sm:p-2.5 rounded-xl text-zinc-300">
+                        <Sparkles className="h-4 sm:h-5 w-4 sm:w-5" />
                       </div>
                     </div>
                   </div>
@@ -1014,38 +1017,138 @@ export default function App() {
                         <p className="text-xs text-zinc-500 mt-1">Prueba cambiando los filtros o agrega un prospecto nuevo.</p>
                       </div>
                     ) : (
-                      <div className="divide-y divide-zinc-800/50 overflow-x-auto">
-                        <table className="w-full text-left border-collapse min-w-[700px]">
-                          <thead>
-                            <tr className="bg-zinc-900/40 text-zinc-400 text-xs font-bold uppercase tracking-wider border-b border-zinc-800/80">
-                              <th className="px-6 py-3">Cliente</th>
-                              <th className="px-6 py-3">Estado Embudo</th>
-                              <th className="px-6 py-3">Plan de Interés</th>
-                              <th className="px-6 py-3">Código Ref Unico</th>
-                              <th className="px-6 py-3">Último Mensaje</th>
-                              <th className="px-6 py-3 text-right">Acciones</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-zinc-800/30 text-sm">
-                            {filteredLeads.map((lead) => (
-                              <tr
+                      <>
+                        {/* Desktop View Table */}
+                        <div className="hidden md:block divide-y divide-zinc-800/50 overflow-x-auto">
+                          <table className="w-full text-left border-collapse min-w-[700px]">
+                            <thead>
+                              <tr className="bg-zinc-900/40 text-zinc-400 text-xs font-bold uppercase tracking-wider border-b border-zinc-800/80">
+                                <th className="px-6 py-3">Cliente</th>
+                                <th className="px-6 py-3">Estado Embudo</th>
+                                <th className="px-6 py-3">Plan de Interés</th>
+                                <th className="px-6 py-3">Código Ref Unico</th>
+                                <th className="px-6 py-3">Último Mensaje</th>
+                                <th className="px-6 py-3 text-right">Acciones</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-800/30 text-sm">
+                              {filteredLeads.map((lead) => (
+                                <tr
+                                  key={lead.id}
+                                  onClick={() => {
+                                    setSelectedLeadId(lead.id);
+                                    setActiveTab("whatsapp");
+                                    setMobileChatView("chat");
+                                  }}
+                                  className="hover:bg-zinc-800/40 transition cursor-pointer group"
+                                >
+                                  <td className="px-6 py-4">
+                                    <div className="font-bold text-white">{lead.name}</div>
+                                    <div className="text-xs text-zinc-400 flex flex-col gap-0.5 mt-0.5">
+                                      <span>📱 {lead.phone}</span>
+                                      {lead.email && <span>✉️ {lead.email}</span>}
+                                    </div>
+                                  </td>
+                                  <td className="px-6 py-4">
+                                    <span
+                                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
+                                        lead.status === "approved"
+                                          ? "bg-teal-950/60 text-teal-300 border border-teal-800/30"
+                                          : lead.status === "payment_sent"
+                                          ? "bg-amber-950/60 text-amber-300 border border-amber-800/30"
+                                          : lead.status === "interested"
+                                          ? "bg-zinc-900 text-zinc-300 border border-zinc-800"
+                                          : "bg-zinc-900 text-zinc-400 border border-zinc-800/60"
+                                      }`}
+                                    >
+                                      <span
+                                        className={`h-1.5 w-1.5 rounded-full ${
+                                          lead.status === "approved"
+                                            ? "bg-teal-400"
+                                            : lead.status === "payment_sent"
+                                            ? "bg-amber-400"
+                                            : lead.status === "interested"
+                                            ? "bg-zinc-400"
+                                            : "bg-zinc-500"
+                                        }`}
+                                      ></span>
+                                      {lead.status === "approved"
+                                        ? "Activo Premium"
+                                        : lead.status === "payment_sent"
+                                        ? "Pago Recibido"
+                                        : lead.status === "interested"
+                                        ? "Interesado"
+                                        : "Prospecto"}
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-4">
+                                    <span className="font-semibold text-zinc-300 capitalize">
+                                      Docenty PRO ($2 USD)
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-4">
+                                    <code className="bg-zinc-950 border border-zinc-800 px-2 py-0.5 rounded text-xs font-mono font-bold text-teal-400">
+                                      {lead.assignedRef}
+                                    </code>
+                                  </td>
+                                  <td className="px-6 py-4 max-w-[200px] truncate">
+                                    {lead.messages.length > 0 ? (
+                                      <span className="text-xs text-zinc-400">
+                                        {lead.messages[lead.messages.length - 1].text}
+                                      </span>
+                                    ) : (
+                                      <span className="text-xs text-zinc-500 italic">Sin mensajes todavía</span>
+                                    )}
+                                  </td>
+                                  <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                                    <div className="flex items-center justify-end gap-1.5">
+                                      <button
+                                        onClick={() => {
+                                          setSelectedLeadId(lead.id);
+                                          setActiveTab("whatsapp");
+                                          setMobileChatView("chat");
+                                        }}
+                                        className="p-1.5 text-zinc-400 hover:text-teal-400 hover:bg-teal-950/40 rounded-lg transition"
+                                        title="Simular chat de WhatsApp"
+                                      >
+                                        <MessageCircle className="h-4 w-4" />
+                                      </button>
+                                      <button
+                                        onClick={(e) => handleDeleteLead(lead.id, e)}
+                                        className="p-1.5 text-zinc-500 hover:text-rose-400 hover:bg-rose-950/40 rounded-lg transition"
+                                        title="Eliminar lead"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Mobile View Stacked Cards */}
+                        <div className="block md:hidden divide-y divide-zinc-800/40">
+                          {filteredLeads.map((lead) => {
+                            const lastMsg = lead.messages[lead.messages.length - 1];
+                            return (
+                              <div
                                 key={lead.id}
                                 onClick={() => {
                                   setSelectedLeadId(lead.id);
                                   setActiveTab("whatsapp");
+                                  setMobileChatView("chat");
                                 }}
-                                className="hover:bg-zinc-800/40 transition cursor-pointer group"
+                                className="p-4 bg-[#121212]/40 active:bg-zinc-900/40 transition cursor-pointer flex flex-col gap-3"
                               >
-                                <td className="px-6 py-4">
-                                  <div className="font-bold text-white">{lead.name}</div>
-                                  <div className="text-xs text-zinc-400 flex flex-col gap-0.5 mt-0.5">
-                                    <span>📱 {lead.phone}</span>
-                                    {lead.email && <span>✉️ {lead.email}</span>}
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <h4 className="font-bold text-sm text-white">{lead.name}</h4>
+                                    <p className="text-xs text-zinc-400 mt-0.5">📱 {lead.phone}</p>
                                   </div>
-                                </td>
-                                <td className="px-6 py-4">
                                   <span
-                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
                                       lead.status === "approved"
                                         ? "bg-teal-950/60 text-teal-300 border border-teal-800/30"
                                         : lead.status === "payment_sent"
@@ -1055,71 +1158,59 @@ export default function App() {
                                         : "bg-zinc-900 text-zinc-400 border border-zinc-800/60"
                                     }`}
                                   >
-                                    <span
-                                      className={`h-1.5 w-1.5 rounded-full ${
-                                        lead.status === "approved"
-                                          ? "bg-teal-400"
-                                          : lead.status === "payment_sent"
-                                          ? "bg-amber-400"
-                                          : lead.status === "interested"
-                                          ? "bg-zinc-400"
-                                          : "bg-zinc-500"
-                                      }`}
-                                    ></span>
                                     {lead.status === "approved"
-                                      ? "Activo Premium"
+                                      ? "Activo"
                                       : lead.status === "payment_sent"
                                       ? "Pago Recibido"
                                       : lead.status === "interested"
                                       ? "Interesado"
                                       : "Prospecto"}
                                   </span>
-                                </td>
-                                <td className="px-6 py-4">
-                                  <span className="font-semibold text-zinc-300 capitalize">
-                                    Docenty PRO ($2 USD)
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4">
-                                  <code className="bg-zinc-950 border border-zinc-800 px-2 py-0.5 rounded text-xs font-mono font-bold text-teal-400">
-                                    {lead.assignedRef}
-                                  </code>
-                                </td>
-                                <td className="px-6 py-4 max-w-[200px] truncate">
-                                  {lead.messages.length > 0 ? (
-                                    <span className="text-xs text-zinc-400">
-                                      {lead.messages[lead.messages.length - 1].text}
-                                    </span>
-                                  ) : (
-                                    <span className="text-xs text-zinc-500 italic">Sin mensajes todavía</span>
-                                  )}
-                                </td>
-                                <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                                  <div className="flex items-center justify-end gap-1.5">
-                                    <button
-                                      onClick={() => {
-                                        setSelectedLeadId(lead.id);
-                                        setActiveTab("whatsapp");
-                                      }}
-                                      className="p-1.5 text-zinc-400 hover:text-teal-400 hover:bg-teal-950/40 rounded-lg transition"
-                                      title="Simular chat de WhatsApp"
-                                    >
-                                      <MessageCircle className="h-4 w-4" />
-                                    </button>
-                                    <button
-                                      onClick={(e) => handleDeleteLead(lead.id, e)}
-                                      className="p-1.5 text-zinc-500 hover:text-rose-400 hover:bg-rose-950/40 rounded-lg transition"
-                                      title="Eliminar lead"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </button>
+                                </div>
+
+                                <div className="flex justify-between items-center text-xs">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-zinc-500">Ref:</span>
+                                    <code className="bg-zinc-950 border border-zinc-800 px-1.5 py-0.5 rounded text-[11px] font-mono font-bold text-teal-400">
+                                      {lead.assignedRef}
+                                    </code>
                                   </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                                  <span className="text-zinc-400 capitalize font-medium">Docenty PRO Premium</span>
+                                </div>
+
+                                {lastMsg ? (
+                                  <div className="bg-zinc-950/40 border border-zinc-800/50 p-2 rounded-lg text-xs text-zinc-400 truncate">
+                                    <span className="text-zinc-500 font-medium">Último:</span> {lastMsg.text}
+                                  </div>
+                                ) : (
+                                  <div className="text-xs text-zinc-500 italic">Sin mensajes todavía</div>
+                                )}
+
+                                <div className="flex items-center justify-end gap-2 pt-1 border-t border-zinc-800/20" onClick={(e) => e.stopPropagation()}>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedLeadId(lead.id);
+                                      setActiveTab("whatsapp");
+                                      setMobileChatView("chat");
+                                    }}
+                                    className="flex items-center gap-1 text-xs font-semibold text-teal-400 hover:text-teal-300 px-3 py-1.5 rounded-lg bg-teal-950/30 hover:bg-teal-950/50 border border-teal-900/30 transition cursor-pointer"
+                                  >
+                                    <MessageCircle className="h-3.5 w-3.5" />
+                                    Chatear
+                                  </button>
+                                  <button
+                                    onClick={(e) => handleDeleteLead(lead.id, e)}
+                                    className="p-2 text-zinc-500 hover:text-rose-400 hover:bg-rose-950/40 rounded-lg transition cursor-pointer"
+                                    title="Eliminar lead"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>
@@ -1127,9 +1218,9 @@ export default function App() {
 
               {/* TAB 2: WHATSAPP CHAT SIMULATOR */}
               {activeTab === "whatsapp" && (
-                <div className="h-full flex" style={{ height: "calc(100vh - 73px)" }} id="whatsapp-simulator">
+                <div className="h-[calc(100vh-137px)] md:h-[calc(100vh-73px)] w-full flex overflow-hidden" id="whatsapp-simulator">
                   {/* Left Column: Chat List */}
-                  <div className="w-80 bg-[#121212]/95 border-r border-zinc-800/80 flex flex-col h-full flex-shrink-0">
+                  <div className={`${mobileChatView === "chat" ? "hidden" : "w-full"} md:flex md:w-80 bg-[#121212]/95 border-r border-zinc-800/80 flex flex-col h-full flex-shrink-0`}>
                     {/* Search Chat */}
                     <div className="p-3 border-b border-zinc-800/80">
                       <div className="relative">
@@ -1155,7 +1246,10 @@ export default function App() {
                           return (
                             <button
                               key={lead.id}
-                              onClick={() => setSelectedLeadId(lead.id)}
+                              onClick={() => {
+                                setSelectedLeadId(lead.id);
+                                setMobileChatView("chat");
+                              }}
                               className={`w-full p-4 flex gap-3 text-left transition relative cursor-pointer ${
                                 isSelected ? "bg-teal-950/40 border-l-4 border-teal-500" : "hover:bg-zinc-800/40"
                               }`}
@@ -1201,32 +1295,44 @@ export default function App() {
                   </div>
 
                   {/* Right Column: Chat Window */}
-                  <div className="flex-1 flex flex-col h-full bg-[#0d0d0d] relative">
+                  <div className={`${mobileChatView === "list" ? "hidden" : "flex"} flex-1 flex flex-col h-full bg-[#0d0d0d] relative`}>
                     {activeLead ? (
                       <>
                         {/* Chat Header */}
-                        <div className="bg-[#121212]/95 text-white px-4 py-3 flex items-center justify-between border-b border-zinc-800/80 shadow-xs z-10">
-                          <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full bg-zinc-800 text-teal-400 font-bold flex items-center justify-center text-sm uppercase border border-zinc-700/50">
-                              {activeLead.name.substring(0, 2)}
-                            </div>
-                            <div>
-                              <h3 className="font-bold text-sm text-white">{activeLead.name}</h3>
-                              {activeLead.isPaused ? (
-                                <p className="text-[10px] text-amber-400 flex items-center gap-1 font-semibold">
-                                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400 inline-block"></span>
-                                  Camila está pausada (Modo Manual)
-                                </p>
-                              ) : (
-                                <p className="text-[10px] text-teal-400 flex items-center gap-1">
-                                  <span className="h-1.5 w-1.5 rounded-full bg-teal-400 inline-block animate-pulse"></span>
-                                  Camila responde en automático
-                                </p>
-                              )}
+                        <div className="bg-[#121212]/95 text-white px-4 py-2.5 sm:py-3 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between border-b border-zinc-800/80 shadow-xs z-10">
+                          <div className="flex items-center">
+                            {/* Back to list button on mobile */}
+                            <button
+                              onClick={() => setMobileChatView("list")}
+                              className="md:hidden mr-2 p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition shrink-0 cursor-pointer"
+                              title="Volver a la lista de chats"
+                            >
+                              <ArrowLeft className="h-5 w-5" />
+                            </button>
+
+                            <div className="flex items-center gap-3">
+                              <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-zinc-800 text-teal-400 font-bold flex items-center justify-center text-sm uppercase border border-zinc-700/50 flex-shrink-0">
+                                {activeLead.name.substring(0, 2)}
+                              </div>
+                              <div>
+                                <h3 className="font-bold text-xs sm:text-sm text-white">{activeLead.name}</h3>
+                                {activeLead.isPaused ? (
+                                  <p className="text-[9px] sm:text-[10px] text-amber-400 flex items-center gap-1 font-semibold">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400 inline-block"></span>
+                                    Pausada (Manual)
+                                  </p>
+                                ) : (
+                                  <p className="text-[9px] sm:text-[10px] text-teal-400 flex items-center gap-1">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-teal-400 inline-block animate-pulse"></span>
+                                    Camila Responde Auto
+                                  </p>
+                                )}
+                              </div>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2">
+                          {/* Header Action Buttons - scrollable horizontally on mobile to save vertical space */}
+                          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-none">
                             {/* Pause Toggle Button */}
                             <button
                               onClick={async () => {
@@ -1246,26 +1352,26 @@ export default function App() {
                                   showToast("Error al cambiar estado de Camila", "error");
                                 }
                               }}
-                              className={`font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer ${
+                              className={`font-bold text-[10px] sm:text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition cursor-pointer whitespace-nowrap shrink-0 ${
                                 activeLead.isPaused
                                   ? "bg-amber-600 hover:bg-amber-700 text-white"
                                   : "bg-teal-600 hover:bg-teal-700 text-white border border-teal-500/30"
                               }`}
-                              title={activeLead.isPaused ? "Reactivar respuestas automáticas de Camila" : "Pausar respuestas automáticas de Camila para chatear de forma manual"}
+                              title={activeLead.isPaused ? "Reactivar Camila" : "Pausar a Camila"}
                             >
-                              {activeLead.isPaused ? <Play className="h-3.5 w-3.5" /> : <Square className="h-3.5 w-3.5" />}
-                              {activeLead.isPaused ? "Reactivar Camila" : "Pausar a Camila"}
+                              {activeLead.isPaused ? <Play className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> : <Square className="h-3 w-3 sm:h-3.5 sm:w-3.5" />}
+                              <span>{activeLead.isPaused ? "Reactivar IA" : "Pausar IA"}</span>
                             </button>
 
                             {/* Simulator controls */}
                             <button
                               onClick={handleAutoSimulateBuyer}
                               disabled={simulatingBuyer || sendingMsg}
-                              className="bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700/60 hover:border-teal-500/50 disabled:opacity-50 text-zinc-100 font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer"
+                              className="bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700/60 hover:border-teal-500/50 disabled:opacity-50 text-zinc-100 font-bold text-[10px] sm:text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition cursor-pointer whitespace-nowrap shrink-0"
                               title="Genera un mensaje o duda de forma aleatoria basada en el contexto con Gemini para testear al vendedor AI"
                             >
-                              <Sparkles className="h-3.5 w-3.5 text-teal-400" />
-                              {simulatingBuyer ? "Pensando..." : "Simular Objeción de Cliente"}
+                              <Sparkles className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-teal-400" />
+                              <span>{simulatingBuyer ? "Pensando..." : "Simular Objeción"}</span>
                             </button>
 
                             <button
@@ -1273,24 +1379,24 @@ export default function App() {
                                 setReceiptSim((prev) => ({ ...prev, refCode: activeLead.assignedRef }));
                                 setShowReceiptModal(true);
                               }}
-                              className="bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer"
+                              className="bg-teal-600 hover:bg-teal-700 text-white font-bold text-[10px] sm:text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition cursor-pointer whitespace-nowrap shrink-0"
                               title="Genera una transferencia bancaria con código de referencia"
                             >
-                              <CreditCard className="h-3.5 w-3.5" />
-                              Simular Pago (Canvas)
+                              <CreditCard className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                              <span>Simular Pago</span>
                             </button>
                           </div>
                         </div>
 
                         {/* Leads Context Sidebar Overlay for WhatsApp test */}
-                        <div className="bg-[#121212]/80 px-4 py-2 text-xs border-b border-zinc-800/80 flex items-center gap-4 text-zinc-300 justify-between">
-                          <div className="flex items-center gap-3 flex-wrap">
-                            <span>📋 **Notas del CRM:** {activeLead.notes || "Sin notas específicas"}</span>
-                            <span>🔑 **Código asignado:** <code className="bg-zinc-950 border border-zinc-800 text-teal-400 px-1 rounded font-bold font-mono">{activeLead.assignedRef}</code></span>
-                            <span>📦 **Plan:** <span className="font-bold capitalize text-teal-400">Docenty PRO Premium ($2 USD / Pago Móvil)</span></span>
+                        <div className="bg-[#121212]/80 px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs border-b border-zinc-800/80 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-zinc-300 justify-between">
+                          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                            <span>📋 **Notas:** {activeLead.notes || "Sin notas específicas"}</span>
+                            <span>🔑 **Ref:** <code className="bg-zinc-950 border border-zinc-800 text-teal-400 px-1 rounded font-bold font-mono">{activeLead.assignedRef}</code></span>
+                            <span className="hidden xs:inline">📦 **Plan:** <span className="font-bold capitalize text-teal-400">Premium ($2 USD)</span></span>
                           </div>
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                            className={`px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold uppercase self-start sm:self-auto ${
                               activeLead.status === "approved"
                                 ? "bg-teal-950/60 text-teal-300 border border-teal-800/30"
                                 : activeLead.status === "payment_sent"
@@ -1535,8 +1641,8 @@ export default function App() {
 
               {/* TAB 3: AI SYSTEM CONFIGURATION */}
               {activeTab === "config" && (
-                <div className="p-6 max-w-4xl mx-auto space-y-6">
-                  <div className="bg-[#121212]/90 rounded-2xl border border-zinc-800/80 p-6 shadow-xs">
+                <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-4 sm:space-y-6">
+                  <div className="bg-[#121212]/90 rounded-2xl border border-zinc-800/80 p-4 sm:p-6 shadow-xs">
                     <div className="flex items-center gap-3 mb-6 border-b border-zinc-800/60 pb-4">
                       <Settings className="h-6 w-6 text-teal-400" />
                       <div>
@@ -1822,6 +1928,56 @@ Protocolo de Seguridad:
             </div>
           )}
         </main>
+
+        {/* Mobile Bottom Navigation Bar */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#121212]/95 backdrop-blur-md border-t border-zinc-800/80 z-40 flex justify-around items-center" id="mobile-bottom-nav">
+          <button
+            onClick={() => setActiveTab("crm")}
+            className={`flex flex-col items-center justify-center gap-1 flex-1 py-2 text-center transition cursor-pointer ${
+              activeTab === "crm" ? "text-teal-400 font-semibold" : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            <Users className="h-5 w-5" />
+            <span className="text-[10px]">CRM Leads</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("whatsapp")}
+            className={`flex flex-col items-center justify-center gap-1 flex-1 py-2 text-center transition relative cursor-pointer ${
+              activeTab === "whatsapp" ? "text-teal-400 font-semibold" : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            <div className="relative">
+              <MessageSquare className="h-5 w-5" />
+              {pendingPayments > 0 && (
+                <span className="absolute -top-1.5 -right-2 bg-amber-500 text-zinc-950 text-[8px] font-black px-1 rounded-full animate-pulse">
+                  {pendingPayments}
+                </span>
+              )}
+            </div>
+            <span className="text-[10px]">WhatsApp</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("config")}
+            className={`flex flex-col items-center justify-center gap-1 flex-1 py-2 text-center transition cursor-pointer ${
+              activeTab === "config" ? "text-teal-400 font-semibold" : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            <Settings className="h-5 w-5" />
+            <span className="text-[10px]">Ajustes</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("about")}
+            className={`flex flex-col items-center justify-center gap-1 flex-1 py-2 text-center transition cursor-pointer ${
+              activeTab === "about" ? "text-teal-400 font-semibold" : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            <BookOpen className="h-5 w-5" />
+            <span className="text-[10px]">Docenty</span>
+          </button>
+        </nav>
       </div>
 
       {/* MODAL 1: CREATE NEW PROSPECT */}
