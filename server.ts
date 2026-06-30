@@ -3,6 +3,7 @@ import path from "path";
 import dotenv from "dotenv";
 import axios from "axios";
 import { GoogleGenAI, Type } from "@google/genai";
+import { WebSocketServer, WebSocket } from "ws";
 import {
   initDatabase,
   getAllLeads,
@@ -17,6 +18,19 @@ import {
 } from "./database.js";
 
 dotenv.config();
+
+// Track connected WebSocket clients
+const connectedClients = new Set<WebSocket>();
+
+// Broadcast a JSON payload to all connected WebSocket clients
+export function broadcastToDashboard(type: string, payload: any) {
+  const messageData = JSON.stringify({ type, payload });
+  for (const client of connectedClients) {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(messageData);
+    }
+  }
+}
 
 // Initialize Gemini Client
 const ai = new GoogleGenAI({
@@ -137,6 +151,13 @@ app.post(["/api/webhook", "/webhook"], async (req, res) => {
       if (lead.status === "prospect") {
         lead.status = "interested";
       }
+      await updateLead(lead);
+      broadcastToDashboard("lead:updated", lead);
+
+      if (lead.isPaused) {
+        console.log(`[Webhook] Camila is paused for lead ${lead.name}. Skipping auto-reply.`);
+        return res.sendStatus(200);
+      }
 
       try {
         const historyContext = lead.messages
@@ -167,6 +188,7 @@ app.post(["/api/webhook", "/webhook"], async (req, res) => {
       };
       lead.messages.push(botMsg);
       await updateLead(lead);
+      broadcastToDashboard("lead:updated", lead);
     }
     // Caso B: Capture de Comprobante (Imagen)
     else if (message.type === "image") {
@@ -262,6 +284,14 @@ app.post(["/api/webhook", "/webhook"], async (req, res) => {
             botReply = `⚠️ **Validación de Pago en Espera**\n\nHola ${lead.name}, he recibido tu comprobante de pago pero nuestro sistema detecta un detalle:\n\n• **Monto leído:** ${receiptData.monto || "No detectado"}\n• **Referencia leída:** \`${receiptData.referencia || "Ninguna"}\`\n• **Tu Referencia Asignada:** \`${lead.assignedRef}\`\n\n${receiptData.status === "REJECTED" ? "El archivo enviado no parece ser un comprobante válido." : "Por favor, confirma que la transferencia se haya realizado ingresando correctamente tu código de referencia asignado. Un ejecutivo revisará el comprobante manualmente a la brevedad."}\n\nSi consideras que hay un error, puedes volver a intentar enviando una captura más legible. 😊`;
           }
 
+          await updateLead(lead);
+          broadcastToDashboard("lead:updated", lead);
+
+          if (lead.isPaused) {
+            console.log(`[Webhook] Camila is paused for lead ${lead.name}. Skipping bot response to receipt image.`);
+            return res.sendStatus(200);
+          }
+
           const botMsg: Message = {
             sender: "bot",
             text: botReply,
@@ -269,6 +299,7 @@ app.post(["/api/webhook", "/webhook"], async (req, res) => {
           };
           lead.messages.push(botMsg);
           await updateLead(lead);
+          broadcastToDashboard("lead:updated", lead);
         } catch (visionErr) {
           console.error("Gemini vision analysis error in webhook:", visionErr);
           // Vision fallback simulation
@@ -294,6 +325,13 @@ app.post(["/api/webhook", "/webhook"], async (req, res) => {
           };
           lead.messages.push(receiptClientMsg);
           lead.status = "approved";
+          await updateLead(lead);
+          broadcastToDashboard("lead:updated", lead);
+
+          if (lead.isPaused) {
+            console.log(`[Webhook] Camila is paused for lead ${lead.name}. Skipping bot response to receipt image (fallback).`);
+            return res.sendStatus(200);
+          }
 
           botReply = `🎉 **¡PAGO CONFIRMADO!** 🎉\n\nEstimado/a ${lead.name}, hemos validado su comprobante de pago de manera exitosa.\n\n• **Referencia del comprobante:** \`${receiptData.referencia}\` (Coincidencia Perfecta ✅)\n• **Monto detectado:** ${receiptData.monto}\n\nSu cuenta Premium de **Docenty PRO** ya ha sido configurada con acceso completo a las planeaciones por IA.\n\n🔑 **Datos de su Cuenta:**\n• **Enlace de acceso:** https://app.docenty.pro\n• **Usuario:** ${lead.email || "su correo registrado"}\n• **Contraseña provisional:** \`Docenty2026!\` \n\n¡Le damos una cordial bienvenida a bordo! 🚀📚`;
 
@@ -304,6 +342,7 @@ app.post(["/api/webhook", "/webhook"], async (req, res) => {
           };
           lead.messages.push(botMsg);
           await updateLead(lead);
+          broadcastToDashboard("lead:updated", lead);
         }
       } else {
         botReply = `⚠️ No se pudo procesar la imagen enviada. Por favor, asegúrate de enviar un comprobante de Pago Móvil legible.`;
@@ -341,6 +380,13 @@ app.post(["/api/webhook", "/webhook"], async (req, res) => {
         lead.messages.push(clientMsg);
         if (lead.status === "prospect") {
           lead.status = "interested";
+        }
+        await updateLead(lead);
+        broadcastToDashboard("lead:updated", lead);
+
+        if (lead.isPaused) {
+          console.log(`[Webhook] Camila is paused for lead ${lead.name}. Skipping audio response.`);
+          return res.sendStatus(200);
         }
 
         try {
@@ -389,6 +435,7 @@ No inventes referencias de otros clientes. Si el cliente pregunta qué plan tien
         };
         lead.messages.push(botMsg);
         await updateLead(lead);
+        broadcastToDashboard("lead:updated", lead);
       } else {
         botReply = `⚠️ No se pudo descargar ni procesar el audio de WhatsApp. Por favor, escríbeme tu mensaje o intenta de nuevo.`;
         const botMsg: Message = {
@@ -398,6 +445,7 @@ No inventes referencias de otros clientes. Si el cliente pregunta qué plan tien
         };
         lead.messages.push(botMsg);
         await updateLead(lead);
+        broadcastToDashboard("lead:updated", lead);
       }
     }
 
@@ -519,6 +567,88 @@ app.post("/api/config", async (req, res) => {
   }
 });
 
+// Toggle or set Camila pause state for a lead
+app.post("/api/leads/:id/pause", async (req, res) => {
+  const { id } = req.params;
+  const { isPaused } = req.body;
+
+  try {
+    const list = await getAllLeads();
+    const lead = list.find((l) => l.id === id);
+
+    if (!lead) {
+      return res.status(404).json({ error: "Prospecto no encontrado" });
+    }
+
+    lead.isPaused = !!isPaused;
+    await updateLead(lead);
+
+    // Broadcast the update via websocket to keep other panels synchronized
+    broadcastToDashboard("lead:updated", lead);
+
+    res.json({ success: true, lead });
+  } catch (error) {
+    console.error("Error setting pause state:", error);
+    res.status(500).json({ error: "Error al cambiar el estado de pausa" });
+  }
+});
+
+// Send manual operator message to WhatsApp client
+app.post("/api/leads/:id/manual-message", async (req, res) => {
+  const { id } = req.params;
+  const { message } = req.body;
+
+  if (!message) {
+    return res.status(400).json({ error: "Mensaje es requerido" });
+  }
+
+  try {
+    const list = await getAllLeads();
+    const lead = list.find((l) => l.id === id);
+
+    if (!lead) {
+      return res.status(404).json({ error: "Prospecto no encontrado" });
+    }
+
+    // Add operator/bot message
+    const botMsg: Message = {
+      sender: "bot",
+      text: message,
+      timestamp: new Date().toISOString(),
+    };
+    lead.messages.push(botMsg);
+    await updateLead(lead);
+
+    // If real WhatsApp token and phone number ID are configured, send the manual message via Meta API
+    if (WHATSAPP_TOKEN && PHONE_NUMBER_ID) {
+      try {
+        await axios.post(
+          `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
+          {
+            messaging_product: "whatsapp",
+            to: lead.phone,
+            type: "text",
+            text: { body: message },
+          },
+          {
+            headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
+          }
+        );
+      } catch (wsErr: any) {
+        console.error("Error sending manual WhatsApp message via API:", wsErr?.response?.data || wsErr.message);
+      }
+    }
+
+    // Broadcast the update via websocket
+    broadcastToDashboard("lead:updated", lead);
+
+    res.json({ success: true, lead });
+  } catch (error) {
+    console.error("Error sending manual message:", error);
+    res.status(500).json({ error: "Error al enviar mensaje manual" });
+  }
+});
+
 // Chat with Gemini AI as Sales Agent
 app.post("/api/leads/:id/chat", async (req, res) => {
   const { id } = req.params;
@@ -555,6 +685,12 @@ app.post("/api/leads/:id/chat", async (req, res) => {
     // Update lead status to interested if they were just prospect and show active conversation
     if (lead.status === "prospect") {
       lead.status = "interested";
+    }
+
+    if (lead.isPaused) {
+      await updateLead(lead);
+      broadcastToDashboard("lead:updated", lead);
+      return res.json({ lead, botReply: null, isPaused: true });
     }
 
     const systemConfigs = await getSystemConfigs();
@@ -922,8 +1058,28 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT} in ${process.env.NODE_ENV || "development"} mode`);
+  });
+
+  // Attach WebSocket Server
+  const wss = new WebSocketServer({ server });
+
+  wss.on("connection", (ws) => {
+    console.log("[WebSocket] CRM client connected");
+    connectedClients.add(ws);
+
+    // Send connection acknowledgement
+    ws.send(JSON.stringify({ type: "connection:ready", payload: { connected: true } }));
+
+    ws.on("close", () => {
+      console.log("[WebSocket] CRM client disconnected");
+      connectedClients.delete(ws);
+    });
+
+    ws.on("error", (err) => {
+      console.error("[WebSocket] Client error:", err);
+    });
   });
 }
 

@@ -95,6 +95,62 @@ export default function App() {
     fetchConfig();
   }, []);
 
+  // WebSocket connection for real-time monitoring
+  useEffect(() => {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const host = window.location.host;
+    const wsUrl = `${protocol}//${host}`;
+
+    let socket: WebSocket;
+
+    function connect() {
+      console.log("[WebSocket] Connecting to", wsUrl);
+      socket = new WebSocket(wsUrl);
+
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === "lead:updated") {
+            const updatedLead = data.payload;
+            setLeads((prevLeads) => {
+              const index = prevLeads.findIndex((l) => l.id === updatedLead.id);
+              if (index !== -1) {
+                const newLeads = [...prevLeads];
+                newLeads[index] = {
+                  ...newLeads[index],
+                  ...updatedLead
+                };
+                return newLeads;
+              } else {
+                return [updatedLead, ...prevLeads];
+              }
+            });
+          }
+        } catch (err) {
+          console.error("[WebSocket] Error processing message:", err);
+        }
+      };
+
+      socket.onclose = () => {
+        console.log("[WebSocket] Connection closed. Retrying in 3 seconds...");
+        setTimeout(connect, 3000);
+      };
+
+      socket.onerror = (err) => {
+        console.error("[WebSocket] Socket error:", err);
+        socket.close();
+      };
+    }
+
+    connect();
+
+    return () => {
+      if (socket) {
+        socket.close();
+      }
+    };
+  }, []);
+
   // Scroll to bottom on chat changes
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -374,6 +430,53 @@ export default function App() {
     // 44-byte silent WAV file
     const silentWavBase64 = "UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==";
     await handleSendAudioMsg(silentWavBase64, "audio/wav");
+  };
+
+  const handleSendManualMsg = async () => {
+    if (!chatInput.trim() || !selectedLeadId) return;
+
+    setSendingMsg(true);
+    const msgText = chatInput;
+    setChatInput("");
+
+    try {
+      // Instantly append operator message in UI for natural feel
+      setLeads((prev) =>
+        prev.map((l) => {
+          if (l.id === selectedLeadId) {
+            return {
+              ...l,
+              messages: [
+                ...l.messages,
+                {
+                  sender: "bot",
+                  text: msgText,
+                  timestamp: new Date().toISOString(),
+                },
+              ],
+            };
+          }
+          return l;
+        })
+      );
+
+      const res = await fetch(`/api/leads/${selectedLeadId}/manual-message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msgText }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setLeads((prev) => prev.map((l) => (l.id === selectedLeadId ? data.lead : l)));
+      } else {
+        showToast("Error al enviar mensaje manual", "error");
+      }
+    } catch (e) {
+      showToast("Error de conexión", "error");
+    } finally {
+      setSendingMsg(false);
+    }
   };
 
   // Send message on WhatsApp simulator (as Client/Buyer)
@@ -1109,14 +1212,51 @@ export default function App() {
                             </div>
                             <div>
                               <h3 className="font-bold text-sm">{activeLead.name}</h3>
-                              <p className="text-[10px] text-teal-100 flex items-center gap-1">
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
-                                Camila responde en automático
-                              </p>
+                              {activeLead.isPaused ? (
+                                <p className="text-[10px] text-amber-300 flex items-center gap-1 font-semibold">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400 inline-block"></span>
+                                  Camila está pausada (Modo Manual)
+                                </p>
+                              ) : (
+                                <p className="text-[10px] text-teal-100 flex items-center gap-1">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
+                                  Camila responde en automático
+                                </p>
+                              )}
                             </div>
                           </div>
 
                           <div className="flex items-center gap-2">
+                            {/* Pause Toggle Button */}
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const nextState = !activeLead.isPaused;
+                                  const res = await fetch(`/api/leads/${activeLead.id}/pause`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ isPaused: nextState }),
+                                  });
+                                  if (res.ok) {
+                                    const data = await res.json();
+                                    setLeads(prev => prev.map(l => l.id === activeLead.id ? data.lead : l));
+                                    showToast(nextState ? "Camila pausada. Puedes chatear manualmente." : "Camila reactivada. Responderá automáticamente.", "info");
+                                  }
+                                } catch (e) {
+                                  showToast("Error al cambiar estado de Camila", "error");
+                                }
+                              }}
+                              className={`font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer ${
+                                activeLead.isPaused
+                                  ? "bg-amber-500 hover:bg-amber-600 text-white"
+                                  : "bg-[#128c7e] hover:bg-[#0b5c53] text-white border border-teal-500/30"
+                              }`}
+                              title={activeLead.isPaused ? "Reactivar respuestas automáticas de Camila" : "Pausar respuestas automáticas de Camila para chatear de forma manual"}
+                            >
+                              {activeLead.isPaused ? <Play className="h-3.5 w-3.5" /> : <Square className="h-3.5 w-3.5" />}
+                              {activeLead.isPaused ? "Reactivar Camila" : "Pausar a Camila"}
+                            </button>
+
                             {/* Simulator controls */}
                             <button
                               onClick={handleAutoSimulateBuyer}
@@ -1352,17 +1492,29 @@ export default function App() {
 
                           <input
                             type="text"
-                            placeholder="Escribe como profesor interesado... (ej. ¿Qué planes tienen?)"
+                            placeholder={activeLead.isPaused ? "Escribe tu mensaje manual como operador..." : "Escribe como profesor interesado... (ej. ¿Qué planes tienen?)"}
                             className="flex-1 bg-white border border-slate-200 px-4 py-2 rounded-xl text-xs focus:outline-hidden focus:border-teal-600"
                             value={chatInput}
                             onChange={(e) => setChatInput(e.target.value)}
                             onKeyDown={(e) => {
-                              if (e.key === "Enter") handleSendWhatsAppMsg();
+                              if (e.key === "Enter") {
+                                if (activeLead.isPaused) {
+                                  handleSendManualMsg();
+                                } else {
+                                  handleSendWhatsAppMsg();
+                                }
+                              }
                             }}
                           />
 
                           <button
-                            onClick={() => handleSendWhatsAppMsg()}
+                            onClick={() => {
+                              if (activeLead.isPaused) {
+                                handleSendManualMsg();
+                              } else {
+                                handleSendWhatsAppMsg();
+                              }
+                            }}
                             disabled={!chatInput.trim() || sendingMsg}
                             className="p-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-xl transition cursor-pointer flex items-center justify-center shadow-md shadow-teal-100"
                           >

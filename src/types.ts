@@ -31,6 +31,7 @@ export interface Lead {
   notes: string;
   createdAt: string;
   messages: Message[];
+  isPaused?: boolean;
 }
 
 export interface BankDetails {
