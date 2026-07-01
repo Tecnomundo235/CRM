@@ -164,13 +164,20 @@ app.post(["/api/webhook", "/webhook"], async (req, res) => {
           .map((m) => `${m.sender === "bot" ? "Docenty AI" : lead.name}: ${m.text}`)
           .join("\n");
 
+        const currentCodesText = systemConfigs.premiumCodes && systemConfigs.premiumCodes.length > 0
+          ? `\n\n[SISTEMA - CÓDIGOS DE ACTIVACIÓN DISPONIBLES EN EL CRM]
+Los siguientes códigos Premium están actualmente DISPONIBLES para ser entregados. Elige uno de estos códigos de manera destacada si el pago ha sido aprobado:
+${systemConfigs.premiumCodes.map(c => `- CÓDIGO: [${c}] | ESTADO: DISPONIBLE`).join("\n")}`
+          : `\n\n[SISTEMA - CÓDIGOS DE ACTIVACIÓN DISPONIBLES EN EL CRM]
+No hay códigos premium disponibles en el pool en este momento. Si necesitas entregar un código, dile que un administrador le enviará su código de acceso inmediatamente por este chat.`;
+
         const prompt = `Historial de la conversación de WhatsApp hasta ahora:\n${historyContext}\n\nResponde el último mensaje del cliente en WhatsApp con tu personalidad de Docenty AI (Camila). Recuerda que la referencia asignada a este cliente es: ${lead.assignedRef}.\nNo inventes referencias de otros clientes. Si el cliente pregunta qué plan tiene disponible, recuérdale que tiene reservada la Suscripción Premium de $2 USD (al cambio oficial del BCV en bolívares) con esa referencia.`;
 
         const response = await ai.models.generateContent({
           model: "gemini-3.5-flash",
           contents: prompt,
           config: {
-            systemInstruction: systemConfigs.botSystemPrompt,
+            systemInstruction: systemConfigs.botSystemPrompt + currentCodesText,
             temperature: 0.7,
           },
         });
@@ -279,7 +286,8 @@ app.post(["/api/webhook", "/webhook"], async (req, res) => {
 
           if (receiptData.status === "APPROVED" && codeMatches) {
             lead.status = "approved";
-            botReply = `🎉 **¡PAGO CONFIRMADO AUTOMÁTICAMENTE POR LA IA!** 🎉\n\nEstimado/a ${lead.name}, nuestro sistema de visión inteligente ha validado su comprobante de pago de manera exitosa.\n\n• **Referencia del comprobante:** \`${receiptData.referencia || lead.assignedRef}\` (Coincidencia Perfecta ✅)\n• **Monto detectado:** ${receiptData.monto}\n• **Banco emisor:** ${receiptData.banco || "Banca Digital"}\n\nSu cuenta Premium de **Docenty PRO** ya ha sido creada y configurada con acceso completo a las planeaciones por IA y control administrativo de aula.\n\n🔑 **Datos de su Cuenta:**\n• **Enlace de acceso:** https://app.docenty.pro\n• **Usuario:** ${lead.email || "su correo registrado"}\n• **Contraseña provisional:** \`Docenty2026!\` (Le sugerimos cambiarla al ingresar)\n\n¡Le damos una cordial bienvenida a bordo! Estamos emocionados de simplificar su vida docente. 🚀📚`;
+            const premiumCode = await assignPremiumCode(lead);
+            botReply = `🎉 **¡PAGO CONFIRMADO AUTOMÁTICAMENTE POR LA IA!** 🎉\n\nEstimado/a ${lead.name}, nuestro sistema de visión inteligente ha validado su comprobante de pago de manera exitosa.\n\n• **Referencia del comprobante:** \`${receiptData.referencia || lead.assignedRef}\` (Coincidencia Perfecta ✅)\n• **Monto detectado:** ${receiptData.monto}\n• **Banco emisor:** ${receiptData.banco || "Banca Digital"}\n\nSu cuenta Premium de **Docenty PRO** ya ha sido creada y configurada con acceso completo a las planeaciones por IA y control administrativo de aula.\n\n🔑 **Datos de su Cuenta:**\n• **Enlace de acceso:** https://docente-pro-by-meta-tc.vercel.app/\n• **Código de Activación Premium:** \`${premiumCode}\` (Utilice este código para activar su cuenta Premium)\n• **Usuario:** ${lead.email || "su correo registrado"}\n• **Contraseña provisional:** \`Docenty2026!\` (Le sugerimos cambiarla al ingresar)\n\n¡Le damos una cordial bienvenida a bordo! Estamos emocionados de simplificar su vida docente. 🚀📚`;
           } else {
             botReply = `⚠️ **Validación de Pago en Espera**\n\nHola ${lead.name}, he recibido tu comprobante de pago pero nuestro sistema detecta un detalle:\n\n• **Monto leído:** ${receiptData.monto || "No detectado"}\n• **Referencia leída:** \`${receiptData.referencia || "Ninguna"}\`\n• **Tu Referencia Asignada:** \`${lead.assignedRef}\`\n\n${receiptData.status === "REJECTED" ? "El archivo enviado no parece ser un comprobante válido." : "Por favor, confirma que la transferencia se haya realizado ingresando correctamente tu código de referencia asignado. Un ejecutivo revisará el comprobante manualmente a la brevedad."}\n\nSi consideras que hay un error, puedes volver a intentar enviando una captura más legible. 😊`;
           }
@@ -324,6 +332,7 @@ app.post(["/api/webhook", "/webhook"], async (req, res) => {
             },
           };
           lead.messages.push(receiptClientMsg);
+          const premiumCode = await assignPremiumCode(lead);
           lead.status = "approved";
           await updateLead(lead);
           broadcastToDashboard("lead:updated", lead);
@@ -333,7 +342,7 @@ app.post(["/api/webhook", "/webhook"], async (req, res) => {
             return res.sendStatus(200);
           }
 
-          botReply = `🎉 **¡PAGO CONFIRMADO!** 🎉\n\nEstimado/a ${lead.name}, hemos validado su comprobante de pago de manera exitosa.\n\n• **Referencia del comprobante:** \`${receiptData.referencia}\` (Coincidencia Perfecta ✅)\n• **Monto detectado:** ${receiptData.monto}\n\nSu cuenta Premium de **Docenty PRO** ya ha sido configurada con acceso completo a las planeaciones por IA.\n\n🔑 **Datos de su Cuenta:**\n• **Enlace de acceso:** https://app.docenty.pro\n• **Usuario:** ${lead.email || "su correo registrado"}\n• **Contraseña provisional:** \`Docenty2026!\` \n\n¡Le damos una cordial bienvenida a bordo! 🚀📚`;
+          botReply = `🎉 **¡PAGO CONFIRMADO!** 🎉\n\nEstimado/a ${lead.name}, hemos validado su comprobante de pago de manera exitosa.\n\n• **Referencia del comprobante:** \`${receiptData.referencia}\` (Coincidencia Perfecta ✅)\n• **Monto detectado:** ${receiptData.monto}\n\nSu cuenta Premium de **Docenty PRO** ya ha sido configurada con acceso completo a las planeaciones por IA.\n\n🔑 **Datos de su Cuenta:**\n• **Enlace de acceso:** https://docente-pro-by-meta-tc.vercel.app/\n• **Código de Activación Premium:** \`${premiumCode}\`\n• **Usuario:** ${lead.email || "su correo registrado"}\n• **Contraseña provisional:** \`Docenty2026!\` \n\n¡Le damos una cordial bienvenida a bordo! 🚀📚`;
 
           const botMsg: Message = {
             sender: "bot",
@@ -403,6 +412,13 @@ Genera una respuesta en texto en tu personalidad de Docenty AI (Camila).
 Recuerda que la referencia asignada a este cliente es: ${lead.assignedRef}.
 No inventes referencias de otros clientes. Si el cliente pregunta qué plan tiene disponible, recuérdale que tiene reservada la Suscripción Premium de $2 USD (al cambio oficial del BCV en bolívares) con esa referencia.`;
 
+          const currentCodesText = systemConfigs.premiumCodes && systemConfigs.premiumCodes.length > 0
+            ? `\n\n[SISTEMA - CÓDIGOS DE ACTIVACIÓN DISPONIBLES EN EL CRM]
+Los siguientes códigos Premium están actualmente DISPONIBLES para ser entregados. Elige uno de estos códigos de manera destacada si el pago ha sido aprobado:
+${systemConfigs.premiumCodes.map(c => `- CÓDIGO: [${c}] | ESTADO: DISPONIBLE`).join("\n")}`
+            : `\n\n[SISTEMA - CÓDIGOS DE ACTIVACIÓN DISPONIBLES EN EL CRM]
+No hay códigos premium disponibles en el pool en este momento. Si necesitas entregar un código, dile que un administrador le enviará su código de acceso inmediatamente por este chat.`;
+
           const response = await ai.models.generateContent({
             model: "gemini-3.5-flash",
             contents: [
@@ -417,7 +433,7 @@ No inventes referencias de otros clientes. Si el cliente pregunta qué plan tien
               },
             ],
             config: {
-              systemInstruction: systemConfigs.botSystemPrompt,
+              systemInstruction: systemConfigs.botSystemPrompt + currentCodesText,
               temperature: 0.7,
             },
           });
@@ -555,17 +571,50 @@ app.get("/api/config", async (req, res) => {
 
 // Update configurations
 app.post("/api/config", async (req, res) => {
-  const { botSystemPrompt, bankDetails } = req.body;
+  const { botSystemPrompt, bankDetails, premiumCodes } = req.body;
   try {
     const currentConfig = await getSystemConfigs();
     if (botSystemPrompt !== undefined) currentConfig.botSystemPrompt = botSystemPrompt;
     if (bankDetails !== undefined) currentConfig.bankDetails = bankDetails;
+    if (premiumCodes !== undefined) {
+      // Ensure premiumCodes is an array of clean strings
+      currentConfig.premiumCodes = Array.isArray(premiumCodes)
+        ? premiumCodes.map(c => c.trim().toUpperCase()).filter(Boolean)
+        : [];
+    }
     const updated = await saveSystemConfigs(currentConfig);
     res.json(updated);
   } catch (error) {
     res.status(500).json({ error: "Error al guardar configuración" });
   }
 });
+
+// Helper function to assign premium code on payment validation
+async function assignPremiumCode(lead: Lead): Promise<string> {
+  if (lead.premiumCode) {
+    return lead.premiumCode;
+  }
+  try {
+    const configs = await getSystemConfigs();
+    if (configs.premiumCodes && configs.premiumCodes.length > 0) {
+      // Pick first available code
+      const code = configs.premiumCodes[0];
+      // Remove it from the pool
+      configs.premiumCodes = configs.premiumCodes.slice(1);
+      await saveSystemConfigs(configs);
+      // Assign it to the lead
+      lead.premiumCode = code;
+      lead.notes = (lead.notes || "") + `\n[Código Asignado]: Se asignó el código premium ${code} automáticamente.`;
+      return code;
+    }
+  } catch (err) {
+    console.error("Error in assignPremiumCode helper:", err);
+  }
+  // Default fallback code if none left or database error
+  const fallbackCode = "META-ZLKN-25C8";
+  lead.premiumCode = fallbackCode;
+  return fallbackCode;
+}
 
 // Toggle or set Camila pause state for a lead
 app.post("/api/leads/:id/pause", async (req, res) => {
@@ -608,6 +657,7 @@ app.post("/api/leads/:id/approve", async (req, res) => {
 
     // Set lead status to approved
     lead.status = "approved";
+    const premiumCode = await assignPremiumCode(lead);
     if (notes) {
       lead.notes = notes;
     } else {
@@ -617,7 +667,7 @@ app.post("/api/leads/:id/approve", async (req, res) => {
     // Bot congratulatory message with credentials
     const congratulationsMsg: Message = {
       sender: "bot",
-      text: `🎉 **¡PAGO CONFIRMADO Y ACTIVADO MANUALMENTE!** 🎉\n\nEstimado/a ${lead.name}, un administrador ha verificado y aprobado su comprobante de pago de manera exitosa.\n\n• **Código de Referencia:** \`${lead.assignedRef}\`\n• **Monto:** $2.00 USD (Suscripción Premium)\n• **Estado:** Activo Premium ✅\n\nSu cuenta Premium de **Docenty PRO** ya se encuentra configurada con acceso completo a todas las planeaciones por IA y herramientas administrativas de aula.\n\n🔑 **Datos de Acceso:**\n• **Enlace de acceso:** https://app.docenty.pro\n• **Usuario:** ${lead.email || lead.phone || "su número registrado"}\n• **Contraseña provisional:** \`Docenty2026!\` (Le sugerimos cambiarla al ingresar)\n\n¡Le damos una cordial bienvenida a la comunidad! Estamos muy emocionados de simplificar su vida docente. 🚀📚`,
+      text: `🎉 **¡PAGO CONFIRMADO Y ACTIVADO MANUALMENTE!** 🎉\n\nEstimado/a ${lead.name}, un administrador ha verificado y aprobado su comprobante de pago de manera exitosa.\n\n• **Código de Referencia:** \`${lead.assignedRef}\`\n• **Monto:** $2.00 USD (Suscripción Premium)\n• **Estado:** Activo Premium ✅\n\nSu cuenta Premium de **Docenty PRO** ya se encuentra configurada con acceso completo a todas las planeaciones por IA y herramientas administrativas de aula.\n\n🔑 **Datos de Acceso:**\n• **Enlace de acceso:** https://docente-pro-by-meta-tc.vercel.app/\n• **Código de Activación Premium:** \`${premiumCode}\`\n• **Usuario:** ${lead.email || lead.phone || "su número registrado"}\n• **Contraseña provisional:** \`Docenty2026!\` (Le sugerimos cambiarla al ingresar)\n\n¡Le damos una cordial bienvenida a la comunidad! Estamos muy emocionados de simplificar su vida docente. 🚀📚`,
       timestamp: new Date().toISOString(),
     };
     lead.messages.push(congratulationsMsg);
@@ -654,6 +704,106 @@ app.post("/api/leads/:id/approve", async (req, res) => {
   } catch (error) {
     console.error("Error approving payment:", error);
     res.status(500).json({ error: "Error al aprobar el pago del prospecto" });
+  }
+});
+
+// Manually associate bank reference with client reference
+app.post("/api/leads/:id/associate-reference", async (req, res) => {
+  const { id } = req.params;
+  const { clientRef, bankRef, messageIndex } = req.body;
+
+  if (!clientRef || !bankRef) {
+    return res.status(400).json({ error: "La referencia de cliente y la referencia bancaria son requeridas." });
+  }
+
+  try {
+    const list = await getAllLeads();
+    const lead = list.find((l) => l.id === id);
+
+    if (!lead) {
+      return res.status(404).json({ error: "Prospecto no encontrado" });
+    }
+
+    // Attempt to locate target lead by clientRef
+    let targetLead = lead;
+    const foundLead = list.find(l => l.assignedRef.toUpperCase().trim() === clientRef.toUpperCase().trim());
+    if (foundLead) {
+      targetLead = foundLead;
+    } else {
+      // Fallback: If no lead exists with that clientRef, set it for the current lead
+      targetLead.assignedRef = clientRef.toUpperCase().trim();
+    }
+
+    // Set lead status to approved and assign code
+    targetLead.status = "approved";
+    const premiumCode = await assignPremiumCode(targetLead);
+    targetLead.notes = (targetLead.notes || "") + `\n[Asociación Manual]: Vinculado cliente Ref ${clientRef} con operación Ref ${bankRef} en comprobante.`;
+
+    // Try to update receipt message data in the original lead (where the screenshot is)
+    if (messageIndex !== undefined && lead.messages[messageIndex]) {
+      const msg = lead.messages[messageIndex];
+      if (msg.isReceipt && msg.receiptData) {
+        msg.receiptData.status = "APPROVED";
+        msg.receiptData.referencia = bankRef;
+        msg.receiptData.analisis = `[Asociación Manual]: Asociado exitosamente con la referencia de cliente ${clientRef} por el administrador.`;
+      }
+    } else {
+      // Find the last receipt message
+      const lastReceipt = [...lead.messages].reverse().find(m => m.isReceipt);
+      if (lastReceipt && lastReceipt.receiptData) {
+        lastReceipt.receiptData.status = "APPROVED";
+        lastReceipt.receiptData.referencia = bankRef;
+        lastReceipt.receiptData.analisis = `[Asociación Manual]: Asociado exitosamente con la referencia de cliente ${clientRef} por el administrador.`;
+      }
+    }
+
+    // If targetLead is different from lead, we should copy the approved receipt over or just reference it in notes
+    if (targetLead.id !== lead.id) {
+      targetLead.notes = (targetLead.notes || "") + `\n[Pago recibido en Chat de ${lead.name}]: Comprobante Banco Ref ${bankRef} recibido por ${lead.name} y asociado a este lead.`;
+      await updateLead(lead); // Save the original lead with updated receipt status
+    }
+
+    // Congratulatory/Activation message
+    const congratulationsMsg: Message = {
+      sender: "bot",
+      text: `🎉 **¡PAGO ASOCIADO Y CONFIRMADO CON ÉXITO!** 🎉\n\nEstimado/a ${targetLead.name}, hemos verificado y asociado manualmente su comprobante de pago con su referencia de cliente.\n\n• **Referencia de Cliente:** \`${clientRef}\`\n• **Referencia de Operación (Banco):** \`${bankRef}\` (Asociación Exitosa ✅)\n• **Monto:** $2.00 USD (Suscripción Premium)\n• **Estado:** Activo Premium ✅\n\nSu cuenta Premium de **Docenty PRO** ya se encuentra configurada con acceso completo a todas las planeaciones por IA y herramientas de control administrativo de aula.\n\n🔑 **Datos de Acceso:**\n• **Enlace de acceso:** https://docente-pro-by-meta-tc.vercel.app/\n• **Código de Activación Premium:** \`${premiumCode}\`\n• **Usuario:** ${targetLead.email || targetLead.phone || "su número registrado"}\n• **Contraseña provisional:** \`Docenty2026!\` (Le sugerimos cambiarla al ingresar)\n\n¡Le damos una cordial bienvenida a la comunidad! Estamos muy emocionados de simplificar su vida docente. 🚀📚`,
+      timestamp: new Date().toISOString(),
+    };
+    targetLead.messages.push(congratulationsMsg);
+
+    await updateLead(targetLead);
+
+    // Send WhatsApp notification if Meta credentials exist
+    if (WHATSAPP_TOKEN && PHONE_NUMBER_ID) {
+      try {
+        await axios.post(
+          `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
+          {
+            messaging_product: "whatsapp",
+            to: targetLead.phone,
+            type: "text",
+            text: { body: congratulationsMsg.text },
+          },
+          {
+            headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
+          }
+        );
+        console.log(`WhatsApp manual association reply sent successfully to ${targetLead.phone}`);
+      } catch (wsErr: any) {
+        console.error("Error sending manual association WhatsApp message via API:", wsErr?.response?.data || wsErr.message);
+      }
+    }
+
+    // Broadcast updates via WebSocket
+    broadcastToDashboard("lead:updated", lead);
+    if (targetLead.id !== lead.id) {
+      broadcastToDashboard("lead:updated", targetLead);
+    }
+
+    res.json({ success: true, lead: targetLead });
+  } catch (error) {
+    console.error("Error associating payment reference:", error);
+    res.status(500).json({ error: "Error al asociar la referencia de pago del prospecto" });
   }
 });
 

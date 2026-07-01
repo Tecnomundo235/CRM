@@ -32,6 +32,7 @@ export interface Lead {
   createdAt: string;
   messages: Message[];
   isPaused?: boolean;
+  premiumCode?: string;
 }
 
 export interface BankDetails {
@@ -43,4 +44,5 @@ export interface BankDetails {
 export interface SystemConfigs {
   botSystemPrompt: string;
   bankDetails: BankDetails;
+  premiumCodes: string[];
 }

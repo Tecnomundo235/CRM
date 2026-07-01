@@ -35,6 +35,7 @@ export interface Lead {
   createdAt: string;
   messages: Message[];
   isPaused?: boolean;
+  premiumCode?: string;
 }
 
 export interface BankDetails {
@@ -46,6 +47,7 @@ export interface BankDetails {
 export interface SystemConfigs {
   botSystemPrompt: string;
   bankDetails: BankDetails;
+  premiumCodes: string[];
 }
 
 // Initial demo leads
@@ -182,7 +184,7 @@ const DEFAULT_LEADS: Lead[] = [
       },
       {
         sender: "bot",
-        text: "🎉 **¡PAGO CONFIRMADO CON ÉXITO!** 🎉\n\nProfesor Jorge, he validado su comprobante de inmediato con la referencia **DOC-PRO-J8H4**.\n\nHemos creado su cuenta premium en Docenty PRO.\n\n🔑 **Datos de acceso:**\n• **Plataforma:** https://app.docenty.pro\n• **Usuario:** jorge.herrera@escuela.edu.ve\n• **Contraseña temporal:** Docenty2026!\n\n¡Bienvenido a la nueva era de la educación sin papeleo! Si tiene alguna otra duda, estaré aquí para asistirle por WhatsApp 🤖📚",
+        text: "🎉 **¡PAGO CONFIRMADO CON ÉXITO!** 🎉\n\nProfesor Jorge, he validado su comprobante de inmediato con la referencia **DOC-PRO-J8H4**.\n\nHemos creado su cuenta premium en Docenty PRO.\n\n🔑 **Datos de acceso:**\n• **Plataforma:** https://docente-pro-by-meta-tc.vercel.app/\n• **Usuario:** jorge.herrera@escuela.edu.ve\n• **Contraseña temporal:** Docenty2026!\n\n¡Bienvenido a la nueva era de la educación sin papeleo! Si tiene alguna otra duda, estaré aquí para asistirle por WhatsApp 🤖📚",
         timestamp: new Date(Date.now() - 2.3 * 3600000).toISOString(),
       },
     ],
@@ -258,6 +260,12 @@ Protocolo de Seguridad:
     cuenta: "04262953484",
     beneficiario: "24755720",
   },
+  premiumCodes: [
+    "META-ZLKN-25C8",
+    "META-D39K-U161",
+    "META-5SLA-X73P",
+    "META-H92Z-6KU3"
+  ]
 };
 
 // In-Memory Fallback State (will be used if MONGODB_URI is not set)

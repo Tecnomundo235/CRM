@@ -31,6 +31,8 @@ import {
   ExternalLink,
   MessageCircle,
   ArrowLeft,
+  Link,
+  Key,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Lead, Message, BankDetails, SystemConfigs } from "./types";
@@ -63,10 +65,12 @@ export default function App() {
   const [config, setConfig] = useState<SystemConfigs>({
     botSystemPrompt: "",
     bankDetails: { banco: "", cuenta: "", beneficiario: "" },
+    premiumCodes: [],
   });
 
   // Chat input
   const [chatInput, setChatInput] = useState<string>("");
+  const [newCodeInput, setNewCodeInput] = useState<string>("");
 
   // Search & Filter
   const [crmSearch, setCrmSearch] = useState<string>("");
@@ -83,6 +87,9 @@ export default function App() {
   const [validationResult, setValidationResult] = useState<any>(null);
   const [mobileChatView, setMobileChatView] = useState<"list" | "chat">("list");
   const [approvingLeadId, setApprovingLeadId] = useState<string | null>(null);
+  const [assocClientRefs, setAssocClientRefs] = useState<Record<string, string>>({});
+  const [assocBankRefs, setAssocBankRefs] = useState<Record<string, string>>({});
+  const [associatingKey, setAssociatingKey] = useState<string | null>(null);
 
   // Notifications / Feedback
   const [notification, setNotification] = useState<{
@@ -295,6 +302,43 @@ export default function App() {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const handleAddPremiumCode = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCodeInput.trim()) return;
+    const codesToAdd = newCodeInput
+      .split(",")
+      .map((c) => c.trim().toUpperCase())
+      .filter(Boolean);
+
+    const updatedCodes = [...(config.premiumCodes || [])];
+    let addedCount = 0;
+    codesToAdd.forEach((code) => {
+      if (!updatedCodes.includes(code)) {
+        updatedCodes.push(code);
+        addedCount++;
+      }
+    });
+
+    setConfig((prev) => ({
+      ...prev,
+      premiumCodes: updatedCodes,
+    }));
+    setNewCodeInput("");
+    if (addedCount > 0) {
+      showToast(`${addedCount} código(s) añadido(s) (guardar para aplicar)`);
+    } else {
+      showToast("Los códigos ya existen en la lista", "info");
+    }
+  };
+
+  const handleRemovePremiumCode = (codeToRemove: string) => {
+    setConfig((prev) => ({
+      ...prev,
+      premiumCodes: (prev.premiumCodes || []).filter((c) => c !== codeToRemove),
+    }));
+    showToast("Código eliminado (guardar para aplicar)");
   };
 
   // Recording state and references
@@ -709,6 +753,35 @@ export default function App() {
       showToast("Error de conexión al aprobar el pago", "error");
     } finally {
       setApprovingLeadId(null);
+    }
+  };
+
+  // Handle manual reference association
+  const handleAssociatePayment = async (leadId: string, clientRef: string, bankRef: string, messageIndex: number) => {
+    const key = `${leadId}-${messageIndex}`;
+    if (associatingKey) return;
+    setAssociatingKey(key);
+    try {
+      const res = await fetch(`/api/leads/${leadId}/associate-reference`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientRef, bankRef, messageIndex }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        // Refresh leads list to keep frontend perfectly in sync
+        await fetchLeads();
+        showToast("¡Referencia asociada y cuenta Premium activada con éxito!", "success");
+      } else {
+        const errData = await res.json();
+        showToast(errData.error || "Error al asociar referencia", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Error de conexión al asociar el pago", "error");
+    } finally {
+      setAssociatingKey(null);
     }
   };
 
@@ -1538,17 +1611,62 @@ export default function App() {
                                         </div>
                                       </div>
 
-                                      {activeLead.status !== "approved" && (
-                                        <button
-                                          onClick={() => handleApprovePayment(activeLead.id)}
-                                          disabled={approvingLeadId === activeLead.id}
-                                          className="w-full mt-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-800/50 disabled:opacity-50 text-white font-bold text-[10px] py-1.5 rounded flex items-center justify-center gap-1.5 transition cursor-pointer"
-                                          title="Verificar y activar cuenta Premium manualmente para este comprobante"
-                                        >
-                                          <CircleCheck className="h-3.5 w-3.5" />
-                                          <span>{approvingLeadId === activeLead.id ? "Aprobando..." : "Aprobar Comprobante Manualmente"}</span>
-                                        </button>
-                                      )}
+                                      {activeLead.status !== "approved" && (() => {
+                                        const uniqueKey = `${activeLead.id}-${index}`;
+                                        const inputClientVal = assocClientRefs[uniqueKey] !== undefined ? assocClientRefs[uniqueKey] : activeLead.assignedRef;
+                                        const inputBankVal = assocBankRefs[uniqueKey] !== undefined ? assocBankRefs[uniqueKey] : (msg.receiptData.referencia || "");
+                                        return (
+                                          <div className="mt-3 pt-3 border-t border-zinc-800 space-y-2">
+                                            <div className="text-[10px] uppercase tracking-wider font-bold text-teal-400">
+                                              Asociación Manual de Referencia
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                              <div>
+                                                <label className="block text-[9px] text-zinc-500 mb-0.5">Ref. Cliente (CRM)</label>
+                                                <input
+                                                  type="text"
+                                                  value={inputClientVal}
+                                                  onChange={(e) => setAssocClientRefs({ ...assocClientRefs, [uniqueKey]: e.target.value })}
+                                                  placeholder="DOC-PRO-XXXX"
+                                                  className="w-full text-[10px] font-mono bg-zinc-950 border border-zinc-800 rounded px-1.5 py-1 text-zinc-200 focus:outline-none focus:border-teal-500"
+                                                />
+                                              </div>
+                                              <div>
+                                                <label className="block text-[9px] text-zinc-500 mb-0.5">Ref. Operación (Banco)</label>
+                                                <input
+                                                  type="text"
+                                                  value={inputBankVal}
+                                                  onChange={(e) => setAssocBankRefs({ ...assocBankRefs, [uniqueKey]: e.target.value })}
+                                                  placeholder="Ej: 006539..."
+                                                  className="w-full text-[10px] font-mono bg-zinc-950 border border-zinc-800 rounded px-1.5 py-1 text-zinc-200 focus:outline-none focus:border-teal-500"
+                                                />
+                                              </div>
+                                            </div>
+                                            
+                                            <div className="flex flex-col gap-1.5 mt-2">
+                                              <button
+                                                onClick={() => handleAssociatePayment(activeLead.id, inputClientVal, inputBankVal, index)}
+                                                disabled={!!associatingKey}
+                                                className="w-full bg-teal-600 hover:bg-teal-500 disabled:bg-teal-800/50 disabled:opacity-50 text-white font-bold text-[10px] py-1.5 rounded flex items-center justify-center gap-1.5 transition cursor-pointer"
+                                                title="Vincular referencia del banco con la del cliente y activar cuenta"
+                                              >
+                                                <Link className="h-3.5 w-3.5" />
+                                                <span>{associatingKey === uniqueKey ? "Asociando..." : "Asociar y Activar Premium"}</span>
+                                              </button>
+                                              
+                                              <button
+                                                onClick={() => handleApprovePayment(activeLead.id)}
+                                                disabled={approvingLeadId === activeLead.id}
+                                                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-[10px] py-1.5 rounded flex items-center justify-center gap-1.5 transition cursor-pointer"
+                                                title="Aprobar el pago de este docente directamente"
+                                              >
+                                                <CircleCheck className="h-3.5 w-3.5" />
+                                                <span>{approvingLeadId === activeLead.id ? "Aprobando..." : "Aprobar Comprobante Directo"}</span>
+                                              </button>
+                                            </div>
+                                          </div>
+                                        );
+                                      })()}
                                     </div>
                                   )}
 
@@ -1773,6 +1891,75 @@ export default function App() {
                             />
                           </div>
                         </div>
+                      </div>
+
+                      {/* Premium Codes Management Section */}
+                      <div className="space-y-4 border-t border-zinc-800/60 pt-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div>
+                            <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wide flex items-center gap-2">
+                              <Key className="h-4 w-4 text-amber-400" />
+                              🔑 Códigos Premium de Docenty PRO
+                            </h4>
+                            <p className="text-[11px] text-zinc-400 mt-0.5">
+                              Entrégale códigos premium a Camila. Ella elegirá el primero de esta lista al verificar un pago de manera automática o manual.
+                            </p>
+                          </div>
+                          <span className="text-xs font-bold bg-amber-500/10 border border-amber-500/20 text-amber-400 px-3 py-1 rounded-full self-start sm:self-auto shrink-0">
+                            {(config.premiumCodes || []).length} disponibles
+                          </span>
+                        </div>
+
+                        {/* Add code input */}
+                        <div className="flex gap-2 max-w-lg">
+                          <input
+                            type="text"
+                            placeholder="Escribe un código (ej: META-ABCD-1234) o varios separados por comas..."
+                            value={newCodeInput}
+                            onChange={(e) => setNewCodeInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleAddPremiumCode(e);
+                              }
+                            }}
+                            className="flex-1 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-lg text-xs text-zinc-100 placeholder-zinc-600 focus:outline-hidden focus:border-amber-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={(e) => handleAddPremiumCode(e)}
+                            className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-4 py-1.5 rounded-lg transition shrink-0 cursor-pointer"
+                          >
+                            Añadir
+                          </button>
+                        </div>
+
+                        {/* Codes display grid */}
+                        {(config.premiumCodes || []).length > 0 ? (
+                          <div className="flex flex-wrap gap-2 pt-1 max-h-48 overflow-y-auto p-1 bg-zinc-950/40 border border-zinc-850 rounded-xl">
+                            {(config.premiumCodes || []).map((code) => (
+                              <div
+                                key={code}
+                                className="flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 text-zinc-100 text-xs px-2.5 py-1 rounded-lg hover:border-zinc-700 transition"
+                              >
+                                <span className="font-mono tracking-wider font-semibold text-amber-300">{code}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemovePremiumCode(code)}
+                                  className="text-zinc-500 hover:text-rose-400 transition ml-1 cursor-pointer"
+                                  title="Eliminar código"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="border border-dashed border-zinc-800/80 p-4 rounded-xl text-center bg-zinc-950/20">
+                            <p className="text-xs text-zinc-500">No hay códigos premium disponibles en el pool de Camila.</p>
+                            <p className="text-[10px] text-zinc-600 mt-1">Ingresa algunos arriba para asegurar la entrega automática al aprobar pagos.</p>
+                          </div>
+                        )}
                       </div>
 
                       {/* System Prompt section */}
