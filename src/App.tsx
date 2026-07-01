@@ -82,6 +82,7 @@ export default function App() {
   const [uploadedImageBase64, setUploadedImageBase64] = useState<string | null>(null);
   const [validationResult, setValidationResult] = useState<any>(null);
   const [mobileChatView, setMobileChatView] = useState<"list" | "chat">("list");
+  const [approvingLeadId, setApprovingLeadId] = useState<string | null>(null);
 
   // Notifications / Feedback
   const [notification, setNotification] = useState<{
@@ -685,6 +686,32 @@ export default function App() {
     }
   };
 
+  // Handle manual payment approval
+  const handleApprovePayment = async (leadId: string) => {
+    if (approvingLeadId) return;
+    setApprovingLeadId(leadId);
+    try {
+      const res = await fetch(`/api/leads/${leadId}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setLeads((prev) => prev.map((l) => (l.id === leadId ? data.lead : l)));
+        showToast("Pago verificado y aprobado manualmente con éxito", "success");
+      } else {
+        const errData = await res.json();
+        showToast(errData.error || "Error al aprobar pago", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Error de conexión al aprobar el pago", "error");
+    } finally {
+      setApprovingLeadId(null);
+    }
+  };
+
   // Handle local file upload
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1102,6 +1129,16 @@ export default function App() {
                                   </td>
                                   <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                                     <div className="flex items-center justify-end gap-1.5">
+                                      {lead.status !== "approved" && (
+                                        <button
+                                          onClick={() => handleApprovePayment(lead.id)}
+                                          disabled={approvingLeadId === lead.id}
+                                          className="p-1.5 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-950/40 rounded-lg transition disabled:opacity-40"
+                                          title="Aprobar Pago Manualmente"
+                                        >
+                                          <CircleCheck className="h-4 w-4" />
+                                        </button>
+                                      )}
                                       <button
                                         onClick={() => {
                                           setSelectedLeadId(lead.id);
@@ -1187,6 +1224,16 @@ export default function App() {
                                 )}
 
                                 <div className="flex items-center justify-end gap-2 pt-1 border-t border-zinc-800/20" onClick={(e) => e.stopPropagation()}>
+                                  {lead.status !== "approved" && (
+                                    <button
+                                      onClick={() => handleApprovePayment(lead.id)}
+                                      disabled={approvingLeadId === lead.id}
+                                      className="flex items-center gap-1 text-xs font-semibold text-emerald-400 hover:text-emerald-300 px-3 py-1.5 rounded-lg bg-emerald-950/30 hover:bg-emerald-950/50 border border-emerald-900/30 transition cursor-pointer disabled:opacity-40"
+                                    >
+                                      <CircleCheck className="h-3.5 w-3.5" />
+                                      Aprobar
+                                    </button>
+                                  )}
                                   <button
                                     onClick={() => {
                                       setSelectedLeadId(lead.id);
@@ -1374,6 +1421,18 @@ export default function App() {
                               <span>{simulatingBuyer ? "Pensando..." : "Simular Objeción"}</span>
                             </button>
 
+                            {activeLead.status !== "approved" && (
+                              <button
+                                onClick={() => handleApprovePayment(activeLead.id)}
+                                disabled={approvingLeadId === activeLead.id}
+                                className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-800/50 disabled:opacity-50 text-white font-bold text-[10px] sm:text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition cursor-pointer whitespace-nowrap shrink-0 border border-emerald-500/30 shadow-md animate-pulse hover:animate-none"
+                                title="Aprobar el pago de este docente manualmente"
+                              >
+                                <CircleCheck className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                                <span>{approvingLeadId === activeLead.id ? "Aprobando..." : "Aprobar Pago"}</span>
+                              </button>
+                            )}
+
                             <button
                               onClick={() => {
                                 setReceiptSim((prev) => ({ ...prev, refCode: activeLead.assignedRef }));
@@ -1478,6 +1537,18 @@ export default function App() {
                                           &ldquo;{msg.receiptData.analisis}&rdquo;
                                         </div>
                                       </div>
+
+                                      {activeLead.status !== "approved" && (
+                                        <button
+                                          onClick={() => handleApprovePayment(activeLead.id)}
+                                          disabled={approvingLeadId === activeLead.id}
+                                          className="w-full mt-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-800/50 disabled:opacity-50 text-white font-bold text-[10px] py-1.5 rounded flex items-center justify-center gap-1.5 transition cursor-pointer"
+                                          title="Verificar y activar cuenta Premium manualmente para este comprobante"
+                                        >
+                                          <CircleCheck className="h-3.5 w-3.5" />
+                                          <span>{approvingLeadId === activeLead.id ? "Aprobando..." : "Aprobar Comprobante Manualmente"}</span>
+                                        </button>
+                                      )}
                                     </div>
                                   )}
 

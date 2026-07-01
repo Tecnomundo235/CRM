@@ -593,6 +593,70 @@ app.post("/api/leads/:id/pause", async (req, res) => {
   }
 });
 
+// Manually approve payment for a lead
+app.post("/api/leads/:id/approve", async (req, res) => {
+  const { id } = req.params;
+  const { notes } = req.body;
+
+  try {
+    const list = await getAllLeads();
+    const lead = list.find((l) => l.id === id);
+
+    if (!lead) {
+      return res.status(404).json({ error: "Prospecto no encontrado" });
+    }
+
+    // Set lead status to approved
+    lead.status = "approved";
+    if (notes) {
+      lead.notes = notes;
+    } else {
+      lead.notes = (lead.notes || "") + "\n[Aprobación Manual]: Pago legítimo verificado por el administrador.";
+    }
+
+    // Bot congratulatory message with credentials
+    const congratulationsMsg: Message = {
+      sender: "bot",
+      text: `🎉 **¡PAGO CONFIRMADO Y ACTIVADO MANUALMENTE!** 🎉\n\nEstimado/a ${lead.name}, un administrador ha verificado y aprobado su comprobante de pago de manera exitosa.\n\n• **Código de Referencia:** \`${lead.assignedRef}\`\n• **Monto:** $2.00 USD (Suscripción Premium)\n• **Estado:** Activo Premium ✅\n\nSu cuenta Premium de **Docenty PRO** ya se encuentra configurada con acceso completo a todas las planeaciones por IA y herramientas administrativas de aula.\n\n🔑 **Datos de Acceso:**\n• **Enlace de acceso:** https://app.docenty.pro\n• **Usuario:** ${lead.email || lead.phone || "su número registrado"}\n• **Contraseña provisional:** \`Docenty2026!\` (Le sugerimos cambiarla al ingresar)\n\n¡Le damos una cordial bienvenida a la comunidad! Estamos muy emocionados de simplificar su vida docente. 🚀📚`,
+      timestamp: new Date().toISOString(),
+    };
+    lead.messages.push(congratulationsMsg);
+
+    await updateLead(lead);
+
+    const botReply = congratulationsMsg.text;
+
+    // Send WhatsApp notification if Meta credentials exist
+    if (WHATSAPP_TOKEN && PHONE_NUMBER_ID) {
+      try {
+        await axios.post(
+          `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
+          {
+            messaging_product: "whatsapp",
+            to: lead.phone,
+            type: "text",
+            text: { body: botReply },
+          },
+          {
+            headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
+          }
+        );
+        console.log(`WhatsApp manual approval reply sent successfully to ${lead.phone}`);
+      } catch (wsErr: any) {
+        console.error("Error sending manual approval WhatsApp message via API:", wsErr?.response?.data || wsErr.message);
+      }
+    }
+
+    // Broadcast update via Websocket
+    broadcastToDashboard("lead:updated", lead);
+
+    res.json({ success: true, lead });
+  } catch (error) {
+    console.error("Error approving payment:", error);
+    res.status(500).json({ error: "Error al aprobar el pago del prospecto" });
+  }
+});
+
 // Send manual operator message to WhatsApp client
 app.post("/api/leads/:id/manual-message", async (req, res) => {
   const { id } = req.params;
