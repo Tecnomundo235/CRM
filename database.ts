@@ -1,4 +1,6 @@
 import { MongoClient, Db } from "mongodb";
+import fs from "fs";
+import path from "path";
 
 // Types
 export interface Message {
@@ -268,9 +270,63 @@ Protocolo de Seguridad:
   ]
 };
 
-// In-Memory Fallback State (will be used if MONGODB_URI is not set)
-let localLeadsStore: Lead[] = [...DEFAULT_LEADS];
+// In-Memory & File Fallback State (will be used if MONGODB_URI is not set)
+let localLeadsStore: Lead[] = [];
 let localConfigStore: SystemConfigs = { ...DEFAULT_CONFIG };
+
+const LEADS_FILE = path.join(process.cwd(), "leads_store.json");
+const CONFIG_FILE = path.join(process.cwd(), "config_store.json");
+
+function loadLocalStores() {
+  try {
+    if (fs.existsSync(LEADS_FILE)) {
+      const data = fs.readFileSync(LEADS_FILE, "utf-8");
+      localLeadsStore = JSON.parse(data);
+      console.log(`[CRM Storage] Loaded ${localLeadsStore.length} leads from local JSON store.`);
+    } else {
+      fs.writeFileSync(LEADS_FILE, JSON.stringify(DEFAULT_LEADS, null, 2));
+      localLeadsStore = [...DEFAULT_LEADS];
+      console.log("[CRM Storage] Initialized local leads JSON file.");
+    }
+  } catch (err) {
+    console.error("Error loading local leads file store:", err);
+    localLeadsStore = [...DEFAULT_LEADS];
+  }
+
+  try {
+    if (fs.existsSync(CONFIG_FILE)) {
+      const data = fs.readFileSync(CONFIG_FILE, "utf-8");
+      localConfigStore = JSON.parse(data);
+      console.log("[CRM Storage] Loaded system configs from local JSON store.");
+    } else {
+      fs.writeFileSync(CONFIG_FILE, JSON.stringify(DEFAULT_CONFIG, null, 2));
+      localConfigStore = { ...DEFAULT_CONFIG };
+      console.log("[CRM Storage] Initialized local configs JSON file.");
+    }
+  } catch (err) {
+    console.error("Error loading local configs file store:", err);
+    localConfigStore = { ...DEFAULT_CONFIG };
+  }
+}
+
+function saveLocalLeadsStore() {
+  try {
+    fs.writeFileSync(LEADS_FILE, JSON.stringify(localLeadsStore, null, 2));
+  } catch (err) {
+    console.error("Error saving local leads file store:", err);
+  }
+}
+
+function saveLocalConfigStore() {
+  try {
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(localConfigStore, null, 2));
+  } catch (err) {
+    console.error("Error saving local configs file store:", err);
+  }
+}
+
+// Load stores on initialization
+loadLocalStores();
 
 // Database connection helper
 let mongoClient: MongoClient | null = null;
@@ -343,6 +399,7 @@ export async function createLead(lead: Lead): Promise<Lead> {
     }
   }
   localLeadsStore.unshift(lead);
+  saveLocalLeadsStore();
   return lead;
 }
 
@@ -357,6 +414,7 @@ export async function updateLead(lead: Lead): Promise<Lead> {
     }
   }
   localLeadsStore = localLeadsStore.map((l) => (l.id === lead.id ? lead : l));
+  saveLocalLeadsStore();
   return lead;
 }
 
@@ -372,6 +430,7 @@ export async function deleteLead(id: string): Promise<boolean> {
   }
   const originalLength = localLeadsStore.length;
   localLeadsStore = localLeadsStore.filter((l) => l.id !== id);
+  saveLocalLeadsStore();
   return localLeadsStore.length < originalLength;
 }
 
@@ -393,6 +452,8 @@ export async function resetDatabase(): Promise<Lead[]> {
   }
   localLeadsStore = [...DEFAULT_LEADS];
   localConfigStore = { ...DEFAULT_CONFIG };
+  saveLocalLeadsStore();
+  saveLocalConfigStore();
   return localLeadsStore;
 }
 
@@ -428,5 +489,6 @@ export async function saveSystemConfigs(configs: SystemConfigs): Promise<SystemC
     }
   }
   localConfigStore = { ...configs };
+  saveLocalConfigStore();
   return localConfigStore;
 }
