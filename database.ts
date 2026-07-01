@@ -186,7 +186,7 @@ const DEFAULT_LEADS: Lead[] = [
       },
       {
         sender: "bot",
-        text: "🎉 **¡PAGO CONFIRMADO CON ÉXITO!** 🎉\n\nProfesor Jorge, he validado su comprobante de inmediato con la referencia **DOC-PRO-J8H4**.\n\nHemos creado su cuenta premium en Docenty PRO.\n\n🔑 **Datos de acceso:**\n• **Plataforma:** https://docente-pro-by-meta-tc.vercel.app/\n• **Usuario:** jorge.herrera@escuela.edu.ve\n• **Contraseña temporal:** Docenty2026!\n\n¡Bienvenido a la nueva era de la educación sin papeleo! Si tiene alguna otra duda, estaré aquí para asistirle por WhatsApp 🤖📚",
+        text: "🎉 **¡PAGO CONFIRMADO Y ACTIVADO CON ÉXITO!** 🎉\n\nProfesor Jorge, he validado su comprobante de inmediato de manera exitosa.\n\n• **Monto:** $2.00 USD (Suscripción Premium de 30 días)\n• **Estado:** Activo Premium ✅\n\nSu cuenta de **Docenty PRO** está lista para ser activada con acceso completo a las planeaciones por IA.\n\n🔑 **Instrucciones para ingresar:**\n1. **Accede a la plataforma:** https://docente-pro-by-meta-tc.vercel.app/\n2. **Inicia sesión:** Elige la opción de **Iniciar sesión con Google** con tu cuenta de correo personal.\n3. **Activa tu licencia:** Una vez dentro, introduce tu **Código de Activación Premium** único para activar tus 30 días de acceso ilimitado:\n   👉 **Código Premium:** `META-ZLKN-25C8`\n\n*Nota: No necesitas ninguna contraseña provisional ni datos de usuario adicionales. Tu acceso se gestiona de forma segura directamente con tu cuenta de Google.*\n\n¡Le damos una cordial bienvenida a bordo! Estamos emocionados de ayudarle a simplificar su planificación docente. 🚀📚",
         timestamp: new Date(Date.now() - 2.3 * 3600000).toISOString(),
       },
     ],
@@ -245,6 +245,7 @@ Cuando un usuario envíe un comprobante (capture de pago), realiza lo siguiente:
 1. **Extracción**: Analiza el capture para identificar: el Banco (debe ser Banco de Venezuela), el Número de Referencia, la Fecha y el Monto ($2 USD al cambio oficial del BCV).
 2. **Verificación**: Compara la información extraída con los datos de mi cuenta oficial: Banco de Venezuela | Titular: Reymon Castillo | Cédula: 24755720 | Teléfono: 04262953484.
 3. **Entrega**: Si el comprobante es válido, revisa la siguiente lista de Códigos de Activación Disponibles, elige uno que esté DISPONIBLE, entrégaselo al cliente de manera destacada y indícale explícitamente en tu respuesta que ese código ahora pasa al estado de "USADO" para que el administrador pueda auditarlo.
+4. **Instrucciones de Activación Sin Contraseña (¡CRÍTICO!)**: Indica con total claridad que para ingresar NO necesitan ninguna contraseña ni usuario provisional. El proceso es: iniciar sesión con su cuenta de Google directamente en https://docente-pro-by-meta-tc.vercel.app/ y luego colocar el código Premium de 30 días que le diste para activar el plan. ¡Está estrictamente prohibido inventar contraseñas provisionales o nombres de usuario!
 
 Códigos de Activación Disponibles (Actualizar constantemente):
 - CÓDIGO: [META-ZLKN-25C8] | ESTADO: DISPONIBLE
@@ -259,7 +260,8 @@ Protocolo de Seguridad:
 [RESTRICCIONES CRÍTICAS]
 1. FORMATO DE RESPUESTA: Nunca generes bloques largos de texto. Usa viñetas cortas si debes listar características o proyectos. Los mensajes en WhatsApp deben ser fáciles de leer en una pantalla móvil.
 2. ENLACES Y URL: Bajo ninguna circunstancia inventes, supongas o estructures URLs de páginas web o pasarelas de pago que no existan.
-3. Sé extremadamente profesional, empática y enfocada en ayudar al usuario.`,
+3. NO INVENTES CONTRASEÑAS NI USUARIOS: Docenty PRO no utiliza contraseñas para los clientes activados por este medio; solo requiere iniciar sesión con Google y colocar el código Premium de 30 días.
+4. Sé extremadamente profesional, empática y enfocada en ayudar al usuario.`,
   bankDetails: {
     banco: "Banco de Venezuela",
     cuenta: "04262953484",
