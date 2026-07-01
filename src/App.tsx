@@ -104,6 +104,7 @@ export default function App() {
   } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const initialSyncDone = useRef(false);
 
   // Play an elegant, clean high-pitch synthesizer chime
   const playNotificationChime = () => {
@@ -255,6 +256,13 @@ export default function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [leads, selectedLeadId, activeTab]);
 
+  // Keep localStorage in sync with leads updates once initial sync is done
+  useEffect(() => {
+    if (initialSyncDone.current) {
+      localStorage.setItem("docenty_crm_leads", JSON.stringify(leads));
+    }
+  }, [leads]);
+
   const showToast = (text: string, type: "success" | "error" | "info" = "success") => {
     setNotification({ text, type });
     setTimeout(() => setNotification(null), 5000);
@@ -264,10 +272,50 @@ export default function App() {
     try {
       const res = await fetch("/api/leads");
       if (res.ok) {
-        const data = await res.json();
-        setLeads(data);
-        if (data.length > 0 && !selectedLeadId) {
-          setSelectedLeadId(data[0].id);
+        const serverLeads = await res.json();
+        
+        if (!initialSyncDone.current) {
+          initialSyncDone.current = true;
+          const localLeadsStr = localStorage.getItem("docenty_crm_leads");
+          if (localLeadsStr) {
+            try {
+              const localLeads = JSON.parse(localLeadsStr);
+              if (Array.isArray(localLeads) && localLeads.length > 0) {
+                const serverIds = new Set(serverLeads.map((l: any) => l.id));
+                const missingLeads = localLeads.filter((l: any) => !serverIds.has(l.id));
+                
+                if (missingLeads.length > 0) {
+                  console.log("[Sync Engine] Restoring missing leads to server:", missingLeads);
+                  const restoreRes = await fetch("/api/restore-leads", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ leads: missingLeads })
+                  });
+                  
+                  if (restoreRes.ok) {
+                    const mergeRes = await fetch("/api/leads");
+                    if (mergeRes.ok) {
+                      const mergedData = await mergeRes.json();
+                      setLeads(mergedData);
+                      localStorage.setItem("docenty_crm_leads", JSON.stringify(mergedData));
+                      if (mergedData.length > 0 && !selectedLeadId) {
+                        setSelectedLeadId(mergedData[0].id);
+                      }
+                      return;
+                    }
+                  }
+                }
+              }
+            } catch (err) {
+              console.error("[Sync Engine] Failed to sync from localStorage:", err);
+            }
+          }
+        }
+        
+        setLeads(serverLeads);
+        localStorage.setItem("docenty_crm_leads", JSON.stringify(serverLeads));
+        if (serverLeads.length > 0 && !selectedLeadId) {
+          setSelectedLeadId(serverLeads[0].id);
         }
       }
     } catch (e) {
@@ -348,22 +396,21 @@ export default function App() {
     }
   };
 
-  // Reset database to default
+  // Reset database (Empty CRM and delete all history)
   const handleResetDb = async () => {
-    if (!confirm("¿Desea restablecer los leads por defecto? Esto borrará simulaciones actuales.")) return;
+    if (!confirm("¿Desea vaciar por completo la base de datos del CRM? Esto eliminará todos los prospectos, chats e historial de manera permanente.")) return;
     setLoading(true);
     try {
       const res = await fetch("/api/reset", { method: "POST" });
       if (res.ok) {
         const data = await res.json();
         setLeads(data);
-        if (data.length > 0) {
-          setSelectedLeadId(data[0].id);
-        }
-        showToast("Base de datos restablecida con datos demo");
+        localStorage.removeItem("docenty_crm_leads");
+        setSelectedLeadId(null);
+        showToast("Base de datos del CRM vaciada con éxito");
       }
     } catch (e) {
-      showToast("Error al reiniciar", "error");
+      showToast("Error al reiniciar la base de datos", "error");
     } finally {
       setLoading(false);
     }

@@ -505,6 +505,31 @@ app.get("/api/leads", async (req, res) => {
   }
 });
 
+// Restore leads from localStorage
+app.post("/api/restore-leads", async (req, res) => {
+  const { leads } = req.body;
+  if (!Array.isArray(leads)) {
+    return res.status(400).json({ error: "Leads must be an array" });
+  }
+
+  try {
+    const existingLeads = await getAllLeads();
+    const existingIds = new Set(existingLeads.map(l => l.id));
+    let count = 0;
+    for (const lead of leads) {
+      if (!existingIds.has(lead.id)) {
+        await createLead(lead);
+        count++;
+      }
+    }
+    const updated = await getAllLeads();
+    res.json({ success: true, count, total: updated.length });
+  } catch (error) {
+    console.error("Error restoring leads:", error);
+    res.status(500).json({ error: "Error al restaurar prospectos" });
+  }
+});
+
 // Create new lead
 app.post("/api/leads", async (req, res) => {
   const { name, phone, email, status, plan, notes } = req.body;
