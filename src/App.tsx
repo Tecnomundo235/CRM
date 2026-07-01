@@ -97,12 +97,61 @@ export default function App() {
     type: "success" | "error" | "info";
   } | null>(null);
 
+  const [liveAlert, setLiveAlert] = useState<{
+    leadId: string;
+    name: string;
+    text: string;
+  } | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Play an elegant, clean high-pitch synthesizer chime
+  const playNotificationChime = () => {
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      const now = ctx.currentTime;
+      
+      // Tone 1 (D5 to A5)
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = "sine";
+      osc1.frequency.setValueAtTime(587.33, now);
+      osc1.frequency.exponentialRampToValueAtTime(880.00, now + 0.15);
+      gain1.gain.setValueAtTime(0.12, now);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.4);
+
+      // Tone 2 (A5 to D6 - slight delay)
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = "sine";
+      osc2.frequency.setValueAtTime(880.00, now + 0.08);
+      osc2.frequency.exponentialRampToValueAtTime(1174.66, now + 0.25);
+      gain2.gain.setValueAtTime(0.08, now + 0.08);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(now + 0.08);
+      osc2.stop(now + 0.5);
+    } catch (e) {
+      console.error("Failed to play synth chime:", e);
+    }
+  };
 
   // Fetch initial data
   useEffect(() => {
     fetchLeads();
     fetchConfig();
+
+    // Request native browser notifications permission
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
   }, []);
 
   // WebSocket connection for real-time monitoring
@@ -120,8 +169,42 @@ export default function App() {
       socket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          
           if (data.type === "lead:updated") {
             const updatedLead = data.payload;
+            
+            // Check if this is an incoming client message to trigger sounds and real-time alerts
+            if (updatedLead.messages && updatedLead.messages.length > 0) {
+              const lastMsg = updatedLead.messages[updatedLead.messages.length - 1];
+              if (lastMsg.sender === "client") {
+                // Play notification sound
+                playNotificationChime();
+
+                // Trigger native system/mobile browser notification if supported and granted
+                if ("Notification" in window && Notification.permission === "granted") {
+                  try {
+                    new Notification(`💬 Nuevo chat: ${updatedLead.name}`, {
+                      body: lastMsg.text,
+                      tag: `chat-${updatedLead.id}`,
+                      requireInteraction: false
+                    });
+                    if ("vibrate" in navigator) {
+                      navigator.vibrate([100, 50, 100]);
+                    }
+                  } catch (nErr) {
+                    console.error("Native Notification failed:", nErr);
+                  }
+                }
+
+                // Show visual floating bubble/banner in-app
+                setLiveAlert({
+                  leadId: updatedLead.id,
+                  name: updatedLead.name,
+                  text: lastMsg.text
+                });
+              }
+            }
+
             setLeads((prevLeads) => {
               const index = prevLeads.findIndex((l) => l.id === updatedLead.id);
               if (index !== -1) {
@@ -135,6 +218,12 @@ export default function App() {
                 return [updatedLead, ...prevLeads];
               }
             });
+          }
+
+          if (data.type === "lead:deleted") {
+            const deletedId = data.payload;
+            setLeads((prevLeads) => prevLeads.filter((l) => l.id !== deletedId));
+            setSelectedLeadId((currentId) => currentId === deletedId ? null : currentId);
           }
         } catch (err) {
           console.error("[WebSocket] Error processing message:", err);
@@ -875,6 +964,70 @@ export default function App() {
               <AlertCircle className="h-5 w-5 text-zinc-400 flex-shrink-0" />
             )}
             <p className="text-sm font-medium">{notification.text}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Real-time Incoming Chat Alert Bubble */}
+      <AnimatePresence>
+        {liveAlert && (
+          <motion.div
+            initial={{ opacity: 0, y: -40, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -40, scale: 0.9 }}
+            className="fixed top-20 right-4 z-50 p-4 rounded-xl shadow-2xl bg-[#09090b] border-2 border-teal-500/80 text-white max-w-md w-[calc(100vw-32px)] sm:w-[380px] shadow-teal-500/10"
+          >
+            <div className="flex justify-between items-start gap-2 mb-2">
+              <div className="flex items-center gap-2">
+                <span className="flex h-2.5 w-2.5 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-teal-500"></span>
+                </span>
+                <span className="text-[10px] font-bold text-teal-400 uppercase tracking-widest font-mono">¡CHAT ACTIVO EN TIEMPO REAL!</span>
+              </div>
+              <button 
+                onClick={() => setLiveAlert(null)}
+                className="text-zinc-500 hover:text-white transition cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            
+            <h5 className="font-bold text-sm text-zinc-100 flex items-center gap-1.5">
+              💬 {liveAlert.name}
+            </h5>
+            <p className="text-xs text-zinc-300 mt-1 line-clamp-2 italic bg-zinc-900/60 p-2 rounded-lg border border-zinc-800/40">
+              "{liveAlert.text}"
+            </p>
+            
+            <div className="mt-3 flex justify-end gap-2">
+              <button
+                onClick={() => setLiveAlert(null)}
+                className="text-[11px] text-zinc-400 hover:text-zinc-200 px-2.5 py-1.5 rounded-lg border border-zinc-800 hover:bg-zinc-900 transition font-medium cursor-pointer"
+              >
+                Ignorar
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedLeadId(liveAlert.leadId);
+                  setActiveTab("whatsapp");
+                  setMobileChatView("chat");
+                  setLiveAlert(null);
+                  
+                  // Highlight visually or scroll
+                  setTimeout(() => {
+                    const scrollElem = document.getElementById("whatsapp-messages-container");
+                    if (scrollElem) {
+                      scrollElem.scrollTop = scrollElem.scrollHeight;
+                    }
+                  }, 100);
+                }}
+                className="bg-teal-500 hover:bg-teal-600 text-black font-bold text-[11px] px-3.5 py-1.5 rounded-lg shadow-md hover:shadow-teal-500/20 transition flex items-center gap-1 cursor-pointer"
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                Monitorear Chat
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

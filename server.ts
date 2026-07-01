@@ -532,6 +532,7 @@ app.post("/api/leads", async (req, res) => {
 
   try {
     const saved = await createLead(newLead);
+    broadcastToDashboard("lead:updated", saved);
     res.json(saved);
   } catch (error) {
     res.status(500).json({ error: "Error al registrar prospecto" });
@@ -543,6 +544,7 @@ app.delete("/api/leads/:id", async (req, res) => {
   const { id } = req.params;
   try {
     await deleteLead(id);
+    broadcastToDashboard("lead:deleted", id);
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: "Error al eliminar prospecto" });
@@ -985,6 +987,7 @@ Recuerda que la referencia asignada a este cliente es: ${lead.assignedRef}.\nNo 
       lead.messages.push(botMsg);
 
       await updateLead(lead);
+      broadcastToDashboard("lead:updated", lead);
       res.json({ lead, botReply });
     } catch (err: any) {
       console.error("Gemini Error:", err);
@@ -1003,6 +1006,7 @@ Recuerda que la referencia asignada a este cliente es: ${lead.assignedRef}.\nNo 
       };
       lead.messages.push(botMsg);
       await updateLead(lead);
+      broadcastToDashboard("lead:updated", lead);
       res.json({ lead, botReply: fallbackReply, apiError: true });
     }
   } catch (error) {
