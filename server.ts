@@ -517,10 +517,12 @@ app.post("/api/restore-leads", async (req, res) => {
     const existingIds = new Set(existingLeads.map(l => l.id));
     let count = 0;
     for (const lead of leads) {
-      if (!existingIds.has(lead.id)) {
+      if (existingIds.has(lead.id)) {
+        await updateLead(lead);
+      } else {
         await createLead(lead);
-        count++;
       }
+      count++;
     }
     const updated = await getAllLeads();
     res.json({ success: true, count, total: updated.length });

@@ -33,6 +33,8 @@ import {
   ArrowLeft,
   Link,
   Key,
+  Bell,
+  Download,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Lead, Message, BankDetails, SystemConfigs } from "./types";
@@ -105,6 +107,8 @@ export default function App() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const initialSyncDone = useRef(false);
+  const [notifPermission, setNotifPermission] = useState<string>("default");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Play an elegant, clean high-pitch synthesizer chime
   const playNotificationChime = () => {
@@ -150,10 +154,101 @@ export default function App() {
     fetchConfig();
 
     // Request native browser notifications permission
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
+    if ("Notification" in window) {
+      setNotifPermission(Notification.permission);
+      if (Notification.permission === "default") {
+        Notification.requestPermission().then((perm) => {
+          setNotifPermission(perm);
+        });
+      }
     }
   }, []);
+
+  const requestNotificationPermission = async () => {
+    if (!("Notification" in window)) {
+      showToast("Este navegador no soporta notificaciones", "error");
+      return;
+    }
+    try {
+      const permission = await Notification.requestPermission();
+      setNotifPermission(permission);
+      if (permission === "granted") {
+        showToast("¡Notificaciones activadas con éxito! 🎉", "success");
+        new Notification("Docenty PRO", {
+          body: "Las notificaciones están activadas para avisarte de nuevos chats.",
+          icon: "/favicon.ico"
+        });
+        playNotificationChime();
+      } else if (permission === "denied") {
+        showToast("El permiso fue denegado. Por favor, actívalas en los ajustes de tu navegador.", "error");
+      }
+    } catch (err) {
+      console.error("Error requesting notification permission:", err);
+    }
+  };
+
+  const handleExportBackup = () => {
+    try {
+      const dataStr = JSON.stringify(leads, null, 2);
+      const blob = new Blob([dataStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `docenty_crm_respaldo_${new Date().toISOString().split("T")[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      showToast("Copia de seguridad descargada exitosamente en tu dispositivo. ¡Consérvala segura! 📥", "success");
+    } catch (err: any) {
+      showToast(`Error al descargar respaldo: ${err.message}`, "error");
+    }
+  };
+
+  const handleImportBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const importedLeads = JSON.parse(event.target?.result as string);
+        if (!Array.isArray(importedLeads)) {
+          throw new Error("El archivo no contiene un formato de respaldo válido (debe ser una lista).");
+        }
+        
+        // Validation check
+        const isValid = importedLeads.every(l => l.id && l.name && l.phone);
+        if (!isValid) {
+          throw new Error("El archivo de respaldo tiene un formato incompatible.");
+        }
+        
+        // Save locally
+        localStorage.setItem("docenty_crm_leads", JSON.stringify(importedLeads));
+        setLeads(importedLeads);
+        
+        // Sync to server
+        showToast("Sincronizando copia de seguridad con el servidor...", "info");
+        const restoreRes = await fetch("/api/restore-leads", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ leads: importedLeads })
+        });
+        
+        if (restoreRes.ok) {
+          showToast("¡Copia de seguridad restaurada y sincronizada correctamente! 🎉", "success");
+          if (importedLeads.length > 0) {
+            setSelectedLeadId(importedLeads[0].id);
+          }
+        } else {
+          showToast("Respaldo cargado localmente, pero falló la sincronización con el servidor.", "info");
+        }
+      } catch (err: any) {
+        showToast(`Error al restaurar copia de seguridad: ${err.message}`, "error");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = ""; // Clear file input
+  };
 
   // WebSocket connection for real-time monitoring
   useEffect(() => {
@@ -2265,6 +2360,114 @@ Protocolo de Seguridad:
                         </button>
                       </div>
                     </form>
+                  </div>
+
+                  {/* NUEVA SECCIÓN DE COPIAS DE SEGURIDAD Y NOTIFICACIONES */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                    {/* Tarjeta A: Notificaciones en mi Dispositivo */}
+                    <div className="bg-[#121212]/90 rounded-2xl border border-zinc-800/80 p-5 sm:p-6 shadow-xs flex flex-col justify-between space-y-4">
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Bell className="h-5 w-5 text-teal-400" />
+                          <h4 className="font-display font-bold text-sm text-white">Notificaciones en Tiempo Real</h4>
+                        </div>
+                        <p className="text-xs text-zinc-400 leading-relaxed">
+                          Recibe alertas con sonido y ventanas emergentes (push notifications) en tu celular o computadora de inmediato cuando un cliente potencial escriba.
+                        </p>
+                        
+                        <div className="mt-4 p-3 rounded-xl bg-zinc-950/40 border border-zinc-800/50 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-zinc-400">Estado de Permiso:</span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border ${
+                              notifPermission === "granted" 
+                                ? "bg-teal-500/10 border-teal-500/20 text-teal-400" 
+                                : notifPermission === "denied" 
+                                  ? "bg-rose-500/10 border-rose-500/20 text-rose-400" 
+                                  : "bg-zinc-800 border-zinc-700 text-zinc-400"
+                            }`}>
+                              {notifPermission === "granted" ? "Concedido (Activo)" : notifPermission === "denied" ? "Denegado (Bloqueado)" : "Sin configurar"}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-zinc-500 leading-normal">
+                            {notifPermission === "granted" 
+                              ? "¡Excelente! Tu dispositivo recibirá alertas instantáneas con sonido e información del mensaje."
+                              : notifPermission === "denied" 
+                                ? "Bloqueado por el navegador. Haz clic en el icono del candado en la barra de direcciones de tu navegador y activa las Notificaciones."
+                                : "Haz clic en el botón de abajo para activar y probar las alertas en este dispositivo."
+                            }
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 pt-2">
+                        {notifPermission !== "granted" && (
+                          <button
+                            type="button"
+                            onClick={requestNotificationPermission}
+                            className="bg-teal-600 hover:bg-teal-700 text-white font-semibold text-xs px-4 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-md shadow-teal-950/40"
+                          >
+                            <Bell className="h-4 w-4" />
+                            Activar Notificaciones
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={playNotificationChime}
+                          className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold text-xs px-4 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 border border-zinc-700/50"
+                        >
+                          <Volume2 className="h-4 w-4" />
+                          Probar Sonido
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Tarjeta B: Copia de Seguridad */}
+                    <div className="bg-[#121212]/90 rounded-2xl border border-zinc-800/80 p-5 sm:p-6 shadow-xs flex flex-col justify-between space-y-4">
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Download className="h-5 w-5 text-amber-400" />
+                          <h4 className="font-display font-bold text-sm text-white">Respaldos (Guardar en mi Celular)</h4>
+                        </div>
+                        <p className="text-xs text-zinc-400 leading-relaxed">
+                          Descarga o restaura tu base de datos completa de clientes y chats directamente en el almacenamiento de tu celular o computadora. 
+                        </p>
+                        <div className="bg-amber-950/10 border border-amber-900/20 p-3 rounded-xl mt-3">
+                          <p className="text-[10px] text-amber-300/90 leading-normal">
+                            💡 <strong>Garantía de Persistencia:</strong> Aunque el servidor de la nube se reinicie, el CRM sincroniza tus datos automáticamente desde la memoria de tu navegador (Local Storage). Descarga un respaldo periódicamente para tener un control manual absoluto.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 pt-2">
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={handleExportBackup}
+                            className="bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs px-4 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-md shadow-amber-950/40"
+                          >
+                            <Download className="h-4 w-4" />
+                            Descargar Respaldo
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold text-xs px-4 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 border border-zinc-700/50"
+                          >
+                            <Upload className="h-4 w-4" />
+                            Subir/Restaurar
+                          </button>
+                        </div>
+
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          accept=".json"
+                          className="hidden"
+                          onChange={handleImportBackup}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
