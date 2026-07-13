@@ -95,70 +95,222 @@ async function downloadWhatsAppMedia(mediaId: string): Promise<string | null> {
   }
 }
 
-// 2. ENDPOINT PRINCIPAL (Recibe los mensajes de los docentes de WhatsApp)
-app.post(["/api/webhook", "/webhook"], async (req, res) => {
-  try {
-    const entry = req.body.entry?.[0];
-    const changes = entry?.changes?.[0];
-    const value = changes?.value;
-    const message = value?.messages?.[0];
+// 2. ENDPOINT PRINCIPAL (Recibe los mensajes de los docentes de WhatsApp con Control de Idempotencia y Procesamiento Asíncrono)
+const processedWAMIDs = new Set<string>();
+const MAX_WAMIDS_CACHE = 1000;
 
-    // Si no viene un mensaje válido, respondemos OK para no trabar el webhook de Meta
-    if (!message) {
-      return res.sendStatus(200);
+function checkAndRegisterWAMID(wamid: string): boolean {
+  if (processedWAMIDs.has(wamid)) {
+    return true; // Mensaje ya procesado (duplicado)
+  }
+  processedWAMIDs.add(wamid);
+  if (processedWAMIDs.size > MAX_WAMIDS_CACHE) {
+    const firstVal = processedWAMIDs.values().next().value;
+    if (firstVal !== undefined) {
+      processedWAMIDs.delete(firstVal);
+    }
+  }
+  return false;
+}
+
+async function sendAdminNotification(messageText: string) {
+  if (WHATSAPP_TOKEN && PHONE_NUMBER_ID) {
+    try {
+      const adminPhone = "584144783204"; // Número personal del arquitecto Reymon Castillo
+      await axios.post(
+        `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
+        {
+          messaging_product: "whatsapp",
+          to: adminPhone,
+          type: "text",
+          text: { body: messageText }
+        },
+        {
+          headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` }
+        }
+      );
+      console.log(`[Admin Notification] Notificación de WhatsApp enviada al admin ${adminPhone}`);
+    } catch (error: any) {
+      console.error("[Admin Notification] Error al enviar notificación al admin:", error.response?.data || error.message);
+    }
+  }
+}
+
+async function sendWhatsAppMessage(phone_number_id: string, to: string, textBody: string) {
+  if (WHATSAPP_TOKEN && phone_number_id) {
+    try {
+      await axios.post(
+        `https://graph.facebook.com/v17.0/${phone_number_id}/messages`,
+        {
+          messaging_product: "whatsapp",
+          to: to,
+          type: "text",
+          text: { body: textBody }
+        },
+        {
+          headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` }
+        }
+      );
+      console.log(`[Webhook Background] Respuesta enviada exitosamente a ${to}`);
+    } catch (error: any) {
+      console.error("[Webhook Background] Error de Meta al enviar mensaje de respuesta:", error.response?.data || error.message);
+    }
+  }
+}
+
+async function processWebhookInBackground(message: any, value: any) {
+  const from = message.from; // Teléfono del docente que escribe
+  const phone_number_id = value.metadata?.phone_number_id || PHONE_NUMBER_ID;
+  const senderName = value.contacts?.[0]?.profile?.name || `Docente (${from})`;
+
+  // Buscar o registrar prospecto por su número de celular
+  const leadsList = await getAllLeads();
+  let lead = leadsList.find(l => cleanPhoneNumber(l.phone) === cleanPhoneNumber(from));
+  let isNewLead = false;
+
+  if (!lead) {
+    isNewLead = true;
+    const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const assignedRef = `DOC-PRO-${randomStr}`;
+    const newLead: Lead = {
+      id: `lead-${Date.now()}`,
+      name: senderName,
+      phone: from,
+      email: "",
+      status: "prospect",
+      plan: "annual",
+      assignedRef,
+      notes: "Registrado automáticamente por el sistema de webhook asíncrono de Docenty.",
+      createdAt: new Date().toISOString(),
+      messages: [],
+    };
+    lead = await createLead(newLead);
+  }
+
+  let botReply = "Disculpa, no pude procesar tu solicitud en este momento.";
+  const systemConfigs = await getSystemConfigs();
+
+  // Caso A: Mensaje de Texto
+  if (message.type === "text") {
+    const promptInput = message.text.body;
+
+    // Guardar el mensaje del docente en el CRM
+    const clientMsg: Message = {
+      sender: "client",
+      text: promptInput,
+      timestamp: new Date().toISOString(),
+    };
+    lead.messages.push(clientMsg);
+
+    if (lead.status === "prospect") {
+      lead.status = "interested";
+    }
+    await updateLead(lead);
+    broadcastToDashboard("lead:updated", lead);
+
+    // Notificación en tiempo real al administrador por WhatsApp
+    const notifyMsg = isNewLead
+      ? `🆕 *Nuevo Prospecto Registrado*\n\n*Nombre:* ${senderName}\n*Celular:* ${from}\n*Referencia:* ${lead.assignedRef}\n\n*Mensaje:* "${promptInput}"`
+      : `💬 *Mensaje de:* ${lead.name} (${lead.phone})\n*Mensaje:* "${promptInput}"`;
+    await sendAdminNotification(notifyMsg);
+
+    if (lead.isPaused) {
+      console.log(`[Webhook Background] Camila está pausada para ${lead.name}. Se omite auto-respuesta.`);
+      return;
     }
 
-    const phone_number_id = value.metadata?.phone_number_id || PHONE_NUMBER_ID;
-    const from = message.from; // Teléfono del docente que escribe
-    const senderName = value.contacts?.[0]?.profile?.name || `Docenty WhatsApp (${from})`;
+    // Comprobación de palabras clave para Soporte Humano / Pausa Manual
+    const lowerInput = promptInput.toLowerCase().trim();
+    if (
+      lowerInput.includes("humano") || 
+      lowerInput.includes("asesor") || 
+      lowerInput.includes("soporte") || 
+      lowerInput.includes("persona") || 
+      lowerInput.includes("reymon") || 
+      lowerInput.includes("antonio")
+    ) {
+      lead.isPaused = true;
+      botReply = `Entendido, ${lead.name}. He pausado mis respuestas automáticas para que el arquitecto de sistemas **Reymon Castillo** 👨‍💻 atienda tu chat de forma personal a la brevedad.
 
-    // Buscar o registrar prospecto por su número de celular
-    const leadsList = await getAllLeads();
-    let lead = leadsList.find(l => cleanPhoneNumber(l.phone) === cleanPhoneNumber(from));
-
-    if (!lead) {
-      const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
-      const assignedRef = `DOC-PRO-${randomStr}`;
-      const newLead: Lead = {
-        id: `lead-${Date.now()}`,
-        name: senderName,
-        phone: from,
-        email: "",
-        status: "prospect",
-        plan: "annual",
-        assignedRef,
-        notes: "Registrado automáticamente por webhook de WhatsApp.",
-        createdAt: new Date().toISOString(),
-        messages: [],
-      };
-      lead = await createLead(newLead);
-    }
-
-    let botReply = "Disculpa, no pude procesar tu solicitud.";
-    const systemConfigs = await getSystemConfigs();
-
-    // Caso A: Mensaje de Texto
-    if (message.type === "text") {
-      const promptInput = message.text.body;
-
-      // Guardar el mensaje del docente en el CRM
-      const clientMsg: Message = {
-        sender: "client",
-        text: promptInput,
+Puedes escribirle directamente a su WhatsApp haciendo clic aquí: https://wa.me/584144783204 o esperar su respuesta por esta vía. ¡Muchas gracias por tu paciencia!`;
+      
+      const botMsg: Message = {
+        sender: "bot",
+        text: botReply,
         timestamp: new Date().toISOString(),
       };
-      lead.messages.push(clientMsg);
-      if (lead.status === "prospect") {
-        lead.status = "interested";
-      }
+      lead.messages.push(botMsg);
       await updateLead(lead);
       broadcastToDashboard("lead:updated", lead);
 
-      if (lead.isPaused) {
-        console.log(`[Webhook] Camila is paused for lead ${lead.name}. Skipping auto-reply.`);
-        return res.sendStatus(200);
-      }
+      await sendAdminNotification(`⚠️ *Atención Humana Requerida*\nEl docente *${lead.name}* (${lead.phone}) ha solicitado un asesor humano.`);
+      await sendWhatsAppMessage(phone_number_id, from, botReply);
+      return;
+    }
 
+    // ENRUTADOR DE INTENCIONES (GREETING, PURCHASE, OTHER)
+    let intent = "OTHER";
+    
+    const normalizedInput = promptInput.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    const isGreeting = /^(hola|buen(as|os)|tardes|noches|saludo|epale|alo|hey|hi|buen dia)/.test(normalizedInput);
+    const isPayment = /pago|pagar|comprar|precio|costo|datos|banco|bcv|transferencia|suscri|cuenta|adquirir|web|pago movil/.test(normalizedInput);
+
+    if (isGreeting && !isPayment) {
+      intent = "GREETING";
+    } else if (isPayment) {
+      intent = "PURCHASE";
+    } else {
+      // Uso de clasificación inteligente con Gemini para mayor precisión
+      try {
+        const classifierPrompt = `Analiza el siguiente mensaje de un usuario de WhatsApp y clasifícalo en una de estas categorías:
+1. "GREETING" (Si es un saludo amigable como Hola, Buenos días, Hola Camila, etc.)
+2. "PURCHASE" (Si expresa interés explícito en pagar, comprar la página web, adquirir la suscripción, costo, precio, datos de pago móvil, banco, o cómo transferir)
+3. "OTHER" (Cualquier otra consulta, pregunta educativa, características de Docenty PRO, dudas técnicas, etc.)
+
+Mensaje: "${promptInput}"
+
+Responde ÚNICAMENTE con una palabra: GREETING, PURCHASE o OTHER.`;
+
+        const classificationRes = await ai.models.generateContent({
+          model: "gemini-3.5-flash",
+          contents: classifierPrompt,
+          config: { temperature: 0.1 }
+        });
+        const resText = classificationRes.text?.toUpperCase().trim() || "";
+        if (resText.includes("GREETING")) intent = "GREETING";
+        else if (resText.includes("PURCHASE")) intent = "PURCHASE";
+      } catch (err) {
+        console.error("Fallo al clasificar intención con Gemini, usando regex:", err);
+      }
+    }
+
+    console.log(`[Intent Router] Mensaje clasificado como: ${intent}`);
+
+    if (intent === "GREETING") {
+      botReply = `¡Hola! ¿Cómo estás? Es un gusto saludarte. 😊 Soy **Camila**, la asistente virtual de **META TC**. Me complace darte la bienvenida a nuestro canal oficial de atención.
+
+¿En qué puedo ayudarte hoy? Ofrecemos soluciones digitales de alto impacto:
+1. 📚 **Docenty PRO**: Nuestra plataforma de planificación escolar automatizada con Inteligencia Artificial que simplifica y optimiza tu carga académica diaria.
+2. 💻 **Desarrollo Digital**: Diseñamos páginas web corporativas, tiendas virtuales (e-commerce), sistemas de facturación POS y aplicaciones móviles a medida de alta calidad.
+
+¿Cuál de estas opciones te gustaría conocer a detalle hoy? ¡Cuéntame y con gusto te asesoro!`;
+    } 
+    else if (intent === "PURCHASE") {
+      botReply = `¡Excelente elección! 🚀 Para activar tu **Suscripción Premium de 30 días** en **Docenty PRO** ($2 USD al cambio oficial del BCV en bolívares) realiza tu Pago Móvil a los siguientes datos oficiales de transferencia:
+
+• **Banco:** Banco de Venezuela (0102)
+• **Teléfono:** \`04262953484\`
+• **Cédula / RIF:** \`24755720\`
+• **Titular:** Reymon Castillo
+• **Monto:** $2.00 USD (Calculado en bolívares según la tasa oficial del BCV de la fecha de tu pago)
+• **Tu Referencia Única de Pago (¡IMPORTANTE!):** \`${lead.assignedRef}\`
+
+⚠️ **Indicación de validación:** Por favor, coloca tu Referencia Única asignada: **${lead.assignedRef}** en el concepto o nota de tu transferencia Pago Móvil.
+
+Una vez que completes el Pago Móvil, envíanos la **captura de pantalla o comprobante legible** por este chat. Nuestro motor de visión inteligente procesará tu pago al instante para entregarte tu Código Premium. ¡Muchas gracias por tu confianza!`;
+    } 
+    else {
+      // Fallback: Generación dinámica contextual inteligente con Gemini
       try {
         const historyContext = lead.messages
           .map((m) => `${m.sender === "bot" ? "Docenty AI" : lead.name}: ${m.text}`)
@@ -166,12 +318,12 @@ app.post(["/api/webhook", "/webhook"], async (req, res) => {
 
         const currentCodesText = systemConfigs.premiumCodes && systemConfigs.premiumCodes.length > 0
           ? `\n\n[SISTEMA - CÓDIGOS DE ACTIVACIÓN DISPONIBLES EN EL CRM]
-Los siguientes códigos Premium están actualmente DISPONIBLES para ser entregados. Elige uno de estos códigos de manera destacada si el pago ha sido aprobado:
+Los siguientes códigos Premium están actualmente DISPONIBLES para ser entregados. Elige uno de estos códigos si el pago ha sido aprobado:
 ${systemConfigs.premiumCodes.map(c => `- CÓDIGO: [${c}] | ESTADO: DISPONIBLE`).join("\n")}`
           : `\n\n[SISTEMA - CÓDIGOS DE ACTIVACIÓN DISPONIBLES EN EL CRM]
-No hay códigos premium disponibles en el pool en este momento. Si necesitas entregar un código, dile que un administrador le enviará su código de acceso inmediatamente por este chat.`;
+No hay códigos premium en el CRM en este momento. Si necesitas entregar un código, indica que un administrador le proporcionará su código de acceso de inmediato por este chat.`;
 
-        const prompt = `Historial de la conversación de WhatsApp hasta ahora:\n${historyContext}\n\nResponde el último mensaje del cliente en WhatsApp con tu personalidad de Docenty AI (Camila). Recuerda que la referencia asignada a este cliente es: ${lead.assignedRef}.\nNo inventes referencias de otros clientes. Si el cliente pregunta qué plan tiene disponible, recuérdale que tiene reservada la Suscripción Premium de $2 USD (al cambio oficial del BCV en bolívares) con esa referencia.`;
+        const prompt = `Historial de la conversación de WhatsApp hasta ahora:\n${historyContext}\n\nResponde el último mensaje del cliente en WhatsApp con tu personalidad de Docenty AI (Camila). Recuerda que la referencia asignada a este cliente es: ${lead.assignedRef}.\nNo inventes referencias de otros clientes. Si el cliente pregunta qué plan tiene disponible, recuérdale que tiene reservada la Suscripción Premium de $2 USD (al cambio oficial del BCV en bolívares) con esa referencia.\nRecuerda ofrecer de forma opcional y amable la transferencia con un asesor humano si su consulta requiere soporte técnico especializado.`;
 
         const response = await ai.models.generateContent({
           model: "gemini-3.5-flash",
@@ -183,9 +335,283 @@ No hay códigos premium disponibles en el pool en este momento. Si necesitas ent
         });
 
         botReply = response.text || "Disculpe, ¿podría repetir su consulta? Estoy aquí para ayudarle con Docenty PRO.";
+        
+        // Agregar nota de transferencia humana si no está presente
+        if (!botReply.includes("04144783204") && !botReply.toLowerCase().includes("humano")) {
+          botReply += `\n\n📌 *Nota:* Si prefieres atención directa con una persona o necesitas soporte técnico complejo, escribe la palabra **"Humano"** o **"Asesor"** en cualquier momento y te transferiré con el arquitecto del sistema.`;
+        }
       } catch (err) {
-        console.error("Gemini text reply error in WhatsApp webhook:", err);
-        botReply = `¡Hola, ${lead.name}! Gracias por tu mensaje. El sistema está configurando tu cuenta. Para confirmar la activación de la Suscripción Premium ($2 USD al cambio oficial BCV en bolívares) por favor realiza el Pago Móvil de referencia **${lead.assignedRef}** al Banco de Venezuela (Teléfono: 04262953484, Cédula: 24755720) y mándanos el comprobante por este chat.`;
+        console.error("Error al procesar consulta general con Gemini:", err);
+        botReply = `¡Hola, ${lead.name}! Gracias por comunicarte con Docenty PRO. Si deseas activar tu cuenta Premium por $2 USD (tasa BCV) escribe **"Quiero Pagar"** para recibir los datos de transferencia. Si tienes alguna duda, escribe **"Humano"** y con gusto te transferiré con nuestro soporte. 😊`;
+      }
+    }
+
+    const botMsg: Message = {
+      sender: "bot",
+      text: botReply,
+      timestamp: new Date().toISOString(),
+    };
+    lead.messages.push(botMsg);
+    await updateLead(lead);
+    broadcastToDashboard("lead:updated", lead);
+  }
+  // Caso B: Capture de Comprobante (Imagen)
+  else if (message.type === "image") {
+    const mediaId = message.image.id;
+    const base64Str = await downloadWhatsAppMedia(mediaId);
+
+    // Notificar al administrador por WhatsApp
+    await sendAdminNotification(`📸 *Capture Recibido* de *${lead.name}* (${lead.phone}). Analizando comprobante de pago con Inteligencia Artificial...`);
+
+    if (base64Str) {
+      try {
+        const promptString = `Analiza detalladamente este comprobante de pago enviado por el cliente ${lead.name}. Su referencia asignada en nuestro CRM es: ${lead.assignedRef}. El costo de la Suscripción Premium de Docenty PRO es de $2 USD (cobrado en Bolívares al cambio oficial del BCV del día). El método de recepción único es Pago Móvil al Banco de Venezuela (Teléfono: 04262953484, Cédula: 24755720).
+        Determina si la transferencia de Pago Móvil fue hecha con éxito, busca el monto, la fecha, el banco emisor y muy importante: busca si el concepto, nota o código de referencia coincide de alguna manera con la referencia de este cliente: ${lead.assignedRef} o si tiene alguna otra referencia de pago válida para Docenty.`;
+
+        const response = await ai.models.generateContent({
+          model: "gemini-3.5-flash",
+          contents: [
+            {
+              inlineData: {
+                mimeType: "image/png",
+                data: base64Str,
+              },
+            },
+            {
+              text: promptString,
+            },
+          ],
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                isValid: {
+                  type: Type.BOOLEAN,
+                  description: "Indica si la imagen es un comprobante de transferencia válido y legítimo.",
+                },
+                status: {
+                  type: Type.STRING,
+                  description: "APPROVED si la transferencia es correcta, legítima y tiene el monto correcto. REJECTED si no es un recibo o es inválido. PENDING si hay dudas razonables pero parece un recibo.",
+                },
+                monto: {
+                  type: Type.STRING,
+                  description: "El monto que aparece en el recibo de transferencia de Pago Móvil, ej: $2 USD, 2 dólares o su equivalente en bolívares al cambio oficial.",
+                },
+                referencia: {
+                  type: Type.STRING,
+                  description: "El código de referencia, código de operación o concepto de transferencia que se lee en el comprobante.",
+                },
+                banco: {
+                  type: Type.STRING,
+                  description: "El nombre de la entidad bancaria que emite o recibe la transferencia.",
+                },
+                fecha: {
+                  type: Type.STRING,
+                  description: "La fecha de la transacción que se muestra en el recibo.",
+                },
+                analisis: {
+                  type: Type.STRING,
+                  description: "Análisis explicativo detallado en español de por qué se aprueba, rechaza o deja pendiente el pago, mencionando si el código de referencia concuerda exactamente con la referencia del lead: " + lead.assignedRef,
+                },
+              },
+              required: ["isValid", "status", "monto", "referencia", "analisis"],
+            },
+          },
+        });
+
+        const resultText = response.text || "{}";
+        const receiptData = JSON.parse(resultText);
+        const imageUrl = `data:image/png;base64,${base64Str}`;
+
+        const receiptClientMsg: Message = {
+          sender: "client",
+          text: `[Comprobante de Pago enviado - Ref Detectada: ${receiptData.referencia || "No detectada"}]`,
+          timestamp: new Date().toISOString(),
+          isReceipt: true,
+          receiptData: {
+            ...receiptData,
+            imageUrl,
+          },
+        };
+        lead.messages.push(receiptClientMsg);
+
+        lead.status = "payment_sent";
+
+        const codeMatches = receiptData.referencia &&
+          (receiptData.referencia.toUpperCase().includes(lead.assignedRef.toUpperCase()) ||
+           lead.assignedRef.toUpperCase().includes(receiptData.referencia.toUpperCase()) ||
+           receiptData.analisis.toLowerCase().includes("coincide") ||
+           receiptData.analisis.toLowerCase().includes("concordancia") ||
+           receiptData.status === "APPROVED");
+
+        if (receiptData.status === "APPROVED" && codeMatches) {
+          lead.status = "approved";
+          const premiumCode = await assignPremiumCode(lead);
+          botReply = `🎉 **¡PAGO CONFIRMADO Y ACTIVADO CON ÉXITO!** 🎉\n\nEstimado/a ${lead.name}, nuestro sistema de visión inteligente ha validado su comprobante de pago de manera exitosa.\n\n• **Monto detectado:** ${receiptData.monto}\n• **Estado:** Activo Premium ✅\n\nSu cuenta de **Docenty PRO** está lista para ser activada con acceso completo a las planeaciones por IA.\n\n🔑 **Instrucciones para ingresar:**\n1. **Accede a la plataforma:** https://docente-pro-by-meta-tc.vercel.app/\n2. **Inicia sesión:** Elige la opción de **Iniciar sesión con Google** con tu cuenta de correo personal.\n3. **Activa tu licencia:** Una vez dentro, introduce tu **Código de Activación Premium** único para activar tus 30 días de acceso ilimitado:\n   👉 **Código Premium:** \`${premiumCode}\`\n\n*Nota: No necesitas ninguna contraseña provisional ni datos de usuario adicionales. Tu acceso se gestiona de forma segura directamente con tu cuenta de Google.*\n\n¡Te damos una cordial bienvenida a bordo! Estamos sumamente emocionados de ayudarte a simplificar tu planificación y ahorrar valioso tiempo. 🚀📚`;
+          
+          await sendAdminNotification(`✅ *Pago Aprobado Automáticamente*\n\n*Cliente:* ${lead.name}\n*Monto:* ${receiptData.monto}\n*Referencia:* ${receiptData.referencia}\n*Código Premium:* ${premiumCode}`);
+        } else {
+          botReply = `⚠️ **Validación de Pago en Espera**\n\nHola ${lead.name}, he recibido tu comprobante de pago pero nuestro sistema detecta un detalle:\n\n• **Monto leído:** ${receiptData.monto || "No detectado"}\n• **Referencia leída:** \`${receiptData.referencia || "Ninguna"}\`\n• **Tu Referencia Asignada:** \`${lead.assignedRef}\`\n\n${receiptData.status === "REJECTED" ? "El archivo enviado no parece ser un comprobante de transferencia válido." : "Por favor, confirma que la transferencia se haya realizado ingresando correctamente tu código de referencia asignado. Un ejecutivo revisará el comprobante manualmente a la brevedad."}\n\nSi consideras que hay un error, puedes volver a intentar enviando una captura más legible. 😊`;
+          
+          await sendAdminNotification(`⚠️ *Pago en Espera / Rechazado*\n\n*Cliente:* ${lead.name}\n*Monto:* ${receiptData.monto}\n*Referencia Leída:* ${receiptData.referencia}\n*Análisis:* ${receiptData.analisis}`);
+        }
+
+        await updateLead(lead);
+        broadcastToDashboard("lead:updated", lead);
+
+        if (lead.isPaused) {
+          console.log(`[Webhook Background] Camila está pausada para ${lead.name}. Se omite auto-respuesta al comprobante.`);
+          return;
+        }
+
+        const botMsg: Message = {
+          sender: "bot",
+          text: botReply,
+          timestamp: new Date().toISOString(),
+        };
+        lead.messages.push(botMsg);
+        await updateLead(lead);
+        broadcastToDashboard("lead:updated", lead);
+      } catch (visionErr) {
+        console.error("Error en análisis de visión con Gemini, simulando validación:", visionErr);
+        const receiptData = {
+          isValid: true,
+          status: "APPROVED" as const,
+          monto: "$2.00 USD (en Bs. BCV)",
+          referencia: lead.assignedRef,
+          banco: "Banco de Venezuela",
+          fecha: new Date().toISOString().split("T")[0],
+          analisis: "(Procesado por Webhook) Se detectó un comprobante legible de Pago Móvil por 2 dólares con el código de referencia " + lead.assignedRef + " perfectamente visible. Aprobado de forma inmediata.",
+        };
+
+        const receiptClientMsg: Message = {
+          sender: "client",
+          text: `[Comprobante de Pago enviado - Ref Local: ${receiptData.referencia}]`,
+          timestamp: new Date().toISOString(),
+          isReceipt: true,
+          receiptData: {
+            ...receiptData,
+            imageUrl: `data:image/png;base64,${base64Str}`,
+          },
+        };
+        lead.messages.push(receiptClientMsg);
+        const premiumCode = await assignPremiumCode(lead);
+        lead.status = "approved";
+        await updateLead(lead);
+        broadcastToDashboard("lead:updated", lead);
+
+        await sendAdminNotification(`✅ *Pago Aprobado (Visión Fallback)*\n*Cliente:* ${lead.name}\n*Monto:* ${receiptData.monto}\n*Referencia:* ${receiptData.referencia}\n*Código:* ${premiumCode}`);
+
+        if (lead.isPaused) {
+          console.log(`[Webhook Background] Camila está pausada para ${lead.name}. Se omite respuesta al capture.`);
+          return;
+        }
+
+        botReply = `🎉 **¡PAGO CONFIRMADO CON ÉXITO!** 🎉\n\nEstimado/a ${lead.name}, hemos validado su comprobante de pago de manera exitosa.\n\n• **Monto detectado:** ${receiptData.monto}\n• **Estado:** Activo Premium ✅\n\nSu cuenta de **Docenty PRO** está lista para ser activada con acceso completo a las planeaciones por IA.\n\n🔑 **Instrucciones para ingresar:**\n1. **Accede a la plataforma:** https://docente-pro-by-meta-tc.vercel.app/\n2. **Inicia sesión:** Elige la opción de **Iniciar sesión con Google** con tu cuenta de correo personal.\n3. **Activa tu licencia:** Una vez dentro, introduce tu **Código de Activación Premium** único para activar tus 30 días de acceso ilimitado:\n   👉 **Código Premium:** \`${premiumCode}\`\n\n*Nota: No necesitas ninguna contraseña provisional ni datos de usuario adicionales. Tu acceso se gestiona de forma segura directamente con tu cuenta de Google.*\n\n¡Te damos una cordial bienvenida a bordo! Estamos sumamente emocionados de ayudarte a simplificar tu planificación y ahorrar valioso tiempo. 🚀📚`;
+
+        const botMsg: Message = {
+          sender: "bot",
+          text: botReply,
+          timestamp: new Date().toISOString(),
+        };
+        lead.messages.push(botMsg);
+        await updateLead(lead);
+        broadcastToDashboard("lead:updated", lead);
+      }
+    } else {
+      botReply = `⚠️ No se pudo procesar la imagen enviada. Por favor, asegúrate de enviar un comprobante de Pago Móvil legible.`;
+      const botMsg: Message = {
+        sender: "bot",
+        text: botReply,
+        timestamp: new Date().toISOString(),
+      };
+      lead.messages.push(botMsg);
+      await updateLead(lead);
+      broadcastToDashboard("lead:updated", lead);
+    }
+  }
+  // Caso C: Nota de Voz (Audio)
+  else if (message.type === "audio") {
+    const mediaId = message.audio.id;
+    const mimeType = message.audio.mime_type || "audio/ogg";
+    const base64Str = await downloadWhatsAppMedia(mediaId);
+
+    // Notificar al administrador por WhatsApp
+    await sendAdminNotification(`🎤 *Nota de voz recibida* de *${lead.name}* (${lead.phone}). Procesando audio con Inteligencia Artificial...`);
+
+    if (base64Str) {
+      let cleanMimeType = mimeType;
+      if (cleanMimeType.includes(";")) {
+        cleanMimeType = cleanMimeType.split(";")[0].trim();
+      }
+
+      const clientMsg: Message = {
+        sender: "client",
+        text: "🎤 [Nota de voz recibida - Analizada con Inteligencia Artificial]",
+        timestamp: new Date().toISOString(),
+        isAudio: true,
+        audioData: {
+          base64: base64Str,
+          mimeType: cleanMimeType,
+        },
+      };
+      lead.messages.push(clientMsg);
+      if (lead.status === "prospect") {
+        lead.status = "interested";
+      }
+      await updateLead(lead);
+      broadcastToDashboard("lead:updated", lead);
+
+      if (lead.isPaused) {
+        console.log(`[Webhook Background] Camila está pausada para ${lead.name}. Se omite auto-respuesta de voz.`);
+        return;
+      }
+
+      try {
+        const historyContext = lead.messages
+          .slice(0, -1)
+          .map((m) => `${m.sender === "bot" ? "Docenty AI" : lead.name}: ${m.text}`)
+          .join("\n");
+
+        const promptString = `Historial de la conversación de WhatsApp hasta ahora:
+${historyContext}
+
+El cliente ${lead.name} te acaba de enviar una nota de voz. Por favor, "escucha" y analiza con cuidado el contenido del audio (su intención, preguntas, tono y detalles).
+Genera una respuesta en texto en tu personalidad de Docenty AI (Camila).
+Recuerda que la referencia asignada a este cliente es: ${lead.assignedRef}.
+No inventes referencias de otros clientes. Si el cliente pregunta qué plan tiene disponible, recuérdale que tiene reservada la Suscripción Premium de $2 USD (al cambio oficial del BCV en bolívares) con esa referencia.`;
+
+        const currentCodesText = systemConfigs.premiumCodes && systemConfigs.premiumCodes.length > 0
+          ? `\n\n[SISTEMA - CÓDIGOS DE ACTIVACIÓN DISPONIBLES EN EL CRM]
+Los siguientes códigos Premium están actualmente DISPONIBLES para ser entregados. Elige uno de estos códigos si el pago ha sido aprobado:
+${systemConfigs.premiumCodes.map(c => `- CÓDIGO: [${c}] | ESTADO: DISPONIBLE`).join("\n")}`
+          : `\n\n[SISTEMA - CÓDIGOS DE ACTIVACIÓN DISPONIBLES EN EL CRM]
+No hay códigos premium disponibles en el pool en este momento. Si necesitas entregar un código, dile que un administrador le enviará su código de acceso de inmediato por este chat.`;
+
+        const response = await ai.models.generateContent({
+          model: "gemini-3.5-flash",
+          contents: [
+            {
+              inlineData: {
+                mimeType: cleanMimeType,
+                data: base64Str,
+              },
+            },
+            {
+              text: promptString,
+            },
+          ],
+          config: {
+            systemInstruction: systemConfigs.botSystemPrompt + currentCodesText,
+            temperature: 0.7,
+          },
+        });
+
+        botReply = response.text || "Disculpe, ¿podría repetir su consulta? Estoy aquí para ayudarle con Docenty PRO.";
+      } catch (err: any) {
+        console.error("Error al procesar audio en webhook con Gemini:", err);
+        botReply = `¡Hola, ${lead.name}! Gracias por tu nota de voz. Para confirmar la activación de tu Suscripción Premium ($2 USD al cambio oficial BCV en bolívares) por favor realiza el Pago Móvil de referencia **${lead.assignedRef}** al Banco de Venezuela (Teléfono: 04262953484, Cédula: 24755720) y mándanos el comprobante por este chat para validarlo de inmediato. 😊`;
       }
 
       const botMsg: Message = {
@@ -196,300 +622,53 @@ No hay códigos premium disponibles en el pool en este momento. Si necesitas ent
       lead.messages.push(botMsg);
       await updateLead(lead);
       broadcastToDashboard("lead:updated", lead);
+    } else {
+      botReply = `⚠️ No se pudo descargar ni procesar el audio de WhatsApp. Por favor, escríbeme tu mensaje o intenta de nuevo.`;
+      const botMsg: Message = {
+        sender: "bot",
+        text: botReply,
+        timestamp: new Date().toISOString(),
+      };
+      lead.messages.push(botMsg);
+      await updateLead(lead);
+      broadcastToDashboard("lead:updated", lead);
     }
-    // Caso B: Capture de Comprobante (Imagen)
-    else if (message.type === "image") {
-      const mediaId = message.image.id;
-      const base64Str = await downloadWhatsAppMedia(mediaId);
+  }
 
-      if (base64Str) {
-        try {
-          const promptString = `Analiza detalladamente este comprobante de pago enviado por el cliente ${lead.name}. Su referencia asignada en nuestro CRM es: ${lead.assignedRef}. El costo de la Suscripción Premium de Docenty PRO es de $2 USD (cobrado en Bolívares al cambio oficial del BCV del día). El método de recepción único es Pago Móvil al Banco de Venezuela (Teléfono: 04262953484, Cédula: 24755720).
-          Determina si la transferencia de Pago Móvil fue hecha con éxito, busca el monto, la fecha, el banco emisor y muy importante: busca si el concepto, nota o código de referencia coincide de alguna manera con la referencia de este cliente: ${lead.assignedRef} o si tiene alguna otra referencia de pago válida para Docenty.`;
+  // Enviar respuesta por WhatsApp mediante la Cloud API de Meta
+  await sendWhatsAppMessage(phone_number_id, from, botReply);
+}
 
-          const response = await ai.models.generateContent({
-            model: "gemini-3.5-flash",
-            contents: [
-              {
-                inlineData: {
-                  mimeType: "image/png",
-                  data: base64Str,
-                },
-              },
-              {
-                text: promptString,
-              },
-            ],
-            config: {
-              responseMimeType: "application/json",
-              responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                  isValid: {
-                    type: Type.BOOLEAN,
-                    description: "Indica si la imagen es un comprobante de transferencia válido y legítimo.",
-                  },
-                  status: {
-                    type: Type.STRING,
-                    description: "APPROVED si la transferencia es correcta, legítima y tiene el monto correcto. REJECTED si no es un recibo o es inválido. PENDING si hay dudas razonables pero parece un recibo.",
-                  },
-                  monto: {
-                    type: Type.STRING,
-                    description: "El monto que aparece en el recibo de transferencia de Pago Móvil, ej: $2 USD, 2 dólares o su equivalente en bolívares al cambio oficial.",
-                  },
-                  referencia: {
-                    type: Type.STRING,
-                    description: "El código de referencia, código de operación o concepto de transferencia que se lee en el comprobante.",
-                  },
-                  banco: {
-                    type: Type.STRING,
-                    description: "El nombre de la entidad bancaria que emite o recibe la transferencia.",
-                  },
-                  fecha: {
-                    type: Type.STRING,
-                    description: "La fecha de la transacción que se muestra en el recibo.",
-                  },
-                  analisis: {
-                    type: Type.STRING,
-                    description: "Análisis explicativo detallado en español de por qué se aprueba, rechaza o deja pendiente el pago, mencionando si el código de referencia concuerda exactamente con la referencia del lead: " + lead.assignedRef,
-                  },
-                },
-                required: ["isValid", "status", "monto", "referencia", "analisis"],
-              },
-            },
-          });
+app.post(["/api/webhook", "/webhook"], (req, res) => {
+  try {
+    const entry = req.body.entry?.[0];
+    const changes = entry?.changes?.[0];
+    const value = changes?.value;
+    const message = value?.messages?.[0];
 
-          const resultText = response.text || "{}";
-          const receiptData = JSON.parse(resultText);
-          const imageUrl = `data:image/png;base64,${base64Str}`;
-
-          const receiptClientMsg: Message = {
-            sender: "client",
-            text: `[Comprobante de Pago enviado - Ref Detectada: ${receiptData.referencia || "No detectada"}]`,
-            timestamp: new Date().toISOString(),
-            isReceipt: true,
-            receiptData: {
-              ...receiptData,
-              imageUrl,
-            },
-          };
-          lead.messages.push(receiptClientMsg);
-
-          lead.status = "payment_sent";
-
-          const codeMatches = receiptData.referencia &&
-            (receiptData.referencia.toUpperCase().includes(lead.assignedRef.toUpperCase()) ||
-             lead.assignedRef.toUpperCase().includes(receiptData.referencia.toUpperCase()) ||
-             receiptData.analisis.toLowerCase().includes("coincide") ||
-             receiptData.analisis.toLowerCase().includes("concordancia") ||
-             receiptData.status === "APPROVED");
-
-          if (receiptData.status === "APPROVED" && codeMatches) {
-            lead.status = "approved";
-            const premiumCode = await assignPremiumCode(lead);
-            botReply = `🎉 **¡PAGO CONFIRMADO Y ACTIVADO CON ÉXITO!** 🎉\n\nEstimado/a ${lead.name}, nuestro sistema de visión inteligente ha validado su comprobante de pago de manera exitosa.\n\n• **Monto detectado:** ${receiptData.monto}\n• **Estado:** Activo Premium ✅\n\nSu cuenta de **Docenty PRO** está lista para ser activada con acceso completo a las planeaciones por IA.\n\n🔑 **Instrucciones para ingresar:**\n1. **Accede a la plataforma:** https://docente-pro-by-meta-tc.vercel.app/\n2. **Inicia sesión:** Elige la opción de **Iniciar sesión con Google** con tu cuenta de correo personal.\n3. **Activa tu licencia:** Una vez dentro, introduce tu **Código de Activación Premium** único para activar tus 30 días de acceso ilimitado:\n   👉 **Código Premium:** \`${premiumCode}\`\n\n*Nota: No necesitas ninguna contraseña provisional ni datos de usuario adicionales. Tu acceso se gestiona de forma segura directamente con tu cuenta de Google.*\n\n¡Te damos una cordial bienvenida a bordo! Estamos sumamente emocionados de ayudarte a simplificar tu planificación y ahorrar valioso tiempo. 🚀📚`;
-          } else {
-            botReply = `⚠️ **Validación de Pago en Espera**\n\nHola ${lead.name}, he recibido tu comprobante de pago pero nuestro sistema detecta un detalle:\n\n• **Monto leído:** ${receiptData.monto || "No detectado"}\n• **Referencia leída:** \`${receiptData.referencia || "Ninguna"}\`\n• **Tu Referencia Asignada:** \`${lead.assignedRef}\`\n\n${receiptData.status === "REJECTED" ? "El archivo enviado no parece ser un comprobante válido." : "Por favor, confirma que la transferencia se haya realizado ingresando correctamente tu código de referencia asignado. Un ejecutivo revisará el comprobante manualmente a la brevedad."}\n\nSi consideras que hay un error, puedes volver a intentar enviando una captura más legible. 😊`;
-          }
-
-          await updateLead(lead);
-          broadcastToDashboard("lead:updated", lead);
-
-          if (lead.isPaused) {
-            console.log(`[Webhook] Camila is paused for lead ${lead.name}. Skipping bot response to receipt image.`);
-            return res.sendStatus(200);
-          }
-
-          const botMsg: Message = {
-            sender: "bot",
-            text: botReply,
-            timestamp: new Date().toISOString(),
-          };
-          lead.messages.push(botMsg);
-          await updateLead(lead);
-          broadcastToDashboard("lead:updated", lead);
-        } catch (visionErr) {
-          console.error("Gemini vision analysis error in webhook:", visionErr);
-          // Vision fallback simulation
-          const receiptData = {
-            isValid: true,
-            status: "APPROVED" as const,
-            monto: "$2.00 USD (en Bs. BCV)",
-            referencia: lead.assignedRef,
-            banco: "Banco de Venezuela",
-            fecha: new Date().toISOString().split("T")[0],
-            analisis: "(Procesado por Webhook) Se detectó un comprobante legible de Pago Móvil por 2 dólares con el código de referencia " + lead.assignedRef + " perfectamente visible. Aprobado de forma inmediata.",
-          };
-
-          const receiptClientMsg: Message = {
-            sender: "client",
-            text: `[Comprobante de Pago enviado - Ref Local: ${receiptData.referencia}]`,
-            timestamp: new Date().toISOString(),
-            isReceipt: true,
-            receiptData: {
-              ...receiptData,
-              imageUrl: `data:image/png;base64,${base64Str}`,
-            },
-          };
-          lead.messages.push(receiptClientMsg);
-          const premiumCode = await assignPremiumCode(lead);
-          lead.status = "approved";
-          await updateLead(lead);
-          broadcastToDashboard("lead:updated", lead);
-
-          if (lead.isPaused) {
-            console.log(`[Webhook] Camila is paused for lead ${lead.name}. Skipping bot response to receipt image (fallback).`);
-            return res.sendStatus(200);
-          }
-
-          botReply = `🎉 **¡PAGO CONFIRMADO CON ÉXITO!** 🎉\n\nEstimado/a ${lead.name}, hemos validado su comprobante de pago de manera exitosa.\n\n• **Monto detectado:** ${receiptData.monto}\n• **Estado:** Activo Premium ✅\n\nSu cuenta de **Docenty PRO** está lista para ser activada con acceso completo a las planeaciones por IA.\n\n🔑 **Instrucciones para ingresar:**\n1. **Accede a la plataforma:** https://docente-pro-by-meta-tc.vercel.app/\n2. **Inicia sesión:** Elige la opción de **Iniciar sesión con Google** con tu cuenta de correo personal.\n3. **Activa tu licencia:** Una vez dentro, introduce tu **Código de Activación Premium** único para activar tus 30 días de acceso ilimitado:\n   👉 **Código Premium:** \`${premiumCode}\`\n\n*Nota: No necesitas ninguna contraseña provisional ni datos de usuario adicionales. Tu acceso se gestiona de forma segura directamente con tu cuenta de Google.*\n\n¡Te damos una cordial bienvenida a bordo! Estamos sumamente emocionados de ayudarte a simplificar tu planificación y ahorrar valioso tiempo. 🚀📚`;
-
-          const botMsg: Message = {
-            sender: "bot",
-            text: botReply,
-            timestamp: new Date().toISOString(),
-          };
-          lead.messages.push(botMsg);
-          await updateLead(lead);
-          broadcastToDashboard("lead:updated", lead);
-        }
-      } else {
-        botReply = `⚠️ No se pudo procesar la imagen enviada. Por favor, asegúrate de enviar un comprobante de Pago Móvil legible.`;
-        const botMsg: Message = {
-          sender: "bot",
-          text: botReply,
-          timestamp: new Date().toISOString(),
-        };
-        lead.messages.push(botMsg);
-        await updateLead(lead);
-      }
-    }
-    // Caso C: Nota de Voz (Audio)
-    else if (message.type === "audio") {
-      const mediaId = message.audio.id;
-      const mimeType = message.audio.mime_type || "audio/ogg";
-      const base64Str = await downloadWhatsAppMedia(mediaId);
-
-      if (base64Str) {
-        let cleanMimeType = mimeType;
-        if (cleanMimeType.includes(";")) {
-          cleanMimeType = cleanMimeType.split(";")[0].trim();
-        }
-
-        const clientMsg: Message = {
-          sender: "client",
-          text: "🎤 [Nota de voz recibida - Analizada con Inteligencia Artificial]",
-          timestamp: new Date().toISOString(),
-          isAudio: true,
-          audioData: {
-            base64: base64Str,
-            mimeType: cleanMimeType,
-          },
-        };
-        lead.messages.push(clientMsg);
-        if (lead.status === "prospect") {
-          lead.status = "interested";
-        }
-        await updateLead(lead);
-        broadcastToDashboard("lead:updated", lead);
-
-        if (lead.isPaused) {
-          console.log(`[Webhook] Camila is paused for lead ${lead.name}. Skipping audio response.`);
-          return res.sendStatus(200);
-        }
-
-        try {
-          const historyContext = lead.messages
-            .slice(0, -1)
-            .map((m) => `${m.sender === "bot" ? "Docenty AI" : lead.name}: ${m.text}`)
-            .join("\n");
-
-          const promptString = `Historial de la conversación de WhatsApp hasta ahora:
-${historyContext}
-
-El cliente ${lead.name} te acaba de enviar una nota de voz. Por favor, "escucha" y analiza con cuidado el contenido del audio (su intención, preguntas, tono y detalles).
-Genera una respuesta en texto en tu personalidad de Docenty AI (Camila).
-Recuerda que la referencia asignada a este cliente es: ${lead.assignedRef}.
-No inventes referencias de otros clientes. Si el cliente pregunta qué plan tiene disponible, recuérdale que tiene reservada la Suscripción Premium de $2 USD (al cambio oficial del BCV en bolívares) con esa referencia.`;
-
-          const currentCodesText = systemConfigs.premiumCodes && systemConfigs.premiumCodes.length > 0
-            ? `\n\n[SISTEMA - CÓDIGOS DE ACTIVACIÓN DISPONIBLES EN EL CRM]
-Los siguientes códigos Premium están actualmente DISPONIBLES para ser entregados. Elige uno de estos códigos de manera destacada si el pago ha sido aprobado:
-${systemConfigs.premiumCodes.map(c => `- CÓDIGO: [${c}] | ESTADO: DISPONIBLE`).join("\n")}`
-            : `\n\n[SISTEMA - CÓDIGOS DE ACTIVACIÓN DISPONIBLES EN EL CRM]
-No hay códigos premium disponibles en el pool en este momento. Si necesitas entregar un código, dile que un administrador le enviará su código de acceso inmediatamente por este chat.`;
-
-          const response = await ai.models.generateContent({
-            model: "gemini-3.5-flash",
-            contents: [
-              {
-                inlineData: {
-                  mimeType: cleanMimeType,
-                  data: base64Str,
-                },
-              },
-              {
-                text: promptString,
-              },
-            ],
-            config: {
-              systemInstruction: systemConfigs.botSystemPrompt + currentCodesText,
-              temperature: 0.7,
-            },
-          });
-
-          botReply = response.text || "Disculpe, ¿podría repetir su consulta? Estoy aquí para ayudarle con Docenty PRO.";
-        } catch (err: any) {
-          console.error("Gemini Error processing audio in WhatsApp webhook:", err);
-          botReply = `¡Hola, ${lead.name}! Gracias por tu nota de voz. El sistema está configurando tu cuenta. Para confirmar la activación de la Suscripción Premium ($2 USD al cambio oficial BCV en bolívares) por favor realiza el Pago Móvil de referencia **${lead.assignedRef}** al Banco de Venezuela (Teléfono: 04262953484, Cédula: 24755720) y mándanos el comprobante por este chat.`;
-        }
-
-        const botMsg: Message = {
-          sender: "bot",
-          text: botReply,
-          timestamp: new Date().toISOString(),
-        };
-        lead.messages.push(botMsg);
-        await updateLead(lead);
-        broadcastToDashboard("lead:updated", lead);
-      } else {
-        botReply = `⚠️ No se pudo descargar ni procesar el audio de WhatsApp. Por favor, escríbeme tu mensaje o intenta de nuevo.`;
-        const botMsg: Message = {
-          sender: "bot",
-          text: botReply,
-          timestamp: new Date().toISOString(),
-        };
-        lead.messages.push(botMsg);
-        await updateLead(lead);
-        broadcastToDashboard("lead:updated", lead);
-      }
-    }
-
-    // Enviar respuesta por WhatsApp mediante la Cloud API de Meta
-    if (WHATSAPP_TOKEN && phone_number_id) {
-      try {
-        await axios.post(
-          `https://graph.facebook.com/v17.0/${phone_number_id}/messages`,
-          {
-            messaging_product: "whatsapp",
-            to: from,
-            type: "text",
-            text: { body: botReply }
-          },
-          {
-            headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` }
-          }
-        );
-        console.log(`WhatsApp webhook reply sent successfully to ${from}`);
-      } catch (error: any) {
-        console.error("Detalle del error de Meta:", error.response?.data || error.message);
-      }
-    }
-
+    // Responder HTTP 200 OK inmediatamente a Meta para detener reintentos de envío por lentitud
     res.sendStatus(200);
+
+    if (!message) {
+      return;
+    }
+
+    const wamid = message.id;
+    if (wamid && checkAndRegisterWAMID(wamid)) {
+      console.log(`[Idempotency] Mensaje duplicado detectado (wamid: ${wamid}). Omitiendo procesamiento.`);
+      return;
+    }
+
+    // Procesar asíncronamente en segundo plano
+    processWebhookInBackground(message, value).catch((backgroundErr) => {
+      console.error("[Webhook Background Process] Error Crítico:", backgroundErr);
+    });
+
   } catch (error: any) {
-    console.error("Error procesando Webhook de WhatsApp:", error.response?.data || error.message);
-    res.sendStatus(200); // Respondemos 200 para que Meta no deshabilite el webhook
+    console.error("Error en Wrapper Webhook:", error.response?.data || error.message);
+    if (!res.headersSent) {
+      res.sendStatus(200);
+    }
   }
 });
 
