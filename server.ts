@@ -13,6 +13,8 @@ import {
   resetDatabase,
   getSystemConfigs,
   saveSystemConfigs,
+  checkDbHealth,
+  getDbConnection,
   Lead,
   Message
 } from "./database.js";
@@ -52,6 +54,28 @@ app.use(express.json({ limit: "10mb" }));
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN || "";
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "token_docenty_2026";
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID || "1235155319675980";
+
+// Health check and Keep-Alive Ping endpoint
+app.get(["/api/health", "/health", "/ping"], async (req, res) => {
+  const dbHealth = await checkDbHealth();
+  const healthData = {
+    status: dbHealth.status === "connected" || dbHealth.status === "in_memory" ? "ok" : "degraded",
+    timestamp: new Date().toISOString(),
+    uptimeSeconds: Math.floor(process.uptime()),
+    database: dbHealth,
+    whatsapp: {
+      configured: Boolean(WHATSAPP_TOKEN && PHONE_NUMBER_ID),
+      phoneNumberId: PHONE_NUMBER_ID,
+    },
+    memory: {
+      rssMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
+      heapUsedMB: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+    },
+  };
+
+  const statusCode = dbHealth.status === "disconnected" ? 503 : 200;
+  return res.status(statusCode).json(healthData);
+});
 
 // 1. ENDPOINT DE VERIFICACIÓN (Requerido por Meta para activar el Webhook)
 app.get(["/api/webhook", "/webhook"], (req, res) => {
@@ -1487,6 +1511,22 @@ async function startServer() {
   const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT} in ${process.env.NODE_ENV || "development"} mode`);
   });
+
+  // Background Keep-Alive and Database Connection Health Monitor
+  // Pings database every 3 minutes to keep socket pools warm and prevent idle timeouts
+  setInterval(async () => {
+    try {
+      const health = await checkDbHealth();
+      if (health.status === "connected") {
+        console.log(`[Keep-Alive Ping] Database healthy (MongoDB response: ${health.pingMs || 0}ms). System active for incoming WhatsApp webhooks.`);
+      } else if (health.uriConfigured) {
+        console.warn("[Keep-Alive Alert] MongoDB connection dropped during background idle period. Re-establishing connection...");
+        await getDbConnection();
+      }
+    } catch (err) {
+      console.error("[Keep-Alive ERROR] Background monitor failed:", err);
+    }
+  }, 180000); // 3 minutes interval
 
   // Attach WebSocket Server
   const wss = new WebSocketServer({ server });

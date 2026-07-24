@@ -192,104 +192,212 @@ loadLocalStores();
 // Database connection helper
 let mongoClient: MongoClient | null = null;
 let mongoDb: Db | null = null;
+let isConnecting = false;
 const MONGODB_URI = process.env.MONGODB_URI || "";
+
+/**
+ * Ensures an active MongoDB database connection.
+ * If the connection dropped due to prolonged inactivity (e.g., 1-2 days),
+ * it automatically re-establishes the connection without losing data.
+ */
+export async function getDbConnection(): Promise<Db | null> {
+  if (!MONGODB_URI) {
+    return null;
+  }
+
+  // Fast-path: ping existing connection
+  if (mongoDb) {
+    try {
+      await mongoDb.command({ ping: 1 });
+      return mongoDb;
+    } catch (pingError) {
+      console.warn("[MongoDB Audit] Stale or dropped database connection detected during ping. Re-connecting...", pingError);
+      mongoDb = null;
+    }
+  }
+
+  // Prevent multiple parallel reconnection attempts
+  if (isConnecting) {
+    let retries = 0;
+    while (isConnecting && retries < 10) {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      retries++;
+    }
+    if (mongoDb) return mongoDb;
+  }
+
+  isConnecting = true;
+  try {
+    console.log("[MongoDB Audit] Initializing resilient connection to MongoDB Atlas...");
+    if (mongoClient) {
+      try {
+        await mongoClient.close();
+      } catch {
+        // Ignore close errors on stale client
+      }
+    }
+
+    mongoClient = new MongoClient(MONGODB_URI, {
+      maxPoolSize: 20,
+      minPoolSize: 2,
+      maxIdleTimeMS: 60000,
+      serverSelectionTimeoutMS: 8000,
+      socketTimeoutMS: 45000,
+      connectTimeoutMS: 10000,
+    });
+
+    await mongoClient.connect();
+    mongoDb = mongoClient.db("docenty_crm");
+    console.log("[MongoDB Audit] MongoDB connection successfully established and verified!");
+    return mongoDb;
+  } catch (error) {
+    console.error("[MongoDB Audit ERROR] Failed to connect to MongoDB Atlas:", error);
+    mongoClient = null;
+    mongoDb = null;
+    return null;
+  } finally {
+    isConnecting = false;
+  }
+}
+
+export async function checkDbHealth(): Promise<{
+  status: "connected" | "disconnected" | "in_memory";
+  mode: "mongodb" | "local_json";
+  uriConfigured: boolean;
+  pingMs?: number;
+  error?: string;
+}> {
+  if (!MONGODB_URI) {
+    return {
+      status: "in_memory",
+      mode: "local_json",
+      uriConfigured: false,
+    };
+  }
+
+  const startTime = Date.now();
+  const db = await getDbConnection();
+  if (db) {
+    return {
+      status: "connected",
+      mode: "mongodb",
+      uriConfigured: true,
+      pingMs: Date.now() - startTime,
+    };
+  } else {
+    return {
+      status: "disconnected",
+      mode: "local_json",
+      uriConfigured: true,
+      error: "MongoDB connection is unreachable. Falling back to local store.",
+    };
+  }
+}
 
 export async function initDatabase(): Promise<boolean> {
   if (!MONGODB_URI) {
-    console.log("No MONGODB_URI environment variable detected. Running in-memory mode.");
+    console.log("[CRM Storage] No MONGODB_URI environment variable detected. Running in local JSON storage mode.");
     return false;
   }
 
   try {
-    console.log("Connecting to MongoDB Atlas...");
-    mongoClient = new MongoClient(MONGODB_URI);
-    await mongoClient.connect();
-    mongoDb = mongoClient.db("docenty_crm");
-    console.log("Connected to MongoDB successfully!");
-    
-    const configCollection = mongoDb.collection("configs");
+    const db = await getDbConnection();
+    if (!db) return false;
+
+    const configCollection = db.collection("configs");
     const configCount = await configCollection.countDocuments();
     let isNewDb = false;
     if (configCount === 0) {
       isNewDb = true;
-      console.log("Seeding initial system config into MongoDB...");
+      console.log("[CRM Storage] Seeding initial system config into MongoDB...");
       await configCollection.insertOne({ _id: "system_config" as any, ...DEFAULT_CONFIG });
     }
 
-    const leadsCollection = mongoDb.collection("leads");
+    const leadsCollection = db.collection("leads");
     const count = await leadsCollection.countDocuments();
     if (count === 0 && isNewDb) {
-      console.log("Seeding initial demo leads into MongoDB...");
+      console.log("[CRM Storage] Seeding initial demo leads into MongoDB...");
       await leadsCollection.insertMany(DEFAULT_LEADS);
     }
 
     return true;
   } catch (error) {
-    console.error("Failed to connect to MongoDB. Falling back to local in-memory storage.", error);
-    mongoClient = null;
-    mongoDb = null;
+    console.error("[CRM Storage ERROR] Database initialization failed:", error);
     return false;
   }
 }
 
 // Leads DAO functions
 export async function getAllLeads(): Promise<Lead[]> {
-  if (mongoDb) {
+  const db = await getDbConnection();
+  if (db) {
     try {
-      const leadsCollection = mongoDb.collection("leads");
+      const leadsCollection = db.collection("leads");
       const list = await leadsCollection.find({}).sort({ createdAt: -1 }).toArray();
-      // Remove mongo _id to match Lead interface cleanly
       return list.map((item) => {
         const { _id, ...leadData } = item;
         return leadData as Lead;
       });
     } catch (e) {
-      console.error("MongoDB error fetching leads, falling back", e);
+      console.error("[CRM Storage ERROR] Error fetching leads from MongoDB:", e);
     }
   }
   return [...localLeadsStore];
 }
 
 export async function createLead(lead: Lead): Promise<Lead> {
-  if (mongoDb) {
+  const db = await getDbConnection();
+  if (db) {
     try {
-      const leadsCollection = mongoDb.collection("leads");
+      const leadsCollection = db.collection("leads");
       await leadsCollection.insertOne({ ...lead });
+      console.log(`[CRM Storage Audit] Lead created in MongoDB: ${lead.id} (${lead.phone})`);
       return lead;
     } catch (e) {
-      console.error("MongoDB error saving new lead", e);
+      console.error(`[CRM Storage ERROR] Failed to insert lead ${lead.id} into MongoDB:`, e);
     }
+  } else if (MONGODB_URI) {
+    console.warn(`[CRM Storage ALERT] MONGODB_URI is set but database connection failed! Storing lead ${lead.id} in local fallback memory.`);
   }
+
   localLeadsStore.unshift(lead);
   saveLocalLeadsStore();
   return lead;
 }
 
 export async function updateLead(lead: Lead): Promise<Lead> {
-  if (mongoDb) {
+  const db = await getDbConnection();
+  if (db) {
     try {
-      const leadsCollection = mongoDb.collection("leads");
+      const leadsCollection = db.collection("leads");
       await leadsCollection.updateOne({ id: lead.id }, { $set: { ...lead } });
+      console.log(`[CRM Storage Audit] Lead updated in MongoDB: ${lead.id} (${lead.messages.length} messages saved)`);
       return lead;
     } catch (e) {
-      console.error("MongoDB error updating lead", e);
+      console.error(`[CRM Storage ERROR] Failed to update lead ${lead.id} in MongoDB:`, e);
     }
+  } else if (MONGODB_URI) {
+    console.warn(`[CRM Storage ALERT] MONGODB_URI is set but database connection failed! Updating lead ${lead.id} in local fallback memory.`);
   }
+
   localLeadsStore = localLeadsStore.map((l) => (l.id === lead.id ? lead : l));
   saveLocalLeadsStore();
   return lead;
 }
 
 export async function deleteLead(id: string): Promise<boolean> {
-  if (mongoDb) {
+  const db = await getDbConnection();
+  if (db) {
     try {
-      const leadsCollection = mongoDb.collection("leads");
+      const leadsCollection = db.collection("leads");
       const result = await leadsCollection.deleteOne({ id });
+      console.log(`[CRM Storage Audit] Lead deleted from MongoDB: ${id}`);
       return result.deletedCount > 0;
     } catch (e) {
-      console.error("MongoDB error deleting lead", e);
+      console.error(`[CRM Storage ERROR] Failed to delete lead ${id} from MongoDB:`, e);
     }
   }
+
   const originalLength = localLeadsStore.length;
   localLeadsStore = localLeadsStore.filter((l) => l.id !== id);
   saveLocalLeadsStore();
@@ -297,21 +405,24 @@ export async function deleteLead(id: string): Promise<boolean> {
 }
 
 export async function resetDatabase(): Promise<Lead[]> {
-  if (mongoDb) {
+  const db = await getDbConnection();
+  if (db) {
     try {
-      const leadsCollection = mongoDb.collection("leads");
+      const leadsCollection = db.collection("leads");
       await leadsCollection.deleteMany({});
       await leadsCollection.insertMany(DEFAULT_LEADS);
       
-      const configCollection = mongoDb.collection("configs");
+      const configCollection = db.collection("configs");
       await configCollection.deleteMany({});
       await configCollection.insertOne({ _id: "system_config" as any, ...DEFAULT_CONFIG });
       
+      console.log("[CRM Storage Audit] MongoDB database reset to default state.");
       return DEFAULT_LEADS;
     } catch (e) {
-      console.error("MongoDB error resetting database", e);
+      console.error("[CRM Storage ERROR] Failed to reset MongoDB database:", e);
     }
   }
+
   localLeadsStore = [...DEFAULT_LEADS];
   localConfigStore = { ...DEFAULT_CONFIG };
   saveLocalLeadsStore();
@@ -321,35 +432,39 @@ export async function resetDatabase(): Promise<Lead[]> {
 
 // Configs DAO functions
 export async function getSystemConfigs(): Promise<SystemConfigs> {
-  if (mongoDb) {
+  const db = await getDbConnection();
+  if (db) {
     try {
-      const configCollection = mongoDb.collection("configs");
+      const configCollection = db.collection("configs");
       const doc = await configCollection.findOne({ _id: "system_config" as any });
       if (doc) {
         const { _id, ...configData } = doc;
         return configData as SystemConfigs;
       }
     } catch (e) {
-      console.error("MongoDB error getting system config", e);
+      console.error("[CRM Storage ERROR] Failed to fetch system config from MongoDB:", e);
     }
   }
   return { ...localConfigStore };
 }
 
 export async function saveSystemConfigs(configs: SystemConfigs): Promise<SystemConfigs> {
-  if (mongoDb) {
+  const db = await getDbConnection();
+  if (db) {
     try {
-      const configCollection = mongoDb.collection("configs");
+      const configCollection = db.collection("configs");
       await configCollection.updateOne(
         { _id: "system_config" as any },
         { $set: { ...configs } },
         { upsert: true }
       );
+      console.log("[CRM Storage Audit] System configs updated in MongoDB.");
       return configs;
     } catch (e) {
-      console.error("MongoDB error updating system config", e);
+      console.error("[CRM Storage ERROR] Failed to save system config in MongoDB:", e);
     }
   }
+
   localConfigStore = { ...configs };
   saveLocalConfigStore();
   return localConfigStore;
