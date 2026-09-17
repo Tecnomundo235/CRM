@@ -50,10 +50,10 @@ const PORT = 3000;
 // Body parsing middleware
 app.use(express.json({ limit: "10mb" }));
 
-// WhatsApp Integration Configuration
-const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN || "";
-const VERIFY_TOKEN = process.env.VERIFY_TOKEN || "token_docenty_2026";
-const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID || "1235155319675980";
+// Evolution API WhatsApp Configuration (Self-hosted on VPS)
+const EVOLUTION_API_URL = (process.env.EVOLUTION_API_URL || "http://165.22.188.168:8080").replace(/\/+$/, "");
+const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || "docenty_pro_secret_key_2026";
+const EVOLUTION_INSTANCE_NAME = process.env.EVOLUTION_INSTANCE_NAME || "docenty-pro";
 
 // Health check and Keep-Alive Ping endpoint
 app.get(["/api/health", "/health", "/ping"], async (req, res) => {
@@ -64,8 +64,10 @@ app.get(["/api/health", "/health", "/ping"], async (req, res) => {
     uptimeSeconds: Math.floor(process.uptime()),
     database: dbHealth,
     whatsapp: {
-      configured: Boolean(WHATSAPP_TOKEN && PHONE_NUMBER_ID),
-      phoneNumberId: PHONE_NUMBER_ID,
+      provider: "Evolution API",
+      configured: Boolean(EVOLUTION_API_URL && EVOLUTION_API_KEY && EVOLUTION_INSTANCE_NAME),
+      evolutionUrl: EVOLUTION_API_URL,
+      instanceName: EVOLUTION_INSTANCE_NAME,
     },
     memory: {
       rssMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
@@ -77,44 +79,76 @@ app.get(["/api/health", "/health", "/ping"], async (req, res) => {
   return res.status(statusCode).json(healthData);
 });
 
-// 1. ENDPOINT DE VERIFICACIÓN (Requerido por Meta para activar el Webhook)
+// 1. ENDPOINT DE VERIFICACIÓN (Compatibilidad con checks HTTP GET)
 app.get(["/api/webhook", "/webhook"], (req, res) => {
-  const mode = req.query["hub.mode"];
-  const token = req.query["hub.verify_token"];
-  const challenge = req.query["hub.challenge"];
-
-  if (mode && token) {
-    if (mode === "subscribe" && token === VERIFY_TOKEN) {
-      return res.status(200).send(challenge);
-    }
-    return res.sendStatus(403);
-  }
-  return res.sendStatus(400);
+  return res.status(200).json({
+    status: "online",
+    service: "Docenty PRO Webhook - Evolution API Engine",
+    instance: EVOLUTION_INSTANCE_NAME,
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Helper to clean phone numbers
 function cleanPhoneNumber(ph: string): string {
-  return ph.replace(/\D/g, "");
+  return (ph || "").replace(/\D/g, "");
 }
 
-// Helper to download WhatsApp Media from Meta Graph API
-async function downloadWhatsAppMedia(mediaId: string): Promise<string | null> {
-  if (!WHATSAPP_TOKEN) return null;
+// Helper to download media using Evolution API or direct media URL
+async function downloadEvolutionMedia(mediaUrlOrMessage: any): Promise<string | null> {
   try {
-    const mediaResponse = await axios.get(`https://graph.facebook.com/v17.0/${mediaId}`, {
-      headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` }
-    });
-    const mediaUrl = mediaResponse.data?.url;
-    if (!mediaUrl) return null;
+    // If it's already a base64 string
+    if (typeof mediaUrlOrMessage === "string" && mediaUrlOrMessage.startsWith("data:")) {
+      return mediaUrlOrMessage.split(",")[1];
+    }
 
-    const bufferResponse = await axios.get(mediaUrl, {
-      headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
-      responseType: "arraybuffer"
-    });
+    // If Evolution API provides direct base64 in mediaUrl or base64 field
+    if (typeof mediaUrlOrMessage === "string" && !mediaUrlOrMessage.startsWith("http")) {
+      return mediaUrlOrMessage;
+    }
 
-    return Buffer.from(bufferResponse.data).toString("base64");
-  } catch (err) {
-    console.error("Error downloading WhatsApp media:", err);
+    // If an Evolution message object is passed with key/messageId to fetch base64 from Evolution API
+    if (typeof mediaUrlOrMessage === "object" && mediaUrlOrMessage?.messageId) {
+      try {
+        const fetchRes = await axios.post(
+          `${EVOLUTION_API_URL}/chat/getBase64FromMediaMessage/${EVOLUTION_INSTANCE_NAME}`,
+          {
+            message: mediaUrlOrMessage.rawMessage || {
+              key: { id: mediaUrlOrMessage.messageId }
+            },
+            convertToMp4: false
+          },
+          {
+            headers: {
+              apikey: EVOLUTION_API_KEY,
+              "Content-Type": "application/json"
+            },
+            timeout: 15000
+          }
+        );
+        const b64 = fetchRes.data?.base64;
+        if (b64) {
+          return b64.replace(/^data:.*?;base64,/, "");
+        }
+      } catch (evoErr: any) {
+        console.warn("[Evolution Media] Could not fetch via getBase64FromMediaMessage, attempting fallback:", evoErr.message);
+      }
+    }
+
+    // If an HTTP URL is provided, fetch arraybuffer
+    const targetUrl = typeof mediaUrlOrMessage === "string" ? mediaUrlOrMessage : mediaUrlOrMessage?.url;
+    if (targetUrl && targetUrl.startsWith("http")) {
+      const response = await axios.get(targetUrl, {
+        headers: { apikey: EVOLUTION_API_KEY },
+        responseType: "arraybuffer",
+        timeout: 15000
+      });
+      return Buffer.from(response.data).toString("base64");
+    }
+
+    return null;
+  } catch (err: any) {
+    console.error("Error downloading Evolution API media:", err.message);
     return null;
   }
 }
@@ -137,55 +171,58 @@ function checkAndRegisterWAMID(wamid: string): boolean {
   return false;
 }
 
+async function sendWhatsAppMessage(targetPhone: string, textBody: string) {
+  const cleanedTarget = cleanPhoneNumber(targetPhone);
+  if (!cleanedTarget) {
+    console.warn("[Evolution API] Número de destino inválido:", targetPhone);
+    return;
+  }
+
+  if (EVOLUTION_API_URL && EVOLUTION_API_KEY && EVOLUTION_INSTANCE_NAME) {
+    try {
+      const endpoint = `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE_NAME}`;
+      await axios.post(
+        endpoint,
+        {
+          number: cleanedTarget,
+          text: textBody
+        },
+        {
+          headers: {
+            apikey: EVOLUTION_API_KEY,
+            "Content-Type": "application/json"
+          },
+          timeout: 15000
+        }
+      );
+      console.log(`[Evolution API] Respuesta enviada exitosamente a ${cleanedTarget}`);
+    } catch (error: any) {
+      console.error("[Evolution API] Error al enviar mensaje:", error.response?.data || error.message);
+    }
+  } else {
+    console.warn("[Evolution API] Credenciales no configuradas. Omitiendo envío a:", cleanedTarget);
+  }
+}
+
 async function sendAdminNotification(messageText: string) {
-  if (WHATSAPP_TOKEN && PHONE_NUMBER_ID) {
-    try {
-      const adminPhone = "584144783204"; // Número personal del arquitecto Reymon Castillo
-      await axios.post(
-        `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
-        {
-          messaging_product: "whatsapp",
-          to: adminPhone,
-          type: "text",
-          text: { body: messageText }
-        },
-        {
-          headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` }
-        }
-      );
-      console.log(`[Admin Notification] Notificación de WhatsApp enviada al admin ${adminPhone}`);
-    } catch (error: any) {
-      console.error("[Admin Notification] Error al enviar notificación al admin:", error.response?.data || error.message);
-    }
-  }
+  const adminPhone = "584144783204"; // Número personal del arquitecto Reymon Castillo
+  await sendWhatsAppMessage(adminPhone, messageText);
 }
 
-async function sendWhatsAppMessage(phone_number_id: string, to: string, textBody: string) {
-  if (WHATSAPP_TOKEN && phone_number_id) {
-    try {
-      await axios.post(
-        `https://graph.facebook.com/v17.0/${phone_number_id}/messages`,
-        {
-          messaging_product: "whatsapp",
-          to: to,
-          type: "text",
-          text: { body: textBody }
-        },
-        {
-          headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` }
-        }
-      );
-      console.log(`[Webhook Background] Respuesta enviada exitosamente a ${to}`);
-    } catch (error: any) {
-      console.error("[Webhook Background] Error de Meta al enviar mensaje de respuesta:", error.response?.data || error.message);
-    }
-  }
+interface EvolutionIncomingPayload {
+  messageId: string;
+  from: string;
+  senderName: string;
+  type: "text" | "image" | "audio" | "other";
+  text?: string;
+  mediaBase64?: string | null;
+  mimeType?: string;
+  rawMessage?: any;
 }
 
-async function processWebhookInBackground(message: any, value: any) {
-  const from = message.from; // Teléfono del docente que escribe
-  const phone_number_id = value.metadata?.phone_number_id || PHONE_NUMBER_ID;
-  const senderName = value.contacts?.[0]?.profile?.name || `Docente (${from})`;
+async function processWebhookInBackground(incoming: EvolutionIncomingPayload) {
+  const from = incoming.from; // Teléfono del docente que escribe (limpio)
+  const senderName = incoming.senderName || `Docente (${from})`;
 
   // Buscar o registrar prospecto por su número de celular
   const leadsList = await getAllLeads();
@@ -204,7 +241,7 @@ async function processWebhookInBackground(message: any, value: any) {
       status: "prospect",
       plan: "annual",
       assignedRef,
-      notes: "Registrado automáticamente por el sistema de webhook asíncrono de Docenty.",
+      notes: "Registrado automáticamente por el sistema de webhook asíncrono de Docenty (Evolution API).",
       createdAt: new Date().toISOString(),
       messages: [],
     };
@@ -215,8 +252,11 @@ async function processWebhookInBackground(message: any, value: any) {
   const systemConfigs = await getSystemConfigs();
 
   // Caso A: Mensaje de Texto
-  if (message.type === "text") {
-    const promptInput = message.text.body;
+  if (incoming.type === "text") {
+    const promptInput = incoming.text || "";
+    if (!promptInput.trim()) {
+      return;
+    }
 
     // Guardar el mensaje del docente en el CRM
     const clientMsg: Message = {
@@ -268,7 +308,7 @@ Puedes escribirle directamente a su WhatsApp haciendo clic aquí: https://wa.me/
       broadcastToDashboard("lead:updated", lead);
 
       await sendAdminNotification(`⚠️ *Atención Humana Requerida*\nEl docente *${lead.name}* (${lead.phone}) ha solicitado un asesor humano.`);
-      await sendWhatsAppMessage(phone_number_id, from, botReply);
+      await sendWhatsAppMessage(from, botReply);
       return;
     }
 
@@ -380,9 +420,8 @@ No hay códigos premium en el CRM en este momento. Si necesitas entregar un cód
     broadcastToDashboard("lead:updated", lead);
   }
   // Caso B: Capture de Comprobante (Imagen)
-  else if (message.type === "image") {
-    const mediaId = message.image.id;
-    const base64Str = await downloadWhatsAppMedia(mediaId);
+  else if (incoming.type === "image") {
+    const base64Str = incoming.mediaBase64 || (await downloadEvolutionMedia(incoming.rawMessage));
 
     // Notificar al administrador por WhatsApp
     await sendAdminNotification(`📸 *Capture Recibido* de *${lead.name}* (${lead.phone}). Analizando comprobante de pago con Inteligencia Artificial...`);
@@ -397,7 +436,7 @@ No hay códigos premium en el CRM en este momento. Si necesitas entregar un cód
           contents: [
             {
               inlineData: {
-                mimeType: "image/png",
+                mimeType: incoming.mimeType || "image/png",
                 data: base64Str,
               },
             },
@@ -446,7 +485,7 @@ No hay códigos premium en el CRM en este momento. Si necesitas entregar un cód
 
         const resultText = response.text || "{}";
         const receiptData = JSON.parse(resultText);
-        const imageUrl = `data:image/png;base64,${base64Str}`;
+        const imageUrl = `data:${incoming.mimeType || "image/png"};base64,${base64Str}`;
 
         const receiptClientMsg: Message = {
           sender: "client",
@@ -556,10 +595,9 @@ No hay códigos premium en el CRM en este momento. Si necesitas entregar un cód
     }
   }
   // Caso C: Nota de Voz (Audio)
-  else if (message.type === "audio") {
-    const mediaId = message.audio.id;
-    const mimeType = message.audio.mime_type || "audio/ogg";
-    const base64Str = await downloadWhatsAppMedia(mediaId);
+  else if (incoming.type === "audio") {
+    const mimeType = incoming.mimeType || "audio/ogg";
+    const base64Str = incoming.mediaBase64 || (await downloadEvolutionMedia(incoming.rawMessage));
 
     // Notificar al administrador por WhatsApp
     await sendAdminNotification(`🎤 *Nota de voz recibida* de *${lead.name}* (${lead.phone}). Procesando audio con Inteligencia Artificial...`);
@@ -659,37 +697,118 @@ No hay códigos premium disponibles en el pool en este momento. Si necesitas ent
     }
   }
 
-  // Enviar respuesta por WhatsApp mediante la Cloud API de Meta
-  await sendWhatsAppMessage(phone_number_id, from, botReply);
+  // Enviar respuesta por WhatsApp mediante Evolution API
+  await sendWhatsAppMessage(from, botReply);
 }
 
-app.post(["/api/webhook", "/webhook"], (req, res) => {
+app.post(["/api/webhook", "/webhook"], async (req, res) => {
   try {
-    const entry = req.body.entry?.[0];
-    const changes = entry?.changes?.[0];
-    const value = changes?.value;
-    const message = value?.messages?.[0];
-
-    // Responder HTTP 200 OK inmediatamente a Meta para detener reintentos de envío por lentitud
+    // Responder HTTP 200 OK inmediatamente a Evolution API para confirmar la entrega
     res.sendStatus(200);
 
-    if (!message) {
+    const body = req.body;
+    if (!body) return;
+
+    // Normalizar payloads: Evolution API envía eventos como "MESSAGES_UPSERT" o estructura directa
+    const event = body.event || body.type;
+    const data = body.data || body;
+
+    // Ignorar eventos que no sean de nuevos mensajes
+    if (event && event !== "messages.upsert" && event !== "MESSAGES_UPSERT") {
+      console.log(`[Evolution Webhook] Evento ignorado: ${event}`);
       return;
     }
 
-    const wamid = message.id;
-    if (wamid && checkAndRegisterWAMID(wamid)) {
-      console.log(`[Idempotency] Mensaje duplicado detectado (wamid: ${wamid}). Omitiendo procesamiento.`);
+    // Extraer clave del mensaje
+    const key = data.key || {};
+    
+    // Regla 3: Ignorar mensajes salientes enviados por el propio bot
+    if (key.fromMe === true || data.fromMe === true) {
       return;
     }
+
+    // Regla 3: Extraer ID del mensaje para idempotencia
+    const messageId = key.id || data.id;
+    if (messageId && checkAndRegisterWAMID(messageId)) {
+      console.log(`[Idempotency] Mensaje duplicado detectado (Evolution ID: ${messageId}). Omitiendo.`);
+      return;
+    }
+
+    // Regla 3: Extraer número de remitente limpiando el sufijo @s.whatsapp.net o @g.us
+    const rawRemoteJid = key.remoteJid || data.remoteJid || data.from || "";
+    if (rawRemoteJid.includes("@g.us")) {
+      // Ignorar mensajes de grupos
+      return;
+    }
+    const fromPhone = cleanPhoneNumber(rawRemoteJid.replace(/@s\.whatsapp\.net$/, ""));
+    if (!fromPhone) {
+      return;
+    }
+
+    const senderName = data.pushName || data.senderName || `Docente (${fromPhone})`;
+    const messageObj = data.message || {};
+
+    // Extraer contenido según el tipo de mensaje de Evolution API
+    let msgType: "text" | "image" | "audio" | "other" = "other";
+    let textContent = "";
+    let mediaBase64: string | null = null;
+    let mimeType = "";
+
+    // 1. Mensaje de Texto plano o extendido
+    if (messageObj.conversation) {
+      msgType = "text";
+      textContent = messageObj.conversation;
+    } else if (messageObj.extendedTextMessage?.text) {
+      msgType = "text";
+      textContent = messageObj.extendedTextMessage.text;
+    } 
+    // 2. Mensaje de Imagen (comprobantes de pago)
+    else if (messageObj.imageMessage) {
+      msgType = "image";
+      mimeType = messageObj.imageMessage.mimetype || "image/png";
+      textContent = messageObj.imageMessage.caption || "";
+      if (data.base64) {
+        mediaBase64 = data.base64;
+      }
+    } 
+    // 3. Nota de Voz / Audio
+    else if (messageObj.audioMessage) {
+      msgType = "audio";
+      mimeType = messageObj.audioMessage.mimetype || "audio/ogg";
+      if (data.base64) {
+        mediaBase64 = data.base64;
+      }
+    }
+    // Fallback: Si Evolution envía payload plano tipo texto
+    else if (typeof data.text === "string") {
+      msgType = "text";
+      textContent = data.text;
+    }
+
+    // Si no es texto, imagen ni audio reconocido, ignorar
+    if (msgType === "other") {
+      console.log(`[Evolution Webhook] Tipo de mensaje no manejado:`, Object.keys(messageObj));
+      return;
+    }
+
+    const incoming: EvolutionIncomingPayload = {
+      messageId,
+      from: fromPhone,
+      senderName,
+      type: msgType,
+      text: textContent,
+      mediaBase64,
+      mimeType,
+      rawMessage: data
+    };
 
     // Procesar asíncronamente en segundo plano
-    processWebhookInBackground(message, value).catch((backgroundErr) => {
-      console.error("[Webhook Background Process] Error Crítico:", backgroundErr);
+    processWebhookInBackground(incoming).catch((backgroundErr) => {
+      console.error("[Evolution Webhook Background] Error Crítico:", backgroundErr);
     });
 
   } catch (error: any) {
-    console.error("Error en Wrapper Webhook:", error.response?.data || error.message);
+    console.error("Error en Wrapper Webhook Evolution:", error.response?.data || error.message);
     if (!res.headersSent) {
       res.sendStatus(200);
     }
@@ -908,26 +1027,8 @@ app.post("/api/leads/:id/approve", async (req, res) => {
 
     const botReply = congratulationsMsg.text;
 
-    // Send WhatsApp notification if Meta credentials exist
-    if (WHATSAPP_TOKEN && PHONE_NUMBER_ID) {
-      try {
-        await axios.post(
-          `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
-          {
-            messaging_product: "whatsapp",
-            to: lead.phone,
-            type: "text",
-            text: { body: botReply },
-          },
-          {
-            headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
-          }
-        );
-        console.log(`WhatsApp manual approval reply sent successfully to ${lead.phone}`);
-      } catch (wsErr: any) {
-        console.error("Error sending manual approval WhatsApp message via API:", wsErr?.response?.data || wsErr.message);
-      }
-    }
+    // Send WhatsApp notification via Evolution API
+    await sendWhatsAppMessage(lead.phone, botReply);
 
     // Broadcast update via Websocket
     broadcastToDashboard("lead:updated", lead);
@@ -1005,26 +1106,8 @@ app.post("/api/leads/:id/associate-reference", async (req, res) => {
 
     await updateLead(targetLead);
 
-    // Send WhatsApp notification if Meta credentials exist
-    if (WHATSAPP_TOKEN && PHONE_NUMBER_ID) {
-      try {
-        await axios.post(
-          `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
-          {
-            messaging_product: "whatsapp",
-            to: targetLead.phone,
-            type: "text",
-            text: { body: congratulationsMsg.text },
-          },
-          {
-            headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
-          }
-        );
-        console.log(`WhatsApp manual association reply sent successfully to ${targetLead.phone}`);
-      } catch (wsErr: any) {
-        console.error("Error sending manual association WhatsApp message via API:", wsErr?.response?.data || wsErr.message);
-      }
-    }
+    // Send WhatsApp notification via Evolution API
+    await sendWhatsAppMessage(targetLead.phone, congratulationsMsg.text);
 
     // Broadcast updates via WebSocket
     broadcastToDashboard("lead:updated", lead);
@@ -1065,25 +1148,8 @@ app.post("/api/leads/:id/manual-message", async (req, res) => {
     lead.messages.push(botMsg);
     await updateLead(lead);
 
-    // If real WhatsApp token and phone number ID are configured, send the manual message via Meta API
-    if (WHATSAPP_TOKEN && PHONE_NUMBER_ID) {
-      try {
-        await axios.post(
-          `https://graph.facebook.com/v17.0/${PHONE_NUMBER_ID}/messages`,
-          {
-            messaging_product: "whatsapp",
-            to: lead.phone,
-            type: "text",
-            text: { body: message },
-          },
-          {
-            headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}` },
-          }
-        );
-      } catch (wsErr: any) {
-        console.error("Error sending manual WhatsApp message via API:", wsErr?.response?.data || wsErr.message);
-      }
-    }
+    // Send manual message via Evolution API
+    await sendWhatsAppMessage(lead.phone, message);
 
     // Broadcast the update via websocket
     broadcastToDashboard("lead:updated", lead);
