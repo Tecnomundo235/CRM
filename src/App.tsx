@@ -35,6 +35,7 @@ import {
   Key,
   Bell,
   Download,
+  Server,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Lead, Message, BankDetails, SystemConfigs } from "./types";
@@ -1192,6 +1193,19 @@ export default function App() {
 
         {/* Top bar controls */}
         <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            onClick={() => setActiveTab("meta")}
+            className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg font-semibold transition cursor-pointer border ${
+              activeTab === "meta"
+                ? "bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-950/40"
+                : "text-blue-300 bg-blue-950/40 hover:bg-blue-900/60 border-blue-800/50"
+            }`}
+            title="Consola VPS DigitalOcean & Meta Cloud API"
+          >
+            <Server className="h-3.5 w-3.5" />
+            <span className="font-mono text-xs">VPS Droplet</span>
+          </button>
+
           <button
             onClick={handleResetDb}
             className="flex items-center gap-1.5 text-xs text-zinc-300 hover:text-teal-400 bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/50 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg font-medium transition cursor-pointer"
@@ -2643,6 +2657,16 @@ Protocolo de Seguridad:
               )}
             </div>
             <span className="text-[10px]">WhatsApp</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("meta")}
+            className={`flex flex-col items-center justify-center gap-1 flex-1 py-2 text-center transition cursor-pointer ${
+              activeTab === "meta" ? "text-blue-400 font-semibold" : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            <Server className="h-5 w-5" />
+            <span className="text-[10px]">VPS Droplet</span>
           </button>
 
           <button

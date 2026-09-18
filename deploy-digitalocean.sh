@@ -75,8 +75,8 @@ ln -sf /etc/nginx/sites-available/docenty /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl reload nginx
 
-# 5. Crear directorio de la aplicación si no existe
-mkdir -p /var/www/docenty
+# 5. Crear directorio de la aplicación y logs si no existen
+mkdir -p /var/www/docenty/logs
 cd /var/www/docenty
 
 echo "=================================================================="
@@ -87,10 +87,16 @@ echo ""
 echo "PASOS SIGUIENTES PARA EJECUTAR TU APLICACIÓN:"
 echo "1) Sube o clona el código en /var/www/docenty"
 echo "2) Configura las variables en .env (META_WA_TOKEN, GEMINI_API_KEY, etc.)"
-echo "3) Ejecuta:"
-echo "   npm install --production"
+echo "3) Ejecuta en /var/www/docenty:"
+echo "   npm install"
 echo "   npm run build"
-echo "   pm2 start dist/server.cjs --name docenty-pro --node-args='--max-old-space-size=256'"
+echo "   pm2 start ecosystem.config.cjs"
 echo "   pm2 save"
 echo "   pm2 startup"
+echo ""
+echo "4) PARA HTTPS (OBLIGATORIO PARA META WEBHOOK):"
+echo "   Opción A - Con tu dominio (ej: crm.docenty.com apuntando a 165.22.180.160):"
+echo "      certbot --nginx -d crm.docenty.com"
+echo "   Opción B - Con Cloudflare Tunnel (rápido y gratuito sin abrir puertos):"
+echo "      cloudflared tunnel run"
 echo "=================================================================="

@@ -19,8 +19,14 @@ import {
   Cpu,
   HardDrive,
   Activity,
+  ArrowRight,
+  FileText,
+  Lock,
+  Shield,
+  HelpCircle,
 } from "lucide-react";
 import { SystemConfigs } from "../types";
+import { VpsRemoteConsole } from "./VpsRemoteConsole";
 
 interface MetaCloudApiViewProps {
   config: SystemConfigs;
@@ -39,6 +45,8 @@ export const MetaCloudApiView: React.FC<MetaCloudApiViewProps> = ({
 
   // DigitalOcean VPS Droplet State (from user screenshot: 165.22.180.160)
   const [vpsIp, setVpsIp] = useState("165.22.180.160");
+  const [vpsDomain, setVpsDomain] = useState("165.22.180.160");
+  const [vpsTab, setVpsTab] = useState<"steps" | "env" | "ssl" | "commands" | "compare">("steps");
   const [pingingVps, setPingingVps] = useState(false);
   const [vpsPingResult, setVpsPingResult] = useState<any>(null);
 
@@ -315,25 +323,62 @@ export const MetaCloudApiView: React.FC<MetaCloudApiViewProps> = ({
               </div>
             </div>
 
-            {/* Callback URL - Vercel Production */}
+            {/* Callback URL - DigitalOcean VPS (Recommended) */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-zinc-300 flex items-center justify-between">
-                <span>URL de Producción (Vercel)</span>
-                <span className="text-[10px] text-teal-400 font-semibold">Recomendado para Vercel</span>
+                <span>URL de Webhook en DigitalOcean VPS (Recomendado 24/7)</span>
+                <span className="text-[10px] text-blue-400 font-semibold bg-blue-950/40 px-2 py-0.5 rounded border border-blue-800/40">
+                  Sin límites de tiempo • WebSockets en vivo
+                </span>
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={
+                    vpsDomain.startsWith("http")
+                      ? `${vpsDomain.replace(/\/+$/, "")}/api/webhook`
+                      : `https://${vpsDomain}/api/webhook`
+                  }
+                  className="bg-zinc-900/90 border border-blue-900/50 rounded-xl px-3.5 py-2 text-xs font-mono text-blue-300 w-full select-all focus:outline-hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleCopy(
+                      vpsDomain.startsWith("http")
+                        ? `${vpsDomain.replace(/\/+$/, "")}/api/webhook`
+                        : `https://${vpsDomain}/api/webhook`,
+                      "url_vps"
+                    )
+                  }
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shrink-0"
+                >
+                  {copiedField === "url_vps" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  <span>{copiedField === "url_vps" ? "Copiado" : "Copiar VPS"}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Callback URL - Vercel (Anterior) */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-zinc-300 flex items-center justify-between">
+                <span>URL Anterior en Vercel (Migrando a VPS)</span>
+                <span className="text-[10px] text-zinc-500 font-normal">Servidor Serverless temporal</span>
               </label>
               <div className="flex gap-2">
                 <input
                   type="text"
                   readOnly
                   value={productionVercelUrl}
-                  className="bg-zinc-900/90 border border-zinc-800 rounded-xl px-3.5 py-2 text-xs font-mono text-teal-300 w-full select-all focus:outline-hidden"
+                  className="bg-zinc-900/90 border border-zinc-800 rounded-xl px-3.5 py-2 text-xs font-mono text-zinc-400 w-full select-all focus:outline-hidden"
                 />
                 <button
                   type="button"
                   onClick={() => handleCopy(productionVercelUrl, "url_vercel")}
-                  className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shrink-0"
+                  className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shrink-0"
                 >
-                  {copiedField === "url_vercel" ? <Check className="h-4 w-4 text-teal-400" /> : <Copy className="h-4 w-4" />}
+                  {copiedField === "url_vercel" ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
                   <span>{copiedField === "url_vercel" ? "Copiado" : "Copiar"}</span>
                 </button>
               </div>
@@ -489,179 +534,8 @@ export const MetaCloudApiView: React.FC<MetaCloudApiViewProps> = ({
         </div>
       </div>
 
-      {/* DigitalOcean Droplet Card (from user VPS: 165.22.180.160) */}
-      <div className="bg-[#121212]/90 p-6 rounded-3xl border border-blue-900/40 shadow-xs space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-blue-950/50 text-blue-400 rounded-xl border border-blue-900/40">
-              <Server className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-display font-bold text-base text-white">
-                  Servidor VPS DigitalOcean Droplet
-                </h3>
-                <span className="bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                  NYC1 • Ubuntu 24.04
-                </span>
-              </div>
-              <p className="text-xs text-zinc-400">
-                Droplet: <span className="font-mono text-zinc-300">ubuntu-s-1vcpu-512mb-10gb-nyc1</span> (IP: <span className="font-mono text-blue-400 font-semibold">{vpsIp}</span>)
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handlePingVps}
-              disabled={pingingVps}
-              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold px-3.5 py-2 rounded-xl border border-zinc-700 transition flex items-center gap-1.5 cursor-pointer"
-            >
-              <Activity className={`h-4 w-4 text-blue-400 ${pingingVps ? "animate-spin" : ""}`} />
-              <span>{pingingVps ? "Comprobando..." : "Comprobar Conectividad (Ping)"}</span>
-            </button>
-            <a
-              href="https://cloud.digitalocean.com/droplets"
-              target="_blank"
-              rel="noreferrer"
-              className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer"
-            >
-              <span>Consola DigitalOcean</span>
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
-          </div>
-        </div>
-
-        {/* Droplet Specifications Badge Bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-          <div className="bg-zinc-900/80 p-3 rounded-2xl border border-zinc-800 flex items-center gap-2.5">
-            <Cpu className="h-4 w-4 text-teal-400 shrink-0" />
-            <div>
-              <p className="text-[10px] text-zinc-500 uppercase font-semibold">Procesador</p>
-              <p className="font-bold text-white">1 vCPU (AMD/Intel)</p>
-            </div>
-          </div>
-
-          <div className="bg-zinc-900/80 p-3 rounded-2xl border border-amber-900/40 flex items-center gap-2.5">
-            <HardDrive className="h-4 w-4 text-amber-400 shrink-0" />
-            <div>
-              <p className="text-[10px] text-amber-400 uppercase font-semibold">Memoria RAM (512 MB)</p>
-              <p className="font-bold text-amber-300">¡Requiere 2GB SWAP!</p>
-            </div>
-          </div>
-
-          <div className="bg-zinc-900/80 p-3 rounded-2xl border border-zinc-800 flex items-center gap-2.5">
-            <HardDrive className="h-4 w-4 text-blue-400 shrink-0" />
-            <div>
-              <p className="text-[10px] text-zinc-500 uppercase font-semibold">Almacenamiento</p>
-              <p className="font-bold text-white">10 GB SSD NVMe</p>
-            </div>
-          </div>
-
-          <div className="bg-zinc-900/80 p-3 rounded-2xl border border-zinc-800 flex items-center gap-2.5">
-            <Globe className="h-4 w-4 text-emerald-400 shrink-0" />
-            <div>
-              <p className="text-[10px] text-zinc-500 uppercase font-semibold">IPv4 Pública</p>
-              <p className="font-bold font-mono text-emerald-300">{vpsIp}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Ping result status */}
-        {vpsPingResult && (
-          <div className={`p-3.5 rounded-2xl border text-xs flex items-center justify-between ${
-            vpsPingResult.reachable
-              ? "bg-emerald-950/40 border-emerald-800/50 text-emerald-300"
-              : "bg-amber-950/30 border-amber-800/50 text-amber-300"
-          }`}>
-            <div className="flex items-center gap-2">
-              <span className={`h-2.5 w-2.5 rounded-full ${vpsPingResult.reachable ? "bg-emerald-400" : "bg-amber-400"}`}></span>
-              <span><strong>Estado VPS:</strong> {vpsPingResult.message} ({vpsPingResult.latencyMs ? `${vpsPingResult.latencyMs}ms` : "Sin respuesta HTTP"})</span>
-            </div>
-            <span className="text-[10px] font-mono text-zinc-400">IP: {vpsPingResult.ip}</span>
-          </div>
-        )}
-
-        {/* Essential 512MB RAM Optimization & Setup Commands */}
-        <div className="bg-zinc-900/90 p-4 rounded-2xl border border-zinc-800 space-y-3">
-          <div className="flex items-center justify-between">
-            <h4 className="font-bold text-white text-xs flex items-center gap-2">
-              <Terminal className="h-4 w-4 text-blue-400" />
-              <span>Comandos de Inicialización Rápida (Pegar en el Web Console de DigitalOcean)</span>
-            </h4>
-            <span className="text-[10px] text-amber-400 bg-amber-950/40 px-2 py-0.5 rounded border border-amber-800/40 font-semibold">
-              Crucial para 512MB RAM
-            </span>
-          </div>
-
-          <p className="text-[11px] text-zinc-400 leading-relaxed">
-            Al tener 512MB de RAM, es fundamental activar memoria SWAP virtual antes de ejecutar Node.js o construir paquetes npm para que el sistema operativo no congele los procesos.
-          </p>
-
-          <div className="space-y-2">
-            {/* Paso 1: SWAP 2GB */}
-            <div className="bg-black/60 p-3 rounded-xl border border-zinc-800">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[11px] font-bold text-zinc-300">Paso 1: Crear e iniciar SWAP de 2GB (Evita caídas de memoria)</span>
-                <button
-                  type="button"
-                  onClick={() => handleCopy(
-                    "fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile && echo '/swapfile none swap sw 0 0' >> /etc/fstab && sysctl vm.swappiness=10",
-                    "cmd_swap"
-                  )}
-                  className="text-[10px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-2.5 py-1 rounded transition flex items-center gap-1 cursor-pointer"
-                >
-                  {copiedField === "cmd_swap" ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-                  <span>{copiedField === "cmd_swap" ? "Copiado" : "Copiar Comando"}</span>
-                </button>
-              </div>
-              <code className="text-[11px] font-mono text-amber-300 block select-all break-all">
-                fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile && echo '/swapfile none swap sw 0 0' &gt;&gt; /etc/fstab
-              </code>
-            </div>
-
-            {/* Paso 2: Instalar Node 20 & Nginx */}
-            <div className="bg-black/60 p-3 rounded-xl border border-zinc-800">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[11px] font-bold text-zinc-300">Paso 2: Instalar Node.js 20, PM2 y Nginx</span>
-                <button
-                  type="button"
-                  onClick={() => handleCopy(
-                    "apt update && apt install -y curl nginx git certbot python3-certbot-nginx && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt install -y nodejs && npm install -g pm2",
-                    "cmd_node"
-                  )}
-                  className="text-[10px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-2.5 py-1 rounded transition flex items-center gap-1 cursor-pointer"
-                >
-                  {copiedField === "cmd_node" ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-                  <span>{copiedField === "cmd_node" ? "Copiado" : "Copiar Comando"}</span>
-                </button>
-              </div>
-              <code className="text-[11px] font-mono text-blue-300 block select-all break-all">
-                apt update && apt install -y curl nginx git && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && apt install -y nodejs && npm install -g pm2
-              </code>
-            </div>
-
-            {/* Paso 3: Script Completo Automatizado */}
-            <div className="bg-emerald-950/20 p-3 rounded-xl border border-emerald-900/40 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-bold text-emerald-300">Script Automatizado Incluido en el Proyecto</p>
-                <p className="text-[10px] text-zinc-400">
-                  Hemos generado el archivo <code className="text-emerald-400">deploy-digitalocean.sh</code> en la raíz del proyecto para que configure automáticamente Nginx, Firewall UFW y PM2.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleCopy("bash deploy-digitalocean.sh", "cmd_script")}
-                className="text-[10px] bg-emerald-700 hover:bg-emerald-600 text-white font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1 cursor-pointer shrink-0"
-              >
-                {copiedField === "cmd_script" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                <span>Copiar Ejecución</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* DigitalOcean Droplet Remote Console & Auto-Installer (Anti-Disconnect) */}
+      <VpsRemoteConsole defaultIp={vpsIp} showToast={showToast} />
 
       {/* Test Sandbox: Interactive Live Message Tester */}
       <div className="bg-[#121212]/90 p-6 rounded-3xl border border-zinc-800/80 shadow-xs space-y-5">

@@ -18,6 +18,7 @@ import {
   Lead,
   Message
 } from "./database.js";
+import { runSshCommand, buildBootstrapScript } from "./vps-service.js";
 
 dotenv.config();
 
@@ -124,10 +125,221 @@ app.get(["/api/health", "/health", "/ping"], async (req, res) => {
       rssMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
       heapUsedMB: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
     },
+    serverPlatform: process.env.VERCEL ? "Vercel Serverless" : "DigitalOcean VPS / Standalone Node.js",
+    nodeEnv: process.env.NODE_ENV || "development",
   };
 
   // Always return 200 in serverless to keep function alive while reporting degraded state if MongoDB is reconnecting
   return res.status(200).json(healthData);
+});
+
+// Endpoint to generate recommended .env template for DigitalOcean VPS
+app.get("/api/vps/env-template", async (req, res) => {
+  const metaConfig = await getActiveMetaConfig();
+  const envTemplate = `# ==============================================================================
+# DOCENTY PRO & WHATSAPP AI SELLER - CONFIGURACIÓN DE PRODUCCIÓN EN VPS
+# Servidor: DigitalOcean Droplet Ubuntu 24.04 (IP: 165.22.180.160)
+# ==============================================================================
+
+NODE_ENV=production
+PORT=3000
+
+# Clave de Inteligencia Artificial Gemini
+GEMINI_API_KEY=${process.env.GEMINI_API_KEY || ""}
+
+# Base de datos MongoDB (opcional, si se omite usa almacenamiento local persistente en disco)
+MONGODB_URI=${process.env.MONGODB_URI || ""}
+
+# URL pública de la aplicación en producción
+APP_URL=${process.env.APP_URL || "http://165.22.180.160"}
+
+# ------------------------------------------------------------------------------
+# META WHATSAPP CLOUD API (Oficial Meta for Developers)
+# ------------------------------------------------------------------------------
+META_WA_TOKEN=${metaConfig.accessToken || ""}
+META_PHONE_NUM=${metaConfig.phoneNumberId || "1221464777727895"}
+META_PHONE_NUMBER_ID=${metaConfig.phoneNumberId || "1221464777727895"}
+META_WABA_ID=${metaConfig.wabaId || "2562659904236968"}
+META_VERIFY_TOKEN=${metaConfig.verifyToken || "docenty_pro_secure_verify_2026"}
+
+# ------------------------------------------------------------------------------
+# EVOLUTION API (Opcional - Motor secundario)
+# ------------------------------------------------------------------------------
+EVOLUTION_API_URL=${EVOLUTION_API_URL || "http://165.22.180.160:8080"}
+EVOLUTION_API_KEY=${EVOLUTION_API_KEY || "docenty_pro_secret_key_2026"}
+EVOLUTION_INSTANCE_NAME=${EVOLUTION_INSTANCE_NAME || "docenty-pro"}
+`;
+
+  res.type("text/plain").send(envTemplate);
+});
+
+// ==============================================================================
+// VPS REMOTE MANAGEMENT & ANTI-DISCONNECT AUTO-INSTALLER (DIGITALOCEAN)
+// ==============================================================================
+
+// 1. Probar conexión SSH y telemetría del Droplet
+app.post("/api/vps/test-ssh", async (req, res) => {
+  const { host = "165.22.180.160", port = 22, username = "root", password, privateKey } = req.body;
+  if (!password && !privateKey) {
+    return res.status(400).json({ ok: false, error: "Debes ingresar la contraseña de root o tu clave privada SSH" });
+  }
+
+  try {
+    const creds = { host, port: Number(port), username, password, privateKey };
+    const testCmd = `echo "=== OS ===" && uname -srm && echo "=== UPTIME ===" && uptime && echo "=== MEMORY ===" && free -m && echo "=== DISK ===" && df -h / && echo "=== NODE ===" && (node -v 2>/dev/null || echo "No instalado") && echo "=== PM2 ===" && (pm2 status docenty-pro 2>&1 || echo "No iniciado")`;
+    const result = await runSshCommand(creds, testCmd, 15000);
+    return res.json({ ok: true, ...result });
+  } catch (err: any) {
+    return res.status(500).json({
+      ok: false,
+      error: err.message || "Error al conectar por SSH al Droplet",
+    });
+  }
+});
+
+// 2. Ejecutar comandos remotos en el Droplet (Consola VPS Remota integrada)
+app.post("/api/vps/exec", async (req, res) => {
+  const { host = "165.22.180.160", port = 22, username = "root", password, privateKey, command } = req.body;
+  if (!command) {
+    return res.status(400).json({ ok: false, error: "Comando no proporcionado" });
+  }
+
+  try {
+    const creds = { host, port: Number(port), username, password, privateKey };
+    const result = await runSshCommand(creds, command, 45000);
+    return res.json({ ok: true, ...result });
+  } catch (err: any) {
+    return res.status(500).json({
+      ok: false,
+      error: err.message || "Fallo en la ejecución remota",
+    });
+  }
+});
+
+// 3. Iniciar Instalación 100% Automática con Protección Anti-Desconexión (nohup)
+app.post("/api/vps/install-auto", async (req, res) => {
+  const { host = "165.22.180.160", port = 22, username = "root", password, privateKey, domain } = req.body;
+  if (!password && !privateKey) {
+    return res.status(400).json({ ok: false, error: "Debes ingresar la contraseña de root o tu clave privada SSH" });
+  }
+
+  try {
+    const metaConfig = await getActiveMetaConfig();
+    const envContent = `NODE_ENV=production
+PORT=3000
+GEMINI_API_KEY=${process.env.GEMINI_API_KEY || ""}
+MONGODB_URI=${process.env.MONGODB_URI || ""}
+APP_URL=http://${domain || host}
+META_WA_TOKEN=${metaConfig.accessToken || ""}
+META_PHONE_NUM=${metaConfig.phoneNumberId || "1221464777727895"}
+META_PHONE_NUMBER_ID=${metaConfig.phoneNumberId || "1221464777727895"}
+META_WABA_ID=${metaConfig.wabaId || "2562659904236968"}
+META_VERIFY_TOKEN=${metaConfig.verifyToken || "docenty_pro_secure_verify_2026"}
+EVOLUTION_API_URL=${process.env.EVOLUTION_API_URL || `http://${host}:8080`}
+EVOLUTION_API_KEY=${process.env.EVOLUTION_API_KEY || "docenty_pro_secret_key_2026"}
+EVOLUTION_INSTANCE_NAME=${process.env.EVOLUTION_INSTANCE_NAME || "docenty-pro"}
+`;
+
+    const bootstrapScript = buildBootstrapScript({
+      ip: host,
+      domain: domain || host,
+      envContent,
+    });
+
+    // Enviar el script codificado en Base64 para evitar problemas de escape bash
+    const b64Script = Buffer.from(bootstrapScript, "utf-8").toString("base64");
+    const launchCmd = `echo "${b64Script}" | base64 -d > /tmp/docenty-setup.sh && chmod +x /tmp/docenty-setup.sh && nohup /tmp/docenty-setup.sh > /var/log/docenty-install.log 2>&1 & echo $! > /tmp/docenty-install.pid && echo "STARTED_PID=$(cat /tmp/docenty-install.pid)"`;
+
+    const creds = { host, port: Number(port), username, password, privateKey };
+    const result = await runSshCommand(creds, launchCmd, 20000);
+
+    return res.json({
+      ok: true,
+      started: true,
+      output: result.stdout,
+      message: "Instalación automática iniciada en segundo plano en tu VPS. El proceso continuará sin interrupciones aunque cierres la pestaña o apagues la pantalla del celular.",
+    });
+  } catch (err: any) {
+    return res.status(500).json({
+      ok: false,
+      error: err.message || "Error al iniciar la instalación remota en el Droplet",
+    });
+  }
+});
+
+// 4. Consultar Estado y Logs en tiempo real de la instalación
+app.post("/api/vps/install-status", async (req, res) => {
+  const { host = "165.22.180.160", port = 22, username = "root", password, privateKey } = req.body;
+  try {
+    const creds = { host, port: Number(port), username, password, privateKey };
+    const statusCmd = `
+      PID_STATUS="NO_PROCESS"
+      if [ -f /tmp/docenty-install.pid ]; then
+        PID=\$(cat /tmp/docenty-install.pid 2>/dev/null)
+        if [ -n "\$PID" ] && ps -p "\$PID" > /dev/null 2>&1; then
+          PID_STATUS="RUNNING"
+        else
+          PID_STATUS="STOPPED"
+        fi
+      fi
+
+      IS_SUCCESS="NO"
+      if grep -q "=== DOCENTY_INSTALL_SUCCESS ===" /var/log/docenty-install.log 2>/dev/null; then
+        IS_SUCCESS="YES"
+      fi
+
+      PM2_STATUS=\$(pm2 status docenty-pro 2>/dev/null | grep -q "online" && echo "ONLINE" || echo "OFFLINE")
+
+      echo "---STATUS_METRICS---"
+      echo "PID_STATUS:\$PID_STATUS"
+      echo "IS_SUCCESS:\$IS_SUCCESS"
+      echo "PM2_STATUS:\$PM2_STATUS"
+      echo "---LOGS---"
+      tail -n 60 /var/log/docenty-install.log 2>/dev/null || echo "Aún no se ha generado registro."
+    `;
+
+    const result = await runSshCommand(creds, statusCmd, 15000);
+    const text = result.stdout || "";
+    const pidRunning = text.includes("PID_STATUS:RUNNING");
+    const isSuccess = text.includes("IS_SUCCESS:YES");
+    const pm2Online = text.includes("PM2_STATUS:ONLINE");
+
+    const logsPart = text.split("---LOGS---")[1] || text;
+
+    return res.json({
+      ok: true,
+      isRunning: pidRunning,
+      isSuccess,
+      pm2Online,
+      logs: logsPart.trim(),
+    });
+  } catch (err: any) {
+    return res.status(500).json({
+      ok: false,
+      error: err.message || "Error consultando estado en VPS",
+    });
+  }
+});
+
+// 5. Script bash directo para descargar/ejecutar manualmente (Opción curl)
+app.get("/api/vps/bootstrap-script", async (req, res) => {
+  const metaConfig = await getActiveMetaConfig();
+  const domain = (req.query.domain as string) || "165.22.180.160";
+  const ip = (req.query.ip as string) || "165.22.180.160";
+  const envContent = `NODE_ENV=production
+PORT=3000
+GEMINI_API_KEY=${process.env.GEMINI_API_KEY || ""}
+MONGODB_URI=${process.env.MONGODB_URI || ""}
+APP_URL=http://${domain}
+META_WA_TOKEN=${metaConfig.accessToken || ""}
+META_PHONE_NUM=${metaConfig.phoneNumberId || "1221464777727895"}
+META_PHONE_NUMBER_ID=${metaConfig.phoneNumberId || "1221464777727895"}
+META_WABA_ID=${metaConfig.wabaId || "2562659904236968"}
+META_VERIFY_TOKEN=${metaConfig.verifyToken || "docenty_pro_secure_verify_2026"}
+`;
+
+  const script = buildBootstrapScript({ ip, domain, envContent });
+  res.type("text/x-shellscript").send(script);
 });
 
 // 1. ENDPOINT DE VERIFICACIÓN DE WEBHOOK
