@@ -1116,18 +1116,12 @@ async function processWebhookInBackground(incoming: EvolutionIncomingPayload) {
 
     // Comprobación de palabras clave para Soporte Humano / Pausa Manual
     const lowerInput = promptInput.toLowerCase().trim();
-    if (
-      lowerInput.includes("humano") || 
-      lowerInput.includes("asesor") || 
-      lowerInput.includes("soporte") || 
-      lowerInput.includes("persona") || 
-      lowerInput.includes("reymon") || 
-      lowerInput.includes("antonio")
-    ) {
+    const isHumanRequest = /\b(humano|asesor|soporte|persona|reymon|antonio|atencion humana|hablar con reymon|hablar con alguien|comunicarme con un asesor)\b/i.test(lowerInput);
+    if (isHumanRequest) {
       lead.isPaused = true;
-      botReply = `Entendido, ${lead.name}. He pausado mis respuestas automáticas para que el arquitecto de sistemas **Reymon Castillo** 👨‍💻 atienda tu chat de forma personal a la brevedad.
+      botReply = `¡Entendido perfectamente, ${lead.name}! He pausado mis respuestas automáticas para que **Reymon Castillo** (nuestro arquitecto de sistemas y creador) te atienda personalmente. 👨‍💻
 
-Puedes escribirle directamente a su WhatsApp haciendo clic aquí: https://wa.me/584144783204 o esperar su respuesta por esta vía. ¡Muchas gracias por tu paciencia!`;
+Puedes escribirle directamente a su WhatsApp privado haciendo clic aquí: https://wa.me/584144783204 o aguardar un momento mientras revisa este chat. ¡Muchas gracias por tu paciencia!`;
       
       const botMsg: Message = {
         sender: "bot",
@@ -1138,149 +1132,105 @@ Puedes escribirle directamente a su WhatsApp haciendo clic aquí: https://wa.me/
       await updateLead(lead);
       broadcastToDashboard("lead:updated", lead);
 
-      await sendAdminNotification(`⚠️ *Atención Humana Requerida*\nEl docente *${lead.name}* (${lead.phone}) ha solicitado un asesor humano.`, from);
+      await sendAdminNotification(`⚠️ *Atención Humana Solicitada*\nEl contacto *${lead.name}* (${lead.phone}) solicita hablar con Reymon Castillo.\nÚltimo mensaje: "${promptInput}"`, from);
       await sendWhatsAppMessage(from, botReply);
       return;
     }
 
-    // ENRUTADOR DE INTENCIONES (GREETING, OPTION_1, OPTION_2, PURCHASE, OTHER)
-    let intent = "OTHER";
-    
-    const normalizedInput = promptInput.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-    const isGreeting = /^(hola|buen(as|os)|tardes|noches|saludo|epale|alo|hey|hi|buen dia)\b/i.test(normalizedInput);
-    const isOption1 = /\b(opcion\s*1|la\s*1|^1$|docenty|planificacion|escolar|plataforma|informacion\s*(sobre|de)?\s*(la\s*)?(plataforma|docenty)?|quiero\s*informacion)\b/i.test(normalizedInput);
-    const isOption2 = /\b(opcion\s*2|la\s*2|^2$|desarrollo|web|pagina\s*web|tienda|pos|ecommerce|aplicaci|software|sistema)\b/i.test(normalizedInput);
-    const isPayment = /\b(pago|pagar|comprar|precio|costo|datos|banco|bcv|transferencia|suscri|cuenta|adquirir|pago\s*movil|quiero\s*pagar)\b/i.test(normalizedInput);
+    // =========================================================================
+    // MOTOR CONVERSACIONAL CON CONSCIENCIA COGNITIVA (GEMINI AI)
+    // =========================================================================
+    let geminiSuccess = false;
 
-    if (isPayment) {
-      intent = "PURCHASE";
-    } else if (isOption1 && !isGreeting) {
-      intent = "OPTION_1";
-    } else if (isOption2 && !isGreeting) {
-      intent = "OPTION_2";
-    } else if (isGreeting) {
-      intent = "GREETING";
-    } else {
-      // Intento de clasificación semántica con Gemini
-      if (process.env.GEMINI_API_KEY) {
-        try {
-          const classifierPrompt = `Analiza el siguiente mensaje de un usuario de WhatsApp y clasifícalo en una de estas categorías:
-1. "GREETING" (Si es un saludo inicial)
-2. "OPTION_1" (Si pide información sobre Docenty PRO, planificación escolar, planes para profesores o docentes)
-3. "OPTION_2" (Si pide información sobre desarrollo web, tiendas online, software, aplicaciones o páginas)
-4. "PURCHASE" (Si quiere pagar, comprar, datos de pago móvil, banco o tasa)
-5. "OTHER" (Cualquier otra consulta)
+    if (process.env.GEMINI_API_KEY) {
+      try {
+        const historyContext = lead.messages
+          .slice(-12)
+          .map((m) => `${m.sender === "bot" ? "Camila (Tú)" : `${lead.name} (Cliente)`}: ${m.text}`)
+          .join("\n");
 
-Mensaje: "${promptInput}"
-Responde ÚNICAMENTE con la palabra de la categoría.`;
+        const availableCodesSummary = systemConfigs.premiumCodes && systemConfigs.premiumCodes.length > 0
+          ? `\n[CÓDIGOS PREMIUM ACTIVOS DISPONIBLES EN CRM]: ${systemConfigs.premiumCodes.slice(0, 3).join(", ")}`
+          : "";
 
-          const classificationRes = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: classifierPrompt,
-            config: { temperature: 0.1 }
-          });
-          const resText = classificationRes.text?.toUpperCase().trim() || "";
-          if (resText.includes("OPTION_1")) intent = "OPTION_1";
-          else if (resText.includes("OPTION_2")) intent = "OPTION_2";
-          else if (resText.includes("PURCHASE")) intent = "PURCHASE";
-          else if (resText.includes("GREETING")) intent = "GREETING";
-        } catch (err) {
-          console.error("Fallo al clasificar intención con Gemini:", err);
+        const dynamicPrompt = `HISTORIAL DE LA CONVERSACIÓN DE WHATSAPP HASTA EL MOMENTO:
+${historyContext || "(Inicio de la conversación)"}
+
+[CONSCIENCIA Y MEMORIA SITUACIONAL DEL CLIENTE ACTUAL]
+- Nombre del contacto: ${lead.name}
+- Teléfono: ${lead.phone}
+- Código de Referencia Asignado (Único para su Pago Móvil): ${lead.assignedRef}
+- Estado del cliente en CRM: ${lead.status}${availableCodesSummary}
+
+[ÚLTIMO MENSAJE ENVIADO POR EL CLIENTE EN WHATSAPP]:
+"${promptInput}"
+
+[DIRECTIVAS DE CONSCIENCIA COGNITIVA Y ATENCIÓN CONVERSACIONAL]:
+Responde a este último mensaje como Camila. Demuestra verdadera empatía, consciencia del contexto e inteligencia conversacional:
+1. Lee atentamente el historial previo antes de responder.
+2. Si ya te presentaste o saludaste en mensajes anteriores del historial, ESTÁ ESTRICTAMENTE PROHIBIDO volver a decir "¡Hola!", "Soy Camila" o "Es un gusto saludarte". Continúa la conversación con total fluidez como en un chat humano de WhatsApp.
+3. CERO MENÚS O CONMUTADORES ROBÓTICOS: Queda terminantemente prohibido decir "Responde con el número 1 o 2", "Escribe 1", "Escribe 'Quiero Pagar'" o "Escribe 'Humano'". Eres una asesora de carne y hueso. Trata al usuario como una persona en una conversación real de WhatsApp.
+4. Si el cliente dice "No entiendo" o muestra duda: Sé comprensiva, discúlpate con amabilidad por cualquier complejidad anterior y explícale con una analogía cotidiana y simple cómo Docenty PRO le ahorra horas de trabajo en sus planificaciones escolares.
+5. Si el cliente dice "Me das más información" o "¿En qué me ayuda?": Explícale el beneficio humano para el docente (ahorrarse el trasnocho de hacer proyectos PPA, planes de lapso y rúbricas a mano, listos para el Ministerio de Educación) y hazle una pregunta amigable sobre qué grado o nivel imparte.
+6. Si el cliente pregunta precio o dice que quiere pagar: Facilítale con amabilidad los datos de Pago Móvil de $2 USD al BCV con su código de referencia único: ${lead.assignedRef}.
+7. Mantén las respuestas en párrafos breves (máximo 2 a 3 párrafos concisos), con calidez, cercanía y excelente formato para lectura en celular.`;
+
+        const response = await ai.models.generateContent({
+          model: "gemini-3.8-flash",
+          contents: dynamicPrompt,
+          config: {
+            systemInstruction: systemConfigs.botSystemPrompt,
+            temperature: 0.7,
+          },
+        });
+
+        if (response.text && response.text.trim()) {
+          botReply = response.text.trim();
+          geminiSuccess = true;
         }
+      } catch (err) {
+        console.error("[Conversational AI] Error al procesar mensaje con Gemini:", err);
       }
     }
 
-    console.log(`[Intent Router] Mensaje: "${promptInput}" -> Clasificado como: ${intent}`);
+    if (!geminiSuccess) {
+      // Fallback empático y conversacional (cero menús rígidos)
+      const norm = promptInput.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+      const hasPreviousMessages = lead.messages.length > 2;
 
-    if (intent === "GREETING") {
-      botReply = `¡Hola! ¿Cómo estás? Es un gusto saludarte. Soy Camila, la asistente virtual de R-LTC. Me encantaría conocerte un poco más. ¿Cuál es el motivo de tu consulta hoy? ¿Eres docente buscando simplificar tu carga de planificación escolar con Docenty PRO, o te gustaría recibir información sobre nuestros servicios de desarrollo digital?`;
-    } 
-    else if (intent === "OPTION_1") {
-      botReply = `📚 *Docenty PRO - Plataforma Inteligente de Planificación Escolar*
+      if (norm.includes("no entiendo") || norm.includes("confund")) {
+        botReply = `¡Disculpa si te envié mucha información junta antes! 😊
 
-Docenty PRO está diseñada para facilitar la labor pedagógica de docentes y directivos escolares en Venezuela e Hispanoamérica:
+Te lo resumo súper fácil: Docenty PRO es una plataforma que te ayuda a redactar tus proyectos de aula (PPA), planes semanales y rúbricas de evaluación en un par de minutos, cumpliendo con los formatos del Ministerio en Venezuela. Así te evitas pasar horas trasnochándote con el papeleo.
 
-✨ **Generación de Planes de Clase en Segundos:** Crea proyectos de aprendizaje, planes de lapso y semanales ajustados a los lineamientos curriculares oficiales.
-📊 **Instrumentos de Evaluación Automatizados:** Genera rúbricas, escalas de estimación, listas de cotejo y pruebas con criterios pedagógicos rigurosos.
-📝 **Control de Asistencia y Calificaciones:** Registra el avance de tus estudiantes sin papeleos ni complicaciones.
-📥 **Exportación Profesional Inmediata:** Descarga todos tus planes en formato PDF y Word con membrete listo para entregar a coordinación.
+¿Qué materia o grado escolar das tú actualmente?`;
+      } else if (norm.includes("en que me ayuda") || norm.includes("mas informacion") || norm.includes("para que sirve") || norm.includes("como funciona")) {
+        botReply = `Docenty PRO te ahorra entre 15 y 20 horas de papeleo escolar cada mes. 📝✨
 
-💎 **Plan Premium Docenty PRO:**
-• Acceso ilimitado a todas las herramientas con IA.
-• Tan solo **$2.00 USD al mes** (calculado en bolívares a la tasa oficial del BCV).
+En minutos te genera los Proyectos Pedagógicos de Aula (PPA), planes de lapso, escalas de estimación y listas de cotejo, ya ajustados a las normativas del Ministerio de Educación de Venezuela. Además puedes descargar todo directo en Word y PDF listo para entregar a coordinación.
 
-👉 Si deseas activar tu cuenta hoy mismo, escribe **"Quiero Pagar"** para recibir los datos de Pago Móvil con tu código de reserva único: **${lead.assignedRef}**.
-¿O tienes alguna duda pedagógica que te gustaría consultar?`;
-    }
-    else if (intent === "OPTION_2") {
-      botReply = `💻 *Desarrollo Digital & Soluciones Tecnológicas - R-LTC*
+Tiene un costo accesible de solo $2 USD al mes (a tasa oficial BCV). ¿Te gustaría ver cómo funciona para tu área de enseñanza?`;
+      } else if (norm.includes("pago") || norm.includes("pagar") || norm.includes("precio") || norm.includes("costo") || norm.includes("cuenta") || norm.includes("bcv")) {
+        botReply = `¡Claro que sí! La suscripción mensual de Docenty PRO es de tan solo **$2.00 USD** (al cambio oficial del BCV en bolívares). 🚀
 
-Impulsamos tu negocio con tecnología moderna, rápida y a medida:
-
-🌐 **Páginas Web Corporativas & Portafolios:** Diseños vanguardistas adaptados a teléfonos móviles para captar clientes 24/7.
-🛒 **Tiendas Virtuales (E-Commerce):** Catálogos digitales interactivos con integración a WhatsApp y métodos de cobro en bolívares y divisas.
-🧾 **Sistemas POS & Facturación:** Control de inventario, ventas diarias, cuentas por cobrar y reportes financieros en tiempo real.
-📱 **Aplicaciones Móviles & Web Apps:** Software personalizado para automatizar cualquier proceso administrativo o comercial.
-
-👨‍💻 **Atención Personalizada con el Desarrollador:**
-Para cotizar tu proyecto o recibir una asesoría técnica directa con **Reymon Castillo** (Arquitecto de Software), escribe la palabra **"Humano"** o contáctalo en https://wa.me/584144783204.`;
-    }
-    else if (intent === "PURCHASE") {
-      botReply = `¡Excelente elección! 🚀 Para activar tu **Suscripción Premium de 30 días** en **Docenty PRO** ($2 USD al cambio oficial del BCV en bolívares) realiza tu Pago Móvil a los siguientes datos oficiales de transferencia:
-
+Puedes realizar tu Pago Móvil a estos datos oficiales:
 • **Banco:** Banco de Venezuela (0102)
 • **Teléfono:** \`04262953484\`
-• **Cédula / RIF:** \`24755720\`
+• **Cédula:** \`24755720\`
 • **Titular:** Reymon Castillo
-• **Monto:** $2.00 USD (Calculado en bolívares según la tasa oficial del BCV de la fecha de tu pago)
-• **Tu Referencia Única de Pago (¡IMPORTANTE!):** \`${lead.assignedRef}\`
+• **Referencia para el concepto:** \`${lead.assignedRef}\`
 
-⚠️ **Indicación de validación:** Por favor, coloca tu Referencia Única asignada: **${lead.assignedRef}** en el concepto o nota de tu transferencia Pago Móvil.
+En cuanto hagas la transferencia, envíame la foto o captura del comprobante por aquí para activarte de inmediato. ¡Quedo atenta!`;
+      } else if (norm.includes("web") || norm.includes("pagina") || norm.includes("tienda") || norm.includes("sistema") || norm.includes("pos")) {
+        botReply = `¡Qué bien! En R-LTC diseñamos páginas web modernas, tiendas virtuales y sistemas de ventas POS a la medida para negocios y emprendedores. 🌐💻
 
-Una vez que completes el Pago Móvil, envíanos la **captura de pantalla o comprobante legible** por este chat. Nuestro motor de visión inteligente procesará tu pago al instante para entregarte tu Código Premium. ¡Muchas gracias por tu confianza!`;
-    } 
-    else {
-      // Fallback: Generación dinámica contextual inteligente con Gemini
-      let geminiSuccess = false;
-      if (process.env.GEMINI_API_KEY) {
-        try {
-          const historyContext = lead.messages
-            .map((m) => `${m.sender === "bot" ? "Docenty AI (Camila)" : lead.name}: ${m.text}`)
-            .join("\n");
+¿De qué trata tu proyecto o empresa? Si prefieres una asesoría técnica directa con **Reymon Castillo** (nuestro arquitecto de software), te puedo conectar con él de inmediato con mucho gusto.`;
+      } else if (!hasPreviousMessages) {
+        botReply = `¡Hola! Qué gusto saludarte. Soy Camila, asesora de Docenty PRO y R-LTC. 😊
 
-          const currentCodesText = systemConfigs.premiumCodes && systemConfigs.premiumCodes.length > 0
-            ? `\n\n[SISTEMA - CÓDIGOS DE ACTIVACIÓN DISPONIBLES EN EL CRM]\n${systemConfigs.premiumCodes.map(c => `- CÓDIGO: [${c}] | ESTADO: DISPONIBLE`).join("\n")}`
-            : "";
-
-          const prompt = `Historial de la conversación de WhatsApp hasta ahora:\n${historyContext}\n\nResponde el último mensaje del cliente en WhatsApp con tu personalidad de Camila (asistente de R-LTC y Docenty PRO).\nEl usuario dijo: "${promptInput}".\nSi el usuario pregunta por planes o la opción 1, explícale con entusiasmo las ventajas de Docenty PRO y recuérdale que cuesta $2 USD (tasa BCV) con la referencia ${lead.assignedRef}.\nSi el usuario pregunta por desarrollo de páginas web o la opción 2, invítalo a contactar a Reymon Castillo con la palabra "Humano".`;
-
-          const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: prompt,
-            config: {
-              systemInstruction: systemConfigs.botSystemPrompt + currentCodesText,
-              temperature: 0.7,
-            },
-          });
-
-          if (response.text && response.text.trim()) {
-            botReply = response.text.trim();
-            geminiSuccess = true;
-          }
-        } catch (err) {
-          console.error("Error al procesar consulta general con Gemini:", err);
-        }
-      }
-
-      if (!geminiSuccess) {
-        // Respuesta contextual amigable sin repetir el mensaje de venta rígido
-        botReply = `¡Con gusto te ayudo, ${lead.name}! 😊
-
-Para orientarte mejor, ¿en cuál de nuestras soluciones estás más interesado?
-1️⃣ **Docenty PRO**: Planificación escolar con IA para docentes y directivos ($2 USD / mes tasa BCV).
-2️⃣ **Desarrollo Web & Software**: Páginas web corporativas, tiendas online y sistemas a medida.
-
-Escribe **1** para conocer más de Docenty PRO, **2** para desarrollo de páginas web, o **"Humano"** si deseas hablar directamente con Reymon Castillo. 🤝`;
+¿Cómo estás hoy? Cuéntame, ¿eres docente buscando simplificar tus planificaciones escolares o te gustaría consultar sobre desarrollo de páginas web y software?`;
+      } else {
+        botReply = `¡Con gusto te ayudo, ${lead.name}! Cuéntame con confianza qué duda o inquietud tienes sobre Docenty PRO, y con mucho gusto te oriento paso a paso. Y si en algún momento deseas conversar directamente con Reymon Castillo, avísame y te pongo en contacto con él. 😊`;
       }
     }
 
@@ -1316,7 +1266,7 @@ Escribe **1** para conocer más de Docenty PRO, **2** para desarrollo de página
         Determina si la transferencia de Pago Móvil fue hecha con éxito, busca el monto, la fecha, el banco emisor y muy importante: busca si el concepto, nota o código de referencia coincide de alguna manera con la referencia de este cliente: ${lead.assignedRef} o si tiene alguna otra referencia de pago válida para Docenty.`;
 
         const response = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
+          model: "gemini-3.8-flash",
           contents: [
             {
               inlineData: {
@@ -1546,7 +1496,7 @@ ${systemConfigs.premiumCodes.map(c => `- CÓDIGO: [${c}] | ESTADO: DISPONIBLE`).
 No hay códigos premium disponibles en el pool en este momento. Si necesitas entregar un código, dile que un administrador le enviará su código de acceso de inmediato por este chat.`;
 
         const response = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
+          model: "gemini-3.8-flash",
           contents: [
             {
               inlineData: {
@@ -2361,7 +2311,7 @@ app.post("/api/leads/:id/chat", async (req, res) => {
 Por favor, responde a este audio en texto con tu personalidad de Docenty AI (Camila), con un tono amable, explicando brevemente los beneficios (automatización, asistencia) y las opciones de pago de $2 USD con tu referencia ${lead.assignedRef}.`;
 
           response = await ai.models.generateContent({
-            model: "gemini-3.5-flash",
+            model: "gemini-3.8-flash",
             contents: promptString,
             config: {
               systemInstruction: systemConfigs.botSystemPrompt,
@@ -2375,7 +2325,7 @@ Genera una respuesta en texto en tu personalidad de Docenty AI (Camila).
 Recuerda que la referencia asignada a este cliente es: ${lead.assignedRef}.\nNo inventes referencias de otros clientes. Si el cliente pregunta qué plan tiene disponible, recuérdale que tiene reservada la Suscripción Premium de $2 USD (al cambio oficial del BCV en bolívares) con esa referencia.`;
 
           response = await ai.models.generateContent({
-            model: "gemini-3.5-flash",
+            model: "gemini-3.8-flash",
             contents: [
               {
                 inlineData: {
@@ -2398,7 +2348,7 @@ Recuerda que la referencia asignada a este cliente es: ${lead.assignedRef}.\nNo 
         const prompt = `Historial de la conversación de WhatsApp hasta ahora:\n${historyContext}\n\nResponde el último mensaje del cliente en WhatsApp con tu personalidad de Docenty AI (Camila). Recuerda que la referencia asignada a este cliente es: ${lead.assignedRef}.\nNo inventes referencias de otros clientes. Si el cliente pregunta qué plan tiene disponible, recuérdale que tiene reservada la Suscripción Premium de $2 USD (al cambio oficial del BCV en bolívares) con esa referencia.`;
 
         response = await ai.models.generateContent({
-          model: "gemini-3.5-flash",
+          model: "gemini-3.8-flash",
           contents: prompt,
           config: {
             systemInstruction: systemConfigs.botSystemPrompt,
@@ -2468,7 +2418,7 @@ app.post("/api/leads/:id/verify-receipt", async (req, res) => {
       Determina si la transferencia de Pago Móvil fue hecha con éxito, busca el monto, la fecha, el banco emisor y muy importante: busca si el concepto, nota o código de referencia coincide de alguna manera con la referencia de este cliente: ${lead.assignedRef} o si tiene alguna otra referencia de pago válida para Docenty.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-3.8-flash",
         contents: [
           {
             inlineData: {
@@ -2652,7 +2602,7 @@ Reglas:
 Devuelve SOLAMENTE el texto del mensaje del cliente en tu respuesta, sin aclaraciones ni comillas externas.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
+        model: "gemini-3.8-flash",
         contents: prompt,
         config: {
           temperature: 0.8,
