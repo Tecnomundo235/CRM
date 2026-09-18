@@ -10,9 +10,9 @@ const url = require("url");
 
 const PORT = process.env.PORT || 3000;
 const VERIFY_TOKEN = process.env.META_VERIFY_TOKEN || "docenty_pro_secure_verify_2026";
-const ACCESS_TOKEN = process.env.META_WA_TOKEN || "EAAbipQWNwwsBSpss0kNwG466h4WnLffseDnzvRcqvyaY5wLmUgFRuZCxUbjagVbzZB2ZA89E0CWgk2SdUJXouuAKhHsnumvhIcGSSDrZBSZC2xnfZBAj2HCg7gyeHZCGAmLr7kkDgAJrICep8UZANukYmw102RrHbOVpr9B8wyx98xrPVu59QRGcbrmYHpeoHZBe9swZDZD";
-const PHONE_NUMBER_ID = process.env.META_PHONE_NUM || "122146477727895";
-const WABA_ID = process.env.META_WABA_ID || "256265990423698";
+const ACCESS_TOKEN = process.env.META_WA_TOKEN || "EAAbipQWNwwsBSiKZChy8QdP2dHyK1ztEpIHHonMxHGQlpeDuR66oEAayl4wovF7MfEFKDqr2KHbZBOMbGKZBZAX4Emyt2VLjg9BWQCbDijl5nu8MZBRaaShvJcvaz3Wwdwm3DTwn1Y3ij2UerM3IXlVVFtGZCHQfOzl0RV3Vrs772xFVCaZCjsus1FMv7yOgckBaAZDZD";
+const PHONE_NUMBER_ID = process.env.META_PHONE_NUM || "1221464777727895";
+const WABA_ID = process.env.META_WABA_ID || "2562659904236968";
 
 console.log("------------------------------------------------------------");
 console.log("🚀 Iniciando Servidor Webhook Docenty PRO en VPS...");

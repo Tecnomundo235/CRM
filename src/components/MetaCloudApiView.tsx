@@ -44,17 +44,17 @@ export const MetaCloudApiView: React.FC<MetaCloudApiViewProps> = ({
 
   // Form states for Meta credentials
   const [phoneNumberId, setPhoneNumberId] = useState(
-    config.metaConfig?.phoneNumberId || "122146477727895"
+    config.metaConfig?.phoneNumberId || "1221464777727895"
   );
   const [wabaId, setWabaId] = useState(
-    config.metaConfig?.wabaId || "256265990423698"
+    config.metaConfig?.wabaId || "2562659904236968"
   );
   const [verifyToken, setVerifyToken] = useState(
     config.metaConfig?.verifyToken || "docenty_pro_secure_verify_2026"
   );
   const [accessToken, setAccessToken] = useState(
     config.metaConfig?.accessToken ||
-      "EAAbipQWNwwsBSpss0kNwG466h4WnLffseDnzvRcqvyaY5wLmUgFRuZCxUbjagVbzZB2ZA89E0CWgk2SdUJXouuAKhHsnumvhIcGSSDrZBSZC2xnfZBAj2HCg7gyeHZCGAmLr7kkDgAJrICep8UZANukYmw102RrHbOVpr9B8wyx98xrPVu59QRGcbrmYHpeoHZBe9swZDZD"
+      "EAAbipQWNwwsBSiKZChy8QdP2dHyK1ztEpIHHonMxHGQlpeDuR66oEAayl4wovF7MfEFKDqr2KHbZBOMbGKZBZAX4Emyt2VLjg9BWQCbDijl5nu8MZBRaaShvJcvaz3Wwdwm3DTwn1Y3ij2UerM3IXlVVFtGZCHQfOzl0RV3Vrs772xFVCaZCjsus1FMv7yOgckBaAZDZD"
   );
   const [businessPhone, setBusinessPhone] = useState(
     config.metaConfig?.businessPhone || "+58 426-2953484"

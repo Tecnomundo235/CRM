@@ -140,10 +140,10 @@ Protocolo de Seguridad:
     "META-H92Z-6KU3"
   ],
   metaConfig: {
-    phoneNumberId: process.env.META_PHONE_NUMBER_ID || "122146477727895",
+    phoneNumberId: process.env.META_PHONE_NUMBER_ID || "1221464777727895",
     wabaId: process.env.META_WABA_ID || "2562659904236968",
-    verifyToken: process.env.META_VERIFY_TOKEN || "docenty_pro_meta_verify_token_2026",
-    accessToken: process.env.META_WA_TOKEN || "",
+    verifyToken: process.env.META_VERIFY_TOKEN || "docenty_pro_secure_verify_2026",
+    accessToken: process.env.META_WA_TOKEN || "EAAbipQWNwwsBSiKZChy8QdP2dHyK1ztEpIHHonMxHGQlpeDuR66oEAayl4wovF7MfEFKDqr2KHbZBOMbGKZBZAX4Emyt2VLjg9BWQCbDijl5nu8MZBRaaShvJcvaz3Wwdwm3DTwn1Y3ij2UerM3IXlVVFtGZCHQfOzl0RV3Vrs772xFVCaZCjsus1FMv7yOgckBaAZDZD",
     businessPhone: "+58 426-2953484",
     activeProvider: "meta",
   }
