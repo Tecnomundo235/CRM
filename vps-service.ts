@@ -75,7 +75,7 @@ export function runSshCommand(
       });
 
     const connectConfig: ConnectConfig = {
-      host: creds.host || "165.22.180.160",
+      host: creds.host || "165.22.188.160",
       port: creds.port || 22,
       username: creds.username || "root",
       readyTimeout: 15000,
@@ -107,7 +107,7 @@ export function buildBootstrapScript(config: {
   ip?: string;
   envContent?: string;
 }): string {
-  const ip = config.ip || "165.22.180.160";
+  const ip = config.ip || "165.22.188.160";
   const domain = config.domain && config.domain !== ip ? config.domain : ip;
   const envContent = config.envContent || "";
 
@@ -234,10 +234,11 @@ echo "✅ Nginx configurado y recargado."
 echo ">>> [PASO 7/7] Verificando compilación o archivos existentes..."
 if [ -f "/var/www/docenty/package.json" ]; then
   echo "Instalando dependencias de Node.js..."
-  npm install --omit=dev || npm install
+  export NODE_OPTIONS="--max-old-space-size=1536"
+  npm install --include=dev --no-audit --no-fund
   if [ ! -f "/var/www/docenty/dist/server.cjs" ]; then
-    echo "Compilando proyecto..."
-    npm run build || true
+    echo "Compilando proyecto (Vite frontend + esbuild backend)..."
+    npm run build
   fi
   if [ -f "/var/www/docenty/dist/server.cjs" ]; then
     echo "Iniciando servicio con PM2..."
@@ -246,6 +247,8 @@ if [ -f "/var/www/docenty/package.json" ]; then
     pm2 save
     pm2 startup systemd -u root --hp /root || true
     echo "✅ Servicio PM2 iniciado exitosamente."
+  else
+    echo "⚠️ Advertencia: dist/server.cjs no fue generado aún."
   fi
 else
   echo "ℹ️ El código fuente aún no está en /var/www/docenty."

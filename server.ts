@@ -93,8 +93,8 @@ async function getActiveMetaConfig() {
 }
 
 // Evolution API WhatsApp Configuration (Self-hosted on VPS - Fallback/Secondary)
-// Note: Default points to verified DigitalOcean Droplet IP 165.22.180.160
-const EVOLUTION_API_URL = (process.env.EVOLUTION_API_URL || "http://165.22.180.160:8080").replace(/\/+$/, "");
+// Note: Default points to verified DigitalOcean Droplet IP 165.22.188.160
+const EVOLUTION_API_URL = (process.env.EVOLUTION_API_URL || "http://165.22.188.160:8080").replace(/\/+$/, "");
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || "docenty_pro_secret_key_2026";
 const EVOLUTION_INSTANCE_NAME = process.env.EVOLUTION_INSTANCE_NAME || "docenty-pro";
 
@@ -138,7 +138,7 @@ app.get("/api/vps/env-template", async (req, res) => {
   const metaConfig = await getActiveMetaConfig();
   const envTemplate = `# ==============================================================================
 # DOCENTY PRO & WHATSAPP AI SELLER - CONFIGURACIÓN DE PRODUCCIÓN EN VPS
-# Servidor: DigitalOcean Droplet Ubuntu 24.04 (IP: 165.22.180.160)
+# Servidor: DigitalOcean Droplet Ubuntu 24.04 (IP: 165.22.188.160)
 # ==============================================================================
 
 NODE_ENV=production
@@ -151,7 +151,7 @@ GEMINI_API_KEY=${process.env.GEMINI_API_KEY || ""}
 MONGODB_URI=${process.env.MONGODB_URI || ""}
 
 # URL pública de la aplicación en producción
-APP_URL=${process.env.APP_URL || "http://165.22.180.160"}
+APP_URL=${process.env.APP_URL || "http://165.22.188.160"}
 
 # ------------------------------------------------------------------------------
 # META WHATSAPP CLOUD API (Oficial Meta for Developers)
@@ -165,7 +165,7 @@ META_VERIFY_TOKEN=${metaConfig.verifyToken || "docenty_pro_secure_verify_2026"}
 # ------------------------------------------------------------------------------
 # EVOLUTION API (Opcional - Motor secundario)
 # ------------------------------------------------------------------------------
-EVOLUTION_API_URL=${EVOLUTION_API_URL || "http://165.22.180.160:8080"}
+EVOLUTION_API_URL=${EVOLUTION_API_URL || "http://165.22.188.160:8080"}
 EVOLUTION_API_KEY=${EVOLUTION_API_KEY || "docenty_pro_secret_key_2026"}
 EVOLUTION_INSTANCE_NAME=${EVOLUTION_INSTANCE_NAME || "docenty-pro"}
 `;
@@ -179,7 +179,7 @@ EVOLUTION_INSTANCE_NAME=${EVOLUTION_INSTANCE_NAME || "docenty-pro"}
 
 // 1. Probar conexión SSH y telemetría del Droplet
 app.post("/api/vps/test-ssh", async (req, res) => {
-  const { host = "165.22.180.160", port = 22, username = "root", password, privateKey } = req.body;
+  const { host = "165.22.188.160", port = 22, username = "root", password, privateKey } = req.body;
   if (!password && !privateKey) {
     return res.status(400).json({ ok: false, error: "Debes ingresar la contraseña de root o tu clave privada SSH" });
   }
@@ -199,7 +199,7 @@ app.post("/api/vps/test-ssh", async (req, res) => {
 
 // 2. Ejecutar comandos remotos en el Droplet (Consola VPS Remota integrada)
 app.post("/api/vps/exec", async (req, res) => {
-  const { host = "165.22.180.160", port = 22, username = "root", password, privateKey, command } = req.body;
+  const { host = "165.22.188.160", port = 22, username = "root", password, privateKey, command } = req.body;
   if (!command) {
     return res.status(400).json({ ok: false, error: "Comando no proporcionado" });
   }
@@ -218,7 +218,7 @@ app.post("/api/vps/exec", async (req, res) => {
 
 // 3. Iniciar Instalación 100% Automática con Protección Anti-Desconexión (nohup)
 app.post("/api/vps/install-auto", async (req, res) => {
-  const { host = "165.22.180.160", port = 22, username = "root", password, privateKey, domain } = req.body;
+  const { host = "165.22.188.160", port = 22, username = "root", password, privateKey, domain } = req.body;
   if (!password && !privateKey) {
     return res.status(400).json({ ok: false, error: "Debes ingresar la contraseña de root o tu clave privada SSH" });
   }
@@ -269,7 +269,7 @@ EVOLUTION_INSTANCE_NAME=${process.env.EVOLUTION_INSTANCE_NAME || "docenty-pro"}
 
 // 3.1 Despliegue de Código Git y Levantamiento de PM2 en segundo plano (nohup)
 app.post("/api/vps/deploy-git", async (req, res) => {
-  const { host = "165.22.180.160", port = 22, username = "root", password, privateKey, repoUrl } = req.body;
+  const { host = "165.22.188.160", port = 22, username = "root", password, privateKey, repoUrl } = req.body;
   if (!password && !privateKey) {
     return res.status(400).json({ ok: false, error: "Debes ingresar la contraseña de root" });
   }
@@ -285,66 +285,100 @@ exec >> /var/log/docenty-install.log 2>&1
 echo ""
 echo "=================================================================="
 echo "🚀 CLONANDO Y DESPLEGANDO REPOSITORIO GIT: ${repoUrl}"
-echo "⏰ Inicio: $(date)"
+echo "⏰ Inicio: \$(date)"
 echo "=================================================================="
 
 mkdir -p /var/www/docenty
 cd /var/www/docenty
 
+echo ">>> [DEPLOY 1/6] Preparando y verificando repositorio Git..."
 if [ ! -d .git ]; then
   echo "Clonando repositorio en /var/www/docenty..."
-  # Si el directorio tiene archivos creados por el instalador, los guardamos temporalmente
-  TMP_BACKUP="/tmp/docenty_backup_$(date +%s)"
-  mkdir -p "$TMP_BACKUP"
-  [ -f .env ] && cp .env "$TMP_BACKUP/"
-  [ -f ecosystem.config.cjs ] && cp ecosystem.config.cjs "$TMP_BACKUP/"
+  TMP_BACKUP="/tmp/docenty_backup_\$(date +%s)"
+  mkdir -p "\$TMP_BACKUP"
+  [ -f .env ] && cp .env "\$TMP_BACKUP/"
+  [ -f ecosystem.config.cjs ] && cp ecosystem.config.cjs "\$TMP_BACKUP/"
   
   git clone ${repoUrl} . || {
-    echo "Fallo el clone directo, limpiando e intentando de nuevo..."
+    echo "Fallo el clone directo, limpiando e intentando de nuevo con checkout forzado..."
     git init
-    git remote add origin ${repoUrl}
-    git fetch origin main || git fetch origin master || git fetch origin
+    git remote add origin ${repoUrl} || git remote set-url origin ${repoUrl}
+    git fetch --depth=1 origin main || git fetch --depth=1 origin master || git fetch origin
     git checkout -f main || git checkout -f master || true
   }
 
-  # Restaurar .env y ecosystem si no vinieron en el repo
-  [ -f "$TMP_BACKUP/.env" ] && [ ! -f .env ] && cp "$TMP_BACKUP/.env" .env
-  [ -f "$TMP_BACKUP/ecosystem.config.cjs" ] && [ ! -f ecosystem.config.cjs ] && cp "$TMP_BACKUP/ecosystem.config.cjs" .
-  rm -rf "$TMP_BACKUP"
+  [ -f "\$TMP_BACKUP/.env" ] && [ ! -f .env ] && cp "\$TMP_BACKUP/.env" .env
+  [ -f "\$TMP_BACKUP/ecosystem.config.cjs" ] && [ ! -f ecosystem.config.cjs ] && cp "\$TMP_BACKUP/ecosystem.config.cjs" .
+  rm -rf "\$TMP_BACKUP"
 else
-  echo "Directorio Git ya existente. Actualizando con git pull..."
+  echo "Directorio Git existente. Obteniendo últimos cambios de GitHub..."
+  git remote set-url origin ${repoUrl} || true
+  git fetch origin main || git fetch origin master || git fetch origin || true
+  git checkout -f main || git checkout -f master || true
   git pull origin main || git pull origin master || git pull || true
 fi
 
-echo "Instalando dependencias de Node.js (con SWAP activa)..."
-npm install --omit=dev || npm install
+echo ">>> [DEPLOY 2/6] Verificando memoria SWAP de 2GB (Vital para Droplets de 512MB RAM)..."
+if ! swapon --show | grep -q "/swapfile"; then
+  echo "Creando y activando archivo SWAP de 2GB para evitar Out-Of-Memory en Node.js..."
+  fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048
+  chmod 600 /swapfile
+  mkswap /swapfile 2>/dev/null || true
+  swapon /swapfile 2>/dev/null || true
+  sysctl vm.swappiness=20 || true
+  echo "✅ SWAP de 2GB activada."
+else
+  echo "✅ Memoria SWAP de 2GB ya se encuentra activa."
+fi
 
-echo "Compilando proyecto (npm run build)..."
-npm run build || true
+echo ">>> [DEPLOY 3/6] Instalando dependencias completas de Node.js (incluyendo herramientas de compilación)..."
+export NODE_OPTIONS="--max-old-space-size=1536"
+npm install --include=dev --no-audit --no-fund
 
-echo "Arrancando PM2 con ecosystem.config.cjs..."
+echo ">>> [DEPLOY 4/6] Compilando aplicación optimizada (Vite frontend + esbuild backend)..."
+rm -rf dist
+npm run build
+
+if [ ! -f "dist/server.cjs" ]; then
+  echo "❌ Error crítico: La compilación no generó dist/server.cjs."
+  echo "=== DOCENTY_DEPLOY_ERROR ==="
+  exit 1
+fi
+echo "✅ Compilación completada con éxito (dist/server.cjs verificado)."
+
+echo ">>> [DEPLOY 5/6] Levantando servicio en PM2..."
 pm2 delete docenty-pro 2>/dev/null || true
 pm2 start ecosystem.config.cjs
 pm2 save
 pm2 startup systemd -u root --hp /root || true
 
-echo "=================================================================="
-echo "🎉 === DOCENTY_GIT_DEPLOY_SUCCESS ==="
-echo "⏰ Despliegue completado: $(date)"
-echo "Estado PM2:"
-pm2 status docenty-pro
-echo "=================================================================="
+echo ">>> [DEPLOY 6/6] Verificando estado del servicio..."
+sleep 3
+if pm2 status docenty-pro | grep -q "online"; then
+  echo "=================================================================="
+  echo "🎉 === DOCENTY_GIT_DEPLOY_SUCCESS ==="
+  echo "⏰ Despliegue completado con éxito: \$(date)"
+  echo "Estado PM2:"
+  pm2 status docenty-pro
+  echo "=================================================================="
+else
+  echo "⚠️ Advertencia: PM2 no reporta estado online. Registros de error:"
+  pm2 logs docenty-pro --lines 25 --nostream || true
+  echo "=== DOCENTY_DEPLOY_ERROR ==="
+  exit 1
+fi
 `;
 
     const b64Deploy = Buffer.from(deployScript, "utf-8").toString("base64");
-    const launchCmd = `echo "${b64Deploy}" | base64 -d > /tmp/docenty-deploy.sh && chmod +x /tmp/docenty-deploy.sh && nohup /tmp/docenty-deploy.sh >> /var/log/docenty-install.log 2>&1 & echo $! > /tmp/docenty-deploy.pid && echo "DEPLOY_PID=$(cat /tmp/docenty-deploy.pid)"`;
+    // Limpiar PIDs previos para evitar lecturas de estado obsoletas
+    const launchCmd = `rm -f /tmp/docenty-deploy.pid && echo "${b64Deploy}" | base64 -d > /tmp/docenty-deploy.sh && chmod +x /tmp/docenty-deploy.sh && nohup /tmp/docenty-deploy.sh >> /var/log/docenty-install.log 2>&1 & echo $! > /tmp/docenty-deploy.pid && echo "DEPLOY_PID=$(cat /tmp/docenty-deploy.pid)"`;
 
     const result = await runSshCommand(creds, launchCmd, 20000);
     return res.json({
       ok: true,
       started: true,
       output: result.stdout,
-      message: "Despliegue iniciado en segundo plano. Monitoreando logs...",
+      message: "Despliegue iniciado en segundo plano. Monitoreando logs en tiempo real...",
     });
   } catch (err: any) {
     return res.status(500).json({
@@ -354,49 +388,73 @@ echo "=================================================================="
   }
 });
 
-// 4. Consultar Estado y Logs en tiempo real de la instalación
+// 4. Consultar Estado y Logs en tiempo real de la instalación o despliegue
 app.post("/api/vps/install-status", async (req, res) => {
-  const { host = "165.22.180.160", port = 22, username = "root", password, privateKey } = req.body;
+  const { host = "165.22.188.160", port = 22, username = "root", password, privateKey } = req.body;
   try {
     const creds = { host, port: Number(port), username, password, privateKey };
     const statusCmd = `
-      PID_STATUS="NO_PROCESS"
-      if [ -f /tmp/docenty-install.pid ]; then
-        PID=\$(cat /tmp/docenty-install.pid 2>/dev/null)
-        if [ -n "\$PID" ] && ps -p "\$PID" > /dev/null 2>&1; then
-          PID_STATUS="RUNNING"
-        else
-          PID_STATUS="STOPPED"
-        fi
+      IS_RUNNING="NO"
+      TASK_TYPE="NONE"
+      
+      DEPLOY_PID=\$(cat /tmp/docenty-deploy.pid 2>/dev/null || echo "")
+      INSTALL_PID=\$(cat /tmp/docenty-install.pid 2>/dev/null || echo "")
+
+      if [ -n "\$DEPLOY_PID" ] && ps -p "\$DEPLOY_PID" > /dev/null 2>&1; then
+        IS_RUNNING="YES"
+        TASK_TYPE="DEPLOY"
+      elif [ -n "\$INSTALL_PID" ] && ps -p "\$INSTALL_PID" > /dev/null 2>&1; then
+        IS_RUNNING="YES"
+        TASK_TYPE="INSTALL"
       fi
 
-      IS_SUCCESS="NO"
+      IS_DEPLOY_SUCCESS="NO"
+      if grep -q "=== DOCENTY_GIT_DEPLOY_SUCCESS ===" /var/log/docenty-install.log 2>/dev/null; then
+        IS_DEPLOY_SUCCESS="YES"
+      fi
+
+      IS_INSTALL_SUCCESS="NO"
       if grep -q "=== DOCENTY_INSTALL_SUCCESS ===" /var/log/docenty-install.log 2>/dev/null; then
-        IS_SUCCESS="YES"
+        IS_INSTALL_SUCCESS="YES"
+      fi
+
+      IS_DEPLOY_ERROR="NO"
+      if grep -q "=== DOCENTY_DEPLOY_ERROR ===" /var/log/docenty-install.log 2>/dev/null; then
+        IS_DEPLOY_ERROR="YES"
       fi
 
       PM2_STATUS=\$(pm2 status docenty-pro 2>/dev/null | grep -q "online" && echo "ONLINE" || echo "OFFLINE")
 
       echo "---STATUS_METRICS---"
-      echo "PID_STATUS:\$PID_STATUS"
-      echo "IS_SUCCESS:\$IS_SUCCESS"
+      echo "IS_RUNNING:\$IS_RUNNING"
+      echo "TASK_TYPE:\$TASK_TYPE"
+      echo "IS_DEPLOY_SUCCESS:\$IS_DEPLOY_SUCCESS"
+      echo "IS_INSTALL_SUCCESS:\$IS_INSTALL_SUCCESS"
+      echo "IS_DEPLOY_ERROR:\$IS_DEPLOY_ERROR"
       echo "PM2_STATUS:\$PM2_STATUS"
       echo "---LOGS---"
-      tail -n 60 /var/log/docenty-install.log 2>/dev/null || echo "Aún no se ha generado registro."
+      tail -n 80 /var/log/docenty-install.log 2>/dev/null || echo "Aún no se ha generado registro."
     `;
 
     const result = await runSshCommand(creds, statusCmd, 15000);
     const text = result.stdout || "";
-    const pidRunning = text.includes("PID_STATUS:RUNNING");
-    const isSuccess = text.includes("IS_SUCCESS:YES");
+    const isRunning = text.includes("IS_RUNNING:YES");
+    const taskType = text.includes("TASK_TYPE:DEPLOY") ? "DEPLOY" : text.includes("TASK_TYPE:INSTALL") ? "INSTALL" : "NONE";
+    const isDeploySuccess = text.includes("IS_DEPLOY_SUCCESS:YES");
+    const isInstallSuccess = text.includes("IS_INSTALL_SUCCESS:YES");
+    const isDeployError = text.includes("IS_DEPLOY_ERROR:YES");
     const pm2Online = text.includes("PM2_STATUS:ONLINE");
 
     const logsPart = text.split("---LOGS---")[1] || text;
 
     return res.json({
       ok: true,
-      isRunning: pidRunning,
-      isSuccess,
+      isRunning,
+      taskType,
+      isDeploySuccess,
+      isInstallSuccess,
+      isSuccess: isDeploySuccess || isInstallSuccess,
+      isDeployError,
       pm2Online,
       logs: logsPart.trim(),
     });
@@ -411,8 +469,8 @@ app.post("/api/vps/install-status", async (req, res) => {
 // 5. Script bash directo para descargar/ejecutar manualmente (Opción curl)
 app.get("/api/vps/bootstrap-script", async (req, res) => {
   const metaConfig = await getActiveMetaConfig();
-  const domain = (req.query.domain as string) || "165.22.180.160";
-  const ip = (req.query.ip as string) || "165.22.180.160";
+  const domain = (req.query.domain as string) || "165.22.188.160";
+  const ip = (req.query.ip as string) || "165.22.188.160";
   const envContent = `NODE_ENV=production
 PORT=3000
 GEMINI_API_KEY=${process.env.GEMINI_API_KEY || ""}

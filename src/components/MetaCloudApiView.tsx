@@ -43,9 +43,9 @@ export const MetaCloudApiView: React.FC<MetaCloudApiViewProps> = ({
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
-  // DigitalOcean VPS Droplet State (from user screenshot: 165.22.180.160)
-  const [vpsIp, setVpsIp] = useState("165.22.180.160");
-  const [vpsDomain, setVpsDomain] = useState("165.22.180.160");
+  // DigitalOcean VPS Droplet State (from user droplet: 165.22.188.160)
+  const [vpsIp, setVpsIp] = useState(() => localStorage.getItem("docenty_vps_ip") || "165.22.188.160");
+  const [vpsDomain, setVpsDomain] = useState(() => localStorage.getItem("docenty_vps_ip") || "165.22.188.160");
   const [vpsTab, setVpsTab] = useState<"steps" | "env" | "ssl" | "commands" | "compare">("steps");
   const [pingingVps, setPingingVps] = useState(false);
   const [vpsPingResult, setVpsPingResult] = useState<any>(null);

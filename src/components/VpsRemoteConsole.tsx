@@ -29,9 +29,9 @@ interface VpsRemoteConsoleProps {
   showToast: (text: string, type: "success" | "error" | "info") => void;
 }
 
-export function VpsRemoteConsole({ defaultIp = "165.22.180.160", showToast }: VpsRemoteConsoleProps) {
+export function VpsRemoteConsole({ defaultIp = "165.22.188.160", showToast }: VpsRemoteConsoleProps) {
   // SSH Credentials
-  const [host, setHost] = useState(defaultIp);
+  const [host, setHost] = useState(() => localStorage.getItem("docenty_vps_ip") || defaultIp || "165.22.188.160");
   const [port, setPort] = useState("22");
   const [username, setUsername] = useState("root");
   const [password, setPassword] = useState(() => localStorage.getItem("docenty_vps_pwd") || "");
@@ -44,7 +44,8 @@ export function VpsRemoteConsole({ defaultIp = "165.22.180.160", showToast }: Vp
   const [connected, setConnected] = useState(false);
   const [serverMetrics, setServerMetrics] = useState<string>("");
 
-  // Auto-Installer States
+  // Task & Auto-Installer States
+  const [activeTask, setActiveTask] = useState<"none" | "install" | "deploy">("none");
   const [installing, setInstalling] = useState(false);
   const [installStep, setInstallStep] = useState<string>("Listo para iniciar");
   const [installProgress, setInstallProgress] = useState(0);
@@ -69,6 +70,12 @@ export function VpsRemoteConsole({ defaultIp = "165.22.180.160", showToast }: Vp
 
   const terminalEndRef = useRef<HTMLDivElement>(null);
   const pollTimerRef = useRef<any>(null);
+
+  const handleHostChange = (val: string) => {
+    setHost(val);
+    setDomain(val);
+    localStorage.setItem("docenty_vps_ip", val);
+  };
 
   // Save password preference
   const handlePasswordChange = (val: string) => {
@@ -174,9 +181,11 @@ export function VpsRemoteConsole({ defaultIp = "165.22.180.160", showToast }: Vp
       return;
     }
 
+    setActiveTask("install");
     setInstalling(true);
+    setInstallSuccess(false);
     setInstallProgress(10);
-    setInstallStep("Iniciando proceso en segundo plano en el Droplet...");
+    setInstallStep("Paso 1: Iniciando proceso en segundo plano en el Droplet...");
     setInstallLogs("Conectando e inyectando instalador desasociado (nohup)...");
 
     try {
@@ -194,11 +203,13 @@ export function VpsRemoteConsole({ defaultIp = "165.22.180.160", showToast }: Vp
         startPollingStatus();
       } else {
         setInstalling(false);
+        setActiveTask("none");
         setInstallStep("Error al iniciar instalador");
         showToast(data.error || "Error al iniciar instalador", "error");
       }
     } catch (err: any) {
       setInstalling(false);
+      setActiveTask("none");
       setInstallStep("Fallo de red");
       showToast("Error de conexión: " + err.message, "error");
     }
@@ -215,7 +226,11 @@ export function VpsRemoteConsole({ defaultIp = "165.22.180.160", showToast }: Vp
       return;
     }
     localStorage.setItem("docenty_vps_git_url", gitRepoUrl);
+    setActiveTask("deploy");
     setCloningGit(true);
+    setInstallSuccess(false);
+    setInstallProgress(10);
+    setInstallStep("Paso 1/6: Iniciando despliegue de repositorio Git en segundo plano...");
     setTerminalOutput((prev) => `${prev}\n\n[GIT DEPLOY INICIADO]: Clonando ${gitRepoUrl} en /var/www/docenty...`);
     showToast("Clonando repositorio y levantando PM2 en el Droplet...", "info");
 
@@ -228,15 +243,17 @@ export function VpsRemoteConsole({ defaultIp = "165.22.180.160", showToast }: Vp
 
       const data = await res.json();
       if (data.ok) {
-        showToast("🚀 Proceso de clonación y compilación iniciado en el Droplet", "success");
+        showToast("🚀 Despliegue iniciado en segundo plano. Monitoreando compilación...", "success");
         startPollingStatus();
       } else {
         showToast(data.error || "Error al iniciar despliegue Git", "error");
         setCloningGit(false);
+        setActiveTask("none");
       }
     } catch (err: any) {
       showToast("Error de conexión: " + err.message, "error");
       setCloningGit(false);
+      setActiveTask("none");
     }
   };
 
@@ -254,63 +271,128 @@ export function VpsRemoteConsole({ defaultIp = "165.22.180.160", showToast }: Vp
         setInstallLogs(data.logs || "");
         setPm2Online(data.pm2Online);
 
-        // Calculate progress based on logs milestones
-        let prog = 25;
-        let stepText = "Instalando paquetes del sistema...";
+        const isDeploy = data.taskType === "DEPLOY" || activeTask === "deploy" || cloningGit;
 
-        if (data.logs.includes("[PASO 1/7]")) {
-          prog = 20;
-          stepText = "Paso 1: Configurando Memoria SWAP de 2GB...";
-        }
-        if (data.logs.includes("[PASO 2/7]")) {
-          prog = 35;
-          stepText = "Paso 2: Actualizando paquetes e instalando Nginx & Git...";
-        }
-        if (data.logs.includes("[PASO 3/7]")) {
-          prog = 55;
-          stepText = "Paso 3: Instalando Node.js 20 LTS & PM2...";
-        }
-        if (data.logs.includes("[PASO 4/7]")) {
-          prog = 70;
-          stepText = "Paso 4: Configurando Firewall UFW (Seguridad)...";
-        }
-        if (data.logs.includes("[PASO 5/7]")) {
-          prog = 80;
-          stepText = "Paso 5: Configurando directorio /var/www/docenty y credenciales .env...";
-        }
-        if (data.logs.includes("[PASO 6/7]")) {
-          prog = 90;
-          stepText = "Paso 6: Configurando Proxy Inverso Nginx y WebSockets...";
-        }
-        if (data.logs.includes("[PASO 7/7]")) {
-          prog = 95;
-          stepText = "Paso 7: Iniciando servicio PM2 docenty-pro...";
-        }
+        if (isDeploy) {
+          // Despliegue Git (Clonado, SWAP, NPM install, Vite + esbuild, PM2)
+          let prog = 15;
+          let stepText = "Iniciando despliegue Git...";
 
-        if (data.logs.includes("DOCENTY_GIT_DEPLOY_SUCCESS")) {
-          prog = 100;
-          stepText = "🎉 ¡Docenty PRO clonado, compilado y ONLINE en PM2!";
-          setInstallSuccess(true);
-          setCloningGit(false);
-          setInstalling(false);
-          stopPollingStatus();
-          showToast("🎉 ¡Docenty PRO desplegado y corriendo en PM2!", "success");
-        } else if (data.isSuccess) {
-          prog = 100;
-          stepText = "¡Instalación completada con éxito! Docenty PRO está listo en la VPS.";
-          setInstallSuccess(true);
-          setInstalling(false);
-          stopPollingStatus();
-        } else if (!data.isRunning && prog >= 90) {
-          prog = 100;
-          stepText = "Proceso finalizado. El servidor está configurado.";
-          setInstalling(false);
-          setCloningGit(false);
-          stopPollingStatus();
-        }
+          if (data.logs.includes("[DEPLOY 1/6]")) {
+            prog = 20;
+            stepText = "Paso 1/6: Obteniendo archivos desde el repositorio GitHub...";
+          }
+          if (data.logs.includes("[DEPLOY 2/6]")) {
+            prog = 35;
+            stepText = "Paso 2/6: Verificando y activando memoria SWAP de 2GB (anti-OOM)...";
+          }
+          if (data.logs.includes("[DEPLOY 3/6]")) {
+            prog = 55;
+            stepText = "Paso 3/6: Instalando dependencias de Node.js completas...";
+          }
+          if (data.logs.includes("[DEPLOY 4/6]")) {
+            prog = 75;
+            stepText = "Paso 4/6: Compilando frontend y backend (Vite + esbuild en progreso)...";
+          }
+          if (data.logs.includes("[DEPLOY 5/6]")) {
+            prog = 90;
+            stepText = "Paso 5/6: Levantando servicio en PM2 (docenty-pro)...";
+          }
+          if (data.logs.includes("[DEPLOY 6/6]")) {
+            prog = 95;
+            stepText = "Paso 6/6: Verificando servicio HTTP en puerto 3000...";
+          }
 
-        setInstallProgress(prog);
-        setInstallStep(stepText);
+          if (data.isDeploySuccess && data.pm2Online) {
+            prog = 100;
+            stepText = "🎉 ¡Docenty PRO clonado, compilado y 100% ONLINE en PM2!";
+            setInstallSuccess(true);
+            setCloningGit(false);
+            setInstalling(false);
+            setActiveTask("none");
+            stopPollingStatus();
+            showToast("🎉 ¡Docenty PRO desplegado y corriendo en PM2!", "success");
+          } else if (data.isDeployError) {
+            stepText = "❌ Error durante la compilación o arranque en PM2. Revisa el registro abajo.";
+            setCloningGit(false);
+            setInstalling(false);
+            setActiveTask("none");
+            stopPollingStatus();
+            showToast("Error en la compilación o arranque de PM2", "error");
+          } else if (!data.isRunning && !data.isDeploySuccess) {
+            // El proceso ya no corre en nohup. ¿Tuvo éxito en el log?
+            if (data.logs.includes("DOCENTY_GIT_DEPLOY_SUCCESS")) {
+              prog = 100;
+              stepText = "🎉 ¡Docenty PRO clonado, compilado y ONLINE en PM2!";
+              setInstallSuccess(true);
+              setCloningGit(false);
+              setInstalling(false);
+              setActiveTask("none");
+              stopPollingStatus();
+            } else {
+              stepText = "⚠️ El despliegue se detuvo. Revisa el registro de la consola abajo.";
+              setCloningGit(false);
+              setInstalling(false);
+              setActiveTask("none");
+              stopPollingStatus();
+            }
+          }
+
+          setInstallProgress(prog);
+          setInstallStep(stepText);
+        } else {
+          // Instalador base (Node 20, Nginx, PM2, Firewall, SWAP)
+          let prog = 25;
+          let stepText = "Instalando paquetes del sistema...";
+
+          if (data.logs.includes("[PASO 1/7]")) {
+            prog = 20;
+            stepText = "Paso 1/7: Configurando Memoria SWAP de 2GB...";
+          }
+          if (data.logs.includes("[PASO 2/7]")) {
+            prog = 35;
+            stepText = "Paso 2/7: Actualizando paquetes e instalando Nginx & Git...";
+          }
+          if (data.logs.includes("[PASO 3/7]")) {
+            prog = 55;
+            stepText = "Paso 3/7: Instalando Node.js 20 LTS & PM2...";
+          }
+          if (data.logs.includes("[PASO 4/7]")) {
+            prog = 70;
+            stepText = "Paso 4/7: Configurando Firewall UFW (Seguridad)...";
+          }
+          if (data.logs.includes("[PASO 5/7]")) {
+            prog = 80;
+            stepText = "Paso 5/7: Configurando directorio /var/www/docenty y credenciales .env...";
+          }
+          if (data.logs.includes("[PASO 6/7]")) {
+            prog = 90;
+            stepText = "Paso 6/7: Configurando Proxy Inverso Nginx y WebSockets...";
+          }
+          if (data.logs.includes("[PASO 7/7]")) {
+            prog = 95;
+            stepText = "Paso 7/7: Verificando código y servicio PM2...";
+          }
+
+          if (data.isInstallSuccess) {
+            prog = 100;
+            stepText = "🎉 ¡Entorno VPS y Nginx 100% listos! Procede a desplegar con el botón abajo.";
+            setInstallSuccess(true);
+            setInstalling(false);
+            setActiveTask("none");
+            stopPollingStatus();
+            showToast("¡VPS configurada exitosamente!", "success");
+          } else if (!data.isRunning && prog >= 90) {
+            prog = 100;
+            stepText = "Entorno VPS preparado. Puedes proceder al despliegue.";
+            setInstalling(false);
+            setActiveTask("none");
+            stopPollingStatus();
+          }
+
+          setInstallProgress(prog);
+          setInstallStep(stepText);
+        }
       }
     } catch (e) {
       console.warn("Polling error (normal if network blips):", e);
@@ -417,9 +499,9 @@ export function VpsRemoteConsole({ defaultIp = "165.22.180.160", showToast }: Vp
             <input
               type="text"
               value={host}
-              onChange={(e) => setHost(e.target.value)}
+              onChange={(e) => handleHostChange(e.target.value)}
               className="w-full bg-black/60 border border-zinc-700 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-hidden focus:border-blue-500"
-              placeholder="165.22.180.160"
+              placeholder="165.22.188.160"
             />
           </div>
 

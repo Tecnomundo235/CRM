@@ -11,7 +11,8 @@ cd /var/www/docenty
 git pull origin main || git pull
 
 echo "📦 [2/4] Instalando dependencias..."
-npm install
+export NODE_OPTIONS="--max-old-space-size=1536"
+npm install --include=dev --no-audit --no-fund
 
 echo "🏗️ [3/4] Compilando frontend y servidor optimizado..."
 npm run build
