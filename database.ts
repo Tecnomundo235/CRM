@@ -46,10 +46,20 @@ export interface BankDetails {
   beneficiario: string;
 }
 
+export interface MetaWhatsAppConfig {
+  phoneNumberId: string;
+  wabaId: string;
+  verifyToken: string;
+  accessToken: string;
+  businessPhone: string;
+  activeProvider: "meta" | "evolution";
+}
+
 export interface SystemConfigs {
   botSystemPrompt: string;
   bankDetails: BankDetails;
   premiumCodes: string[];
+  metaConfig?: MetaWhatsAppConfig;
 }
 
 // Initial demo leads
@@ -128,7 +138,15 @@ Protocolo de Seguridad:
     "META-D39K-U161",
     "META-5SLA-X73P",
     "META-H92Z-6KU3"
-  ]
+  ],
+  metaConfig: {
+    phoneNumberId: process.env.META_PHONE_NUMBER_ID || "122146477727895",
+    wabaId: process.env.META_WABA_ID || "2562659904236968",
+    verifyToken: process.env.META_VERIFY_TOKEN || "docenty_pro_meta_verify_token_2026",
+    accessToken: process.env.META_WA_TOKEN || "",
+    businessPhone: "+58 426-2953484",
+    activeProvider: "meta",
+  }
 };
 
 // In-Memory & File Fallback State (will be used if MONGODB_URI is not set)

@@ -10,5 +10,13 @@
     "META-D39K-U161",
     "META-5SLA-X73P",
     "META-H92Z-6KU3"
-  ]
+  ],
+  "metaConfig": {
+    "phoneNumberId": "122146477727895",
+    "wabaId": "256265990423698",
+    "verifyToken": "docenty_pro_secure_verify_2026",
+    "accessToken": "EAAbipQWNwwsBSpss0kNwG466h4WnLffseDnzvRcqvyaY5wLmUgFRuZCxUbjagVbzZB2ZA89E0CWgk2SdUJXouuAKhHsnumvhIcGSSDrZBSZC2xnfZBAj2HCg7gyeHZCGAmLr7kkDgAJrICep8UZANukYmw102RrHbOVpr9B8wyx98xrPVu59QRGcbrmYHpeoHZBe9swZDZD",
+    "businessPhone": "+58 426-2953484",
+    "activeProvider": "meta"
+  }
 }

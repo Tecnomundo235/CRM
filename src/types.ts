@@ -41,8 +41,18 @@ export interface BankDetails {
   beneficiario: string;
 }
 
+export interface MetaWhatsAppConfig {
+  phoneNumberId: string;
+  wabaId: string;
+  verifyToken: string;
+  accessToken: string;
+  businessPhone: string;
+  activeProvider: "meta" | "evolution";
+}
+
 export interface SystemConfigs {
   botSystemPrompt: string;
   bankDetails: BankDetails;
   premiumCodes: string[];
+  metaConfig?: MetaWhatsAppConfig;
 }

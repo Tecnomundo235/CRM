@@ -50,7 +50,48 @@ const PORT = 3000;
 // Body parsing middleware
 app.use(express.json({ limit: "10mb" }));
 
-// Evolution API WhatsApp Configuration (Self-hosted on VPS)
+// Official Meta WhatsApp Cloud API Configuration (Meta for Developers - DocentyPro)
+// WhatsApp Business Account ID: 256265990423698 | Phone Number ID: 122146477727895 | Phone: +58 426-2953484
+const META_WA_TOKEN =
+  process.env.META_WA_TOKEN ||
+  process.env.WHATSAPP_TOKEN ||
+  process.env.WHATSAPP_CLOUD_API_TOKEN ||
+  "EAAbipQWNwwsBSpss0kNwG466h4WnLffseDnzvRcqvyaY5wLmUgFRuZCxUbjagVbzZB2ZA89E0CWgk2SdUJXouuAKhHsnumvhIcGSSDrZBSZC2xnfZBAj2HCg7gyeHZCGAmLr7kkDgAJrICep8UZANukYmw102RrHbOVpr9B8wyx98xrPVu59QRGcbrmYHpeoHZBe9swZDZD";
+const META_PHONE_NUMBER_ID =
+  process.env.META_PHONE_NUM ||
+  process.env.META_PHONE_NUMBER_ID ||
+  "122146477727895";
+const META_WABA_ID = process.env.META_WABA_ID || "256265990423698";
+const META_VERIFY_TOKEN =
+  process.env.META_VERIFY_TOKEN || "docenty_pro_secure_verify_2026";
+const META_BUSINESS_PHONE = "+58 426-2953484";
+const META_API_VERSION = "v22.0";
+
+// Helper to retrieve the active Meta configuration (falling back to stored database config)
+async function getActiveMetaConfig() {
+  try {
+    const configs = await getSystemConfigs();
+    return {
+      phoneNumberId: configs.metaConfig?.phoneNumberId || META_PHONE_NUMBER_ID,
+      wabaId: configs.metaConfig?.wabaId || META_WABA_ID,
+      verifyToken: configs.metaConfig?.verifyToken || META_VERIFY_TOKEN,
+      accessToken: configs.metaConfig?.accessToken || META_WA_TOKEN,
+      businessPhone: configs.metaConfig?.businessPhone || META_BUSINESS_PHONE,
+      activeProvider: configs.metaConfig?.activeProvider || "meta",
+    };
+  } catch (err) {
+    return {
+      phoneNumberId: META_PHONE_NUMBER_ID,
+      wabaId: META_WABA_ID,
+      verifyToken: META_VERIFY_TOKEN,
+      accessToken: META_WA_TOKEN,
+      businessPhone: META_BUSINESS_PHONE,
+      activeProvider: "meta",
+    };
+  }
+}
+
+// Evolution API WhatsApp Configuration (Self-hosted on VPS - Fallback/Secondary)
 const EVOLUTION_API_URL = (process.env.EVOLUTION_API_URL || "http://165.22.188.168:8080").replace(/\/+$/, "");
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || "docenty_pro_secret_key_2026";
 const EVOLUTION_INSTANCE_NAME = process.env.EVOLUTION_INSTANCE_NAME || "docenty-pro";
@@ -58,16 +99,25 @@ const EVOLUTION_INSTANCE_NAME = process.env.EVOLUTION_INSTANCE_NAME || "docenty-
 // Health check and Keep-Alive Ping endpoint
 app.get(["/api/health", "/health", "/ping"], async (req, res) => {
   const dbHealth = await checkDbHealth();
+  const metaConfig = await getActiveMetaConfig();
   const healthData = {
     status: dbHealth.status === "connected" || dbHealth.status === "in_memory" ? "ok" : "degraded",
     timestamp: new Date().toISOString(),
     uptimeSeconds: Math.floor(process.uptime()),
     database: dbHealth,
     whatsapp: {
-      provider: "Evolution API",
-      configured: Boolean(EVOLUTION_API_URL && EVOLUTION_API_KEY && EVOLUTION_INSTANCE_NAME),
-      evolutionUrl: EVOLUTION_API_URL,
-      instanceName: EVOLUTION_INSTANCE_NAME,
+      activeProvider: metaConfig.activeProvider || "meta",
+      meta: {
+        configured: Boolean(metaConfig.accessToken),
+        phoneNumberId: metaConfig.phoneNumberId,
+        wabaId: metaConfig.wabaId,
+        businessPhone: metaConfig.businessPhone,
+      },
+      evolution: {
+        configured: Boolean(EVOLUTION_API_URL && EVOLUTION_API_KEY && EVOLUTION_INSTANCE_NAME),
+        evolutionUrl: EVOLUTION_API_URL,
+        instanceName: EVOLUTION_INSTANCE_NAME,
+      },
     },
     memory: {
       rssMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
@@ -79,19 +129,188 @@ app.get(["/api/health", "/health", "/ping"], async (req, res) => {
   return res.status(statusCode).json(healthData);
 });
 
-// 1. ENDPOINT DE VERIFICACIÓN (Compatibilidad con checks HTTP GET)
-app.get(["/api/webhook", "/webhook"], (req, res) => {
+// 1. ENDPOINT DE VERIFICACIÓN DE WEBHOOK
+// Satisface la verificación oficial de Meta (hub.mode, hub.verify_token, hub.challenge) y health checks
+app.get(["/api/webhook", "/webhook"], async (req, res) => {
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+
+  // Solicitud de verificación oficial de Meta for Developers
+  if (mode && token) {
+    const metaConfig = await getActiveMetaConfig();
+    if (mode === "subscribe" && (token === metaConfig.verifyToken || token === META_VERIFY_TOKEN)) {
+      console.log(`[Meta Webhook] ¡Verificación exitosa en Meta for Developers! Challenge retornado.`);
+      return res.status(200).send(challenge);
+    } else {
+      console.warn(`[Meta Webhook] Verificación rechazada. Token recibido: "${token}", Esperado: "${metaConfig.verifyToken}"`);
+      return res.status(403).send("Forbidden");
+    }
+  }
+
+  // Si se accede directamente vía navegador o ping de salud
+  const metaConfig = await getActiveMetaConfig();
   return res.status(200).json({
     status: "online",
-    service: "Docenty PRO Webhook - Evolution API Engine",
-    instance: EVOLUTION_INSTANCE_NAME,
+    service: "Docenty PRO - Meta WhatsApp Cloud API & Evolution Engine",
+    meta: {
+      active: Boolean(metaConfig.accessToken),
+      phoneNumberId: metaConfig.phoneNumberId,
+      wabaId: metaConfig.wabaId,
+      verifyToken: metaConfig.verifyToken,
+      businessPhone: metaConfig.businessPhone,
+      apiVersion: META_API_VERSION,
+    },
+    evolution: {
+      evolutionUrl: EVOLUTION_API_URL,
+      instanceName: EVOLUTION_INSTANCE_NAME,
+    },
     timestamp: new Date().toISOString()
   });
+});
+
+// Endpoint to check connection state with Evolution API
+app.get("/api/evolution/connection-status", async (req, res) => {
+  try {
+    const response = await axios.get(
+      `${EVOLUTION_API_URL}/instance/connectionState/${EVOLUTION_INSTANCE_NAME}`,
+      {
+        headers: { apikey: EVOLUTION_API_KEY },
+        timeout: 8000
+      }
+    );
+    res.json({ success: true, data: response.data });
+  } catch (error: any) {
+    res.status(502).json({
+      success: false,
+      error: error.response?.data || error.message,
+      message: "No se pudo conectar a Evolution API en " + EVOLUTION_API_URL
+    });
+  }
+});
+
+// Endpoint to request 8-character pairing code for a phone number
+app.post("/api/evolution/request-pairing-code", async (req, res) => {
+  const { number } = req.body;
+  if (!number) {
+    return res.status(400).json({ error: "El número de teléfono es requerido (ej: 584262953484)" });
+  }
+  const cleanNum = cleanPhoneNumber(number);
+
+  try {
+    // 1. Asegurar que la instancia exista con qrcode: false
+    try {
+      await axios.post(
+        `${EVOLUTION_API_URL}/instance/create`,
+        {
+          instanceName: EVOLUTION_INSTANCE_NAME,
+          token: EVOLUTION_API_KEY,
+          qrcode: false,
+          integration: "WHATSAPP-BAILEYS"
+        },
+        {
+          headers: {
+            apikey: EVOLUTION_API_KEY,
+            "Content-Type": "application/json"
+          },
+          timeout: 10000
+        }
+      );
+    } catch (createErr: any) {
+      // Ignorar si ya existe
+      console.log("[Evolution] Instancia ya creada o respuesta:", createErr.response?.data?.message || createErr.message);
+    }
+
+    // 2. Solicitar código de vinculación por número
+    const connectRes = await axios.get(
+      `${EVOLUTION_API_URL}/instance/connect/${EVOLUTION_INSTANCE_NAME}?number=${cleanNum}`,
+      {
+        headers: { apikey: EVOLUTION_API_KEY },
+        timeout: 15000
+      }
+    );
+
+    const pairingCode = connectRes.data?.pairingCode || connectRes.data?.code || connectRes.data?.data?.pairingCode;
+    res.json({
+      success: true,
+      pairingCode: pairingCode || null,
+      raw: connectRes.data
+    });
+  } catch (error: any) {
+    console.error("Error al solicitar código de vinculación:", error.response?.data || error.message);
+    res.status(502).json({
+      success: false,
+      error: error.response?.data || error.message,
+      message: "Error al comunicarse con Evolution API en el VPS."
+    });
+  }
 });
 
 // Helper to clean phone numbers
 function cleanPhoneNumber(ph: string): string {
   return (ph || "").replace(/\D/g, "");
+}
+
+// Helper to download media using Official Meta WhatsApp Cloud API (Graph API)
+async function downloadMetaMedia(mediaId: string): Promise<{ base64: string; mimeType: string } | null> {
+  try {
+    const metaConfig = await getActiveMetaConfig();
+    const token = metaConfig.accessToken;
+    if (!token || !mediaId) return null;
+
+    // Step 1: Retrieve media object with temporary download URL
+    const metaUrlRes = await axios.get(
+      `https://graph.facebook.com/${META_API_VERSION}/${mediaId}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 15000,
+      }
+    );
+
+    const downloadUrl = metaUrlRes.data?.url;
+    const mimeType = metaUrlRes.data?.mime_type || "image/jpeg";
+    if (!downloadUrl) return null;
+
+    // Step 2: Download the binary file using the Meta bearer token
+    const binaryRes = await axios.get(downloadUrl, {
+      headers: { Authorization: `Bearer ${token}` },
+      responseType: "arraybuffer",
+      timeout: 20000,
+    });
+
+    const base64 = Buffer.from(binaryRes.data).toString("base64");
+    return { base64, mimeType };
+  } catch (err: any) {
+    console.error("[Meta Media] Error al descargar medio oficial de Meta:", err.response?.data || err.message);
+    return null;
+  }
+}
+
+// Helper to mark an incoming WhatsApp message as read in Official Meta Cloud API
+async function markMetaMessageAsRead(messageId: string) {
+  try {
+    const metaConfig = await getActiveMetaConfig();
+    if (!metaConfig.accessToken || !metaConfig.phoneNumberId || !messageId) return;
+
+    await axios.post(
+      `https://graph.facebook.com/${META_API_VERSION}/${metaConfig.phoneNumberId}/messages`,
+      {
+        messaging_product: "whatsapp",
+        status: "read",
+        message_id: messageId,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${metaConfig.accessToken}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 8000,
+      }
+    );
+  } catch (err: any) {
+    // Non-critical, just log warning
+    console.warn("[Meta Read Marker] No se pudo marcar como leído:", err.response?.data?.error?.message || err.message);
+  }
 }
 
 // Helper to download media using Evolution API or direct media URL
@@ -171,17 +390,55 @@ function checkAndRegisterWAMID(wamid: string): boolean {
   return false;
 }
 
+// Envía mensajes de WhatsApp usando la API Oficial de Meta Cloud API con fallback a Evolution API
 async function sendWhatsAppMessage(targetPhone: string, textBody: string) {
   const cleanedTarget = cleanPhoneNumber(targetPhone);
   if (!cleanedTarget) {
-    console.warn("[Evolution API] Número de destino inválido:", targetPhone);
+    console.warn("[WhatsApp Sender] Número de destino inválido:", targetPhone);
     return;
   }
 
+  const metaConfig = await getActiveMetaConfig();
+  const provider = metaConfig.activeProvider || "meta";
+
+  // Intentar primero con la API Oficial de Meta si está activa y configurada
+  if (provider === "meta" && metaConfig.accessToken && metaConfig.phoneNumberId) {
+    try {
+      const metaEndpoint = `https://graph.facebook.com/${META_API_VERSION}/${metaConfig.phoneNumberId}/messages`;
+      const response = await axios.post(
+        metaEndpoint,
+        {
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: cleanedTarget,
+          type: "text",
+          text: {
+            preview_url: true,
+            body: textBody,
+          },
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${metaConfig.accessToken}`,
+            "Content-Type": "application/json",
+          },
+          timeout: 15000,
+        }
+      );
+      console.log(`[Meta Cloud API] Mensaje oficial entregado a ${cleanedTarget} (WAMID: ${response.data?.messages?.[0]?.id})`);
+      return response.data;
+    } catch (metaErr: any) {
+      console.error("[Meta Cloud API] Error al enviar mensaje oficial:", metaErr.response?.data || metaErr.message);
+      // Si falla Meta, continuar con el fallback a Evolution API para garantizar entrega
+      console.log(`[WhatsApp Sender] Intentando entrega de contingencia vía Evolution API...`);
+    }
+  }
+
+  // Fallback o proveedor secundario: Evolution API (VPS)
   if (EVOLUTION_API_URL && EVOLUTION_API_KEY && EVOLUTION_INSTANCE_NAME) {
     try {
       const endpoint = `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE_NAME}`;
-      await axios.post(
+      const response = await axios.post(
         endpoint,
         {
           number: cleanedTarget,
@@ -196,11 +453,12 @@ async function sendWhatsAppMessage(targetPhone: string, textBody: string) {
         }
       );
       console.log(`[Evolution API] Respuesta enviada exitosamente a ${cleanedTarget}`);
+      return response.data;
     } catch (error: any) {
       console.error("[Evolution API] Error al enviar mensaje:", error.response?.data || error.message);
     }
   } else {
-    console.warn("[Evolution API] Credenciales no configuradas. Omitiendo envío a:", cleanedTarget);
+    console.warn("[WhatsApp Sender] Credenciales de Meta o Evolution no configuradas para:", cleanedTarget);
   }
 }
 
@@ -421,7 +679,17 @@ No hay códigos premium en el CRM en este momento. Si necesitas entregar un cód
   }
   // Caso B: Capture de Comprobante (Imagen)
   else if (incoming.type === "image") {
-    const base64Str = incoming.mediaBase64 || (await downloadEvolutionMedia(incoming.rawMessage));
+    let base64Str = incoming.mediaBase64;
+    if (!base64Str && incoming.rawMessage?.metaMediaId) {
+      const metaMedia = await downloadMetaMedia(incoming.rawMessage.metaMediaId);
+      if (metaMedia) {
+        base64Str = metaMedia.base64;
+        incoming.mimeType = metaMedia.mimeType;
+      }
+    }
+    if (!base64Str) {
+      base64Str = await downloadEvolutionMedia(incoming.rawMessage);
+    }
 
     // Notificar al administrador por WhatsApp
     await sendAdminNotification(`📸 *Capture Recibido* de *${lead.name}* (${lead.phone}). Analizando comprobante de pago con Inteligencia Artificial...`);
@@ -596,8 +864,18 @@ No hay códigos premium en el CRM en este momento. Si necesitas entregar un cód
   }
   // Caso C: Nota de Voz (Audio)
   else if (incoming.type === "audio") {
-    const mimeType = incoming.mimeType || "audio/ogg";
-    const base64Str = incoming.mediaBase64 || (await downloadEvolutionMedia(incoming.rawMessage));
+    let mimeType = incoming.mimeType || "audio/ogg";
+    let base64Str = incoming.mediaBase64;
+    if (!base64Str && incoming.rawMessage?.metaMediaId) {
+      const metaMedia = await downloadMetaMedia(incoming.rawMessage.metaMediaId);
+      if (metaMedia) {
+        base64Str = metaMedia.base64;
+        mimeType = metaMedia.mimeType;
+      }
+    }
+    if (!base64Str) {
+      base64Str = await downloadEvolutionMedia(incoming.rawMessage);
+    }
 
     // Notificar al administrador por WhatsApp
     await sendAdminNotification(`🎤 *Nota de voz recibida* de *${lead.name}* (${lead.phone}). Procesando audio con Inteligencia Artificial...`);
@@ -697,47 +975,140 @@ No hay códigos premium disponibles en el pool en este momento. Si necesitas ent
     }
   }
 
-  // Enviar respuesta por WhatsApp mediante Evolution API
+  // Marcar como leído en la API Oficial de Meta si es un mensaje de Meta
+  if (incoming.rawMessage?.provider === "meta" && incoming.messageId) {
+    markMetaMessageAsRead(incoming.messageId);
+  }
+
+  // Enviar respuesta por WhatsApp mediante Meta Cloud API Oficial (con fallback a Evolution API)
   await sendWhatsAppMessage(from, botReply);
 }
 
+// 3. RECEPTOR CENTRAL DE WEBHOOK (Compatible con Meta WhatsApp Cloud API Oficial y Evolution API)
 app.post(["/api/webhook", "/webhook"], async (req, res) => {
   try {
-    // Responder HTTP 200 OK inmediatamente a Evolution API para confirmar la entrega
+    // Responder HTTP 200 OK inmediatamente para cumplir con el SLA de Meta (< 3s) y Evolution
     res.sendStatus(200);
 
     const body = req.body;
     if (!body) return;
 
-    // Normalizar payloads: Evolution API envía eventos como "MESSAGES_UPSERT" o estructura directa
+    // A) DETECCIÓN Y PROCESAMIENTO: OFICIAL META WHATSAPP CLOUD API
+    if (body.object === "whatsapp_business_account" || (Array.isArray(body.entry) && body.entry[0]?.changes)) {
+      console.log("[Meta Webhook] Evento recibido desde la API Oficial de Meta Cloud");
+      
+      for (const entry of body.entry || []) {
+        for (const change of entry.changes || []) {
+          if (change.field === "messages") {
+            const value = change.value;
+            if (!value) continue;
+
+            // Manejo de mensajes entrantes
+            const messages = value.messages || [];
+            const contacts = value.contacts || [];
+
+            for (const msg of messages) {
+              const fromPhone = cleanPhoneNumber(msg.from || "");
+              if (!fromPhone) continue;
+
+              const messageId = msg.id;
+              if (messageId && checkAndRegisterWAMID(messageId)) {
+                console.log(`[Idempotency] Mensaje duplicado de Meta omitido (WAMID: ${messageId})`);
+                continue;
+              }
+
+              // Obtener nombre del contacto
+              const contactObj = contacts.find((c: any) => c.wa_id === msg.from);
+              const senderName = contactObj?.profile?.name || `Docente (${fromPhone})`;
+
+              let msgType: "text" | "image" | "audio" | "other" = "other";
+              let textContent = "";
+              let metaMediaId: string | null = null;
+              let mimeType = "";
+
+              if (msg.type === "text") {
+                msgType = "text";
+                textContent = msg.text?.body || "";
+              } else if (msg.type === "image") {
+                msgType = "image";
+                metaMediaId = msg.image?.id;
+                mimeType = msg.image?.mime_type || "image/jpeg";
+                textContent = msg.image?.caption || "";
+              } else if (msg.type === "audio") {
+                msgType = "audio";
+                metaMediaId = msg.audio?.id;
+                mimeType = msg.audio?.mime_type || "audio/ogg";
+              } else if (msg.type === "interactive") {
+                msgType = "text";
+                textContent = msg.interactive?.button_reply?.title || msg.interactive?.list_reply?.title || "";
+              } else if (msg.type === "button") {
+                msgType = "text";
+                textContent = msg.button?.text || "";
+              }
+
+              if (msgType === "other") {
+                console.log(`[Meta Webhook] Tipo de mensaje de Meta no procesado: ${msg.type}`);
+                continue;
+              }
+
+              const incoming: EvolutionIncomingPayload = {
+                messageId,
+                from: fromPhone,
+                senderName,
+                type: msgType,
+                text: textContent,
+                mimeType,
+                rawMessage: {
+                  provider: "meta",
+                  metaMediaId,
+                  metaPayload: msg,
+                },
+              };
+
+              // Procesar en segundo plano
+              processWebhookInBackground(incoming).catch((err) => {
+                console.error("[Meta Background Processing] Error:", err);
+              });
+            }
+
+            // Manejo de confirmaciones de estado (sent, delivered, read)
+            if (value.statuses && value.statuses.length > 0) {
+              const statusObj = value.statuses[0];
+              console.log(`[Meta Status] Estado del mensaje ${statusObj.id}: ${statusObj.status} para ${statusObj.recipient_id}`);
+            }
+          }
+        }
+      }
+      return;
+    }
+
+    // B) DETECCIÓN Y PROCESAMIENTO: EVOLUTION API (VPS Fallback)
     const event = body.event || body.type;
     const data = body.data || body;
 
     // Ignorar eventos que no sean de nuevos mensajes
     if (event && event !== "messages.upsert" && event !== "MESSAGES_UPSERT") {
-      console.log(`[Evolution Webhook] Evento ignorado: ${event}`);
       return;
     }
 
     // Extraer clave del mensaje
     const key = data.key || {};
     
-    // Regla 3: Ignorar mensajes salientes enviados por el propio bot
+    // Ignorar mensajes salientes enviados por el propio bot
     if (key.fromMe === true || data.fromMe === true) {
       return;
     }
 
-    // Regla 3: Extraer ID del mensaje para idempotencia
+    // Extraer ID del mensaje para idempotencia
     const messageId = key.id || data.id;
     if (messageId && checkAndRegisterWAMID(messageId)) {
       console.log(`[Idempotency] Mensaje duplicado detectado (Evolution ID: ${messageId}). Omitiendo.`);
       return;
     }
 
-    // Regla 3: Extraer número de remitente limpiando el sufijo @s.whatsapp.net o @g.us
+    // Extraer número de remitente limpiando el sufijo @s.whatsapp.net o @g.us
     const rawRemoteJid = key.remoteJid || data.remoteJid || data.from || "";
     if (rawRemoteJid.includes("@g.us")) {
-      // Ignorar mensajes de grupos
       return;
     }
     const fromPhone = cleanPhoneNumber(rawRemoteJid.replace(/@s\.whatsapp\.net$/, ""));
@@ -748,46 +1119,36 @@ app.post(["/api/webhook", "/webhook"], async (req, res) => {
     const senderName = data.pushName || data.senderName || `Docente (${fromPhone})`;
     const messageObj = data.message || {};
 
-    // Extraer contenido según el tipo de mensaje de Evolution API
     let msgType: "text" | "image" | "audio" | "other" = "other";
     let textContent = "";
     let mediaBase64: string | null = null;
     let mimeType = "";
 
-    // 1. Mensaje de Texto plano o extendido
     if (messageObj.conversation) {
       msgType = "text";
       textContent = messageObj.conversation;
     } else if (messageObj.extendedTextMessage?.text) {
       msgType = "text";
       textContent = messageObj.extendedTextMessage.text;
-    } 
-    // 2. Mensaje de Imagen (comprobantes de pago)
-    else if (messageObj.imageMessage) {
+    } else if (messageObj.imageMessage) {
       msgType = "image";
       mimeType = messageObj.imageMessage.mimetype || "image/png";
       textContent = messageObj.imageMessage.caption || "";
       if (data.base64) {
         mediaBase64 = data.base64;
       }
-    } 
-    // 3. Nota de Voz / Audio
-    else if (messageObj.audioMessage) {
+    } else if (messageObj.audioMessage) {
       msgType = "audio";
       mimeType = messageObj.audioMessage.mimetype || "audio/ogg";
       if (data.base64) {
         mediaBase64 = data.base64;
       }
-    }
-    // Fallback: Si Evolution envía payload plano tipo texto
-    else if (typeof data.text === "string") {
+    } else if (typeof data.text === "string") {
       msgType = "text";
       textContent = data.text;
     }
 
-    // Si no es texto, imagen ni audio reconocido, ignorar
     if (msgType === "other") {
-      console.log(`[Evolution Webhook] Tipo de mensaje no manejado:`, Object.keys(messageObj));
       return;
     }
 
@@ -808,10 +1169,123 @@ app.post(["/api/webhook", "/webhook"], async (req, res) => {
     });
 
   } catch (error: any) {
-    console.error("Error en Wrapper Webhook Evolution:", error.response?.data || error.message);
+    console.error("Error en Receptor Webhook:", error.response?.data || error.message);
     if (!res.headersSent) {
       res.sendStatus(200);
     }
+  }
+});
+
+// ENDPOINTS DE CONTROL PARA LA API OFICIAL DE META
+// 1. Verificar estado de la conexión en vivo con Meta Graph API
+app.get("/api/meta/status", async (req, res) => {
+  try {
+    const metaConfig = await getActiveMetaConfig();
+    const token = metaConfig.accessToken;
+
+    if (!token) {
+      return res.json({
+        configured: false,
+        active: false,
+        message: "No se ha configurado el Token de Acceso de Meta (META_WA_TOKEN).",
+        config: metaConfig,
+      });
+    }
+
+    // Consulta los detalles del Phone Number ID en Meta Graph API
+    const response = await axios.get(
+      `https://graph.facebook.com/${META_API_VERSION}/${metaConfig.phoneNumberId}?fields=verified_name,display_phone_number,quality_rating,code_verification_status`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 10000,
+      }
+    );
+
+    return res.json({
+      configured: true,
+      active: true,
+      data: response.data,
+      config: metaConfig,
+      message: "¡Conexión verificada exitosamente con WhatsApp Cloud API Oficial de Meta!",
+    });
+  } catch (err: any) {
+    const metaConfig = await getActiveMetaConfig();
+    return res.status(200).json({
+      configured: Boolean(metaConfig.accessToken),
+      active: false,
+      error: err.response?.data?.error || err.message,
+      config: metaConfig,
+      message: "Error al comunicarse con Meta Graph API. Verifica el Token de Acceso o Phone Number ID.",
+    });
+  }
+});
+
+// 2. Guardar y actualizar configuración de Meta WhatsApp Cloud API
+app.post("/api/meta/config", async (req, res) => {
+  try {
+    const { phoneNumberId, wabaId, verifyToken, accessToken, businessPhone, activeProvider } = req.body;
+    const current = await getSystemConfigs();
+
+    const updatedConfig = {
+      ...current,
+      metaConfig: {
+        phoneNumberId: phoneNumberId || current.metaConfig?.phoneNumberId || META_PHONE_NUMBER_ID,
+        wabaId: wabaId || current.metaConfig?.wabaId || META_WABA_ID,
+        verifyToken: verifyToken || current.metaConfig?.verifyToken || META_VERIFY_TOKEN,
+        accessToken: accessToken !== undefined ? accessToken : (current.metaConfig?.accessToken || META_WA_TOKEN),
+        businessPhone: businessPhone || current.metaConfig?.businessPhone || META_BUSINESS_PHONE,
+        activeProvider: activeProvider || current.metaConfig?.activeProvider || "meta",
+      },
+    };
+
+    await saveSystemConfigs(updatedConfig);
+    res.json({ success: true, metaConfig: updatedConfig.metaConfig });
+  } catch (error: any) {
+    res.status(500).json({ error: "Error al actualizar configuración de Meta: " + error.message });
+  }
+});
+
+// 3. Enviar mensaje de prueba mediante la API Oficial de Meta
+app.post("/api/meta/test-message", async (req, res) => {
+  try {
+    const { phone, message } = req.body;
+    const target = cleanPhoneNumber(phone || "584144783204");
+    const text = message || "🤖 *Prueba de Conexión Oficial Meta Cloud API*\n\n¡Hola! El sistema de WhatsApp de Docenty PRO está conectado exitosamente con la API oficial de Meta para Desarrolladores.";
+
+    const result = await sendWhatsAppMessage(target, text);
+    res.json({ success: true, result, target });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 4. Verificación de conectividad con la VPS en DigitalOcean (165.22.180.160)
+app.get("/api/vps/ping", async (req, res) => {
+  const ip = (req.query.ip as string) || "165.22.180.160";
+  try {
+    const t0 = Date.now();
+    const testHttp = await axios.get(`http://${ip}`, { timeout: 3500 }).catch((e) => ({
+      status: e.response?.status || 0,
+      message: e.message,
+    }));
+    const latency = Date.now() - t0;
+    const status = (testHttp as any).status || 0;
+    return res.json({
+      ip,
+      reachable: status > 0,
+      statusCode: status,
+      latencyMs: latency,
+      message: status > 0
+        ? `Servidor respondiendo HTTP (Status: ${status})`
+        : "Servidor encendido pero puerto 80/Nginx aún no iniciado o con cortafuegos",
+    });
+  } catch (err: any) {
+    return res.json({
+      ip,
+      reachable: false,
+      error: err.message,
+      message: "No se pudo conectar a la VPS en DigitalOcean.",
+    });
   }
 });
 

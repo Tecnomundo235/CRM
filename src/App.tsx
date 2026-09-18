@@ -38,10 +38,11 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Lead, Message, BankDetails, SystemConfigs } from "./types";
+import { MetaCloudApiView } from "./components/MetaCloudApiView";
 
 export default function App() {
-  // Tabs: "crm", "whatsapp", "config", "about"
-  const [activeTab, setActiveTab] = useState<"crm" | "whatsapp" | "config" | "about">("crm");
+  // Tabs: "crm", "whatsapp", "meta", "config", "about"
+  const [activeTab, setActiveTab] = useState<"crm" | "whatsapp" | "meta" | "config" | "about">("crm");
   
   // Leads & Config States
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -1251,6 +1252,21 @@ export default function App() {
             </button>
 
             <button
+              onClick={() => setActiveTab("meta")}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${
+                activeTab === "meta"
+                  ? "bg-emerald-950/50 text-emerald-400 border-l-2 border-emerald-500 font-semibold"
+                  : "text-zinc-400 hover:bg-zinc-800/50 hover:text-white"
+              }`}
+            >
+              <ShieldCheck className="h-4 w-4 text-emerald-400" />
+              <span>API Oficial Meta</span>
+              <span className="ml-auto bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[9px] font-bold px-1.5 py-0.5 rounded">
+                META
+              </span>
+            </button>
+
+            <button
               onClick={() => setActiveTab("config")}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${
                 activeTab === "config"
@@ -1280,16 +1296,17 @@ export default function App() {
             <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3">
               <div className="flex items-center gap-2 mb-2">
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
-                <span className="text-[11px] font-bold text-zinc-300 uppercase">WhatsApp Conectado</span>
+                <span className="text-[11px] font-bold text-zinc-300 uppercase">Meta Cloud API Activo</span>
               </div>
               <p className="text-xs text-zinc-400 leading-relaxed mb-2">
-                La IA está escuchando mensajes entrantes de clientes interesados en Docenty PRO.
+                Conectado con WhatsApp Cloud API Oficial (DocentyPro).
               </p>
-              <div className="text-[10px] font-mono bg-black/40 border border-zinc-800 p-1.5 rounded text-teal-400">
-                Línea: +1 (555) 234-AI56
+              <div className="text-[10px] font-mono bg-black/40 border border-emerald-900/50 p-1.5 rounded text-emerald-400 flex items-center justify-between">
+                <span>+58 426-2953484</span>
+                <span className="text-[9px] bg-emerald-500/20 text-emerald-300 px-1 rounded">OFICIAL</span>
               </div>
             </div>
           </div>
@@ -2470,6 +2487,15 @@ Protocolo de Seguridad:
                     </div>
                   </div>
                 </div>
+              )}
+
+              {/* TAB: META WHATSAPP CLOUD API OFICIAL */}
+              {activeTab === "meta" && (
+                <MetaCloudApiView
+                  config={config}
+                  onUpdateConfig={(newConf) => setConfig((prev) => ({ ...prev, ...newConf }))}
+                  showToast={showToast}
+                />
               )}
 
               {/* TAB 4: WHAT IS DOCENTY PRO */}
