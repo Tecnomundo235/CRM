@@ -267,6 +267,93 @@ EVOLUTION_INSTANCE_NAME=${process.env.EVOLUTION_INSTANCE_NAME || "docenty-pro"}
   }
 });
 
+// 3.1 Despliegue de Código Git y Levantamiento de PM2 en segundo plano (nohup)
+app.post("/api/vps/deploy-git", async (req, res) => {
+  const { host = "165.22.180.160", port = 22, username = "root", password, privateKey, repoUrl } = req.body;
+  if (!password && !privateKey) {
+    return res.status(400).json({ ok: false, error: "Debes ingresar la contraseña de root" });
+  }
+  if (!repoUrl) {
+    return res.status(400).json({ ok: false, error: "URL del repositorio Git requerida" });
+  }
+
+  try {
+    const creds = { host, port: Number(port), username, password, privateKey };
+    const deployScript = `#!/bin/bash
+set -e
+exec >> /var/log/docenty-install.log 2>&1
+echo ""
+echo "=================================================================="
+echo "🚀 CLONANDO Y DESPLEGANDO REPOSITORIO GIT: ${repoUrl}"
+echo "⏰ Inicio: $(date)"
+echo "=================================================================="
+
+mkdir -p /var/www/docenty
+cd /var/www/docenty
+
+if [ ! -d .git ]; then
+  echo "Clonando repositorio en /var/www/docenty..."
+  # Si el directorio tiene archivos creados por el instalador, los guardamos temporalmente
+  TMP_BACKUP="/tmp/docenty_backup_$(date +%s)"
+  mkdir -p "$TMP_BACKUP"
+  [ -f .env ] && cp .env "$TMP_BACKUP/"
+  [ -f ecosystem.config.cjs ] && cp ecosystem.config.cjs "$TMP_BACKUP/"
+  
+  git clone ${repoUrl} . || {
+    echo "Fallo el clone directo, limpiando e intentando de nuevo..."
+    git init
+    git remote add origin ${repoUrl}
+    git fetch origin main || git fetch origin master || git fetch origin
+    git checkout -f main || git checkout -f master || true
+  }
+
+  # Restaurar .env y ecosystem si no vinieron en el repo
+  [ -f "$TMP_BACKUP/.env" ] && [ ! -f .env ] && cp "$TMP_BACKUP/.env" .env
+  [ -f "$TMP_BACKUP/ecosystem.config.cjs" ] && [ ! -f ecosystem.config.cjs ] && cp "$TMP_BACKUP/ecosystem.config.cjs" .
+  rm -rf "$TMP_BACKUP"
+else
+  echo "Directorio Git ya existente. Actualizando con git pull..."
+  git pull origin main || git pull origin master || git pull || true
+fi
+
+echo "Instalando dependencias de Node.js (con SWAP activa)..."
+npm install --omit=dev || npm install
+
+echo "Compilando proyecto (npm run build)..."
+npm run build || true
+
+echo "Arrancando PM2 con ecosystem.config.cjs..."
+pm2 delete docenty-pro 2>/dev/null || true
+pm2 start ecosystem.config.cjs
+pm2 save
+pm2 startup systemd -u root --hp /root || true
+
+echo "=================================================================="
+echo "🎉 === DOCENTY_GIT_DEPLOY_SUCCESS ==="
+echo "⏰ Despliegue completado: $(date)"
+echo "Estado PM2:"
+pm2 status docenty-pro
+echo "=================================================================="
+`;
+
+    const b64Deploy = Buffer.from(deployScript, "utf-8").toString("base64");
+    const launchCmd = `echo "${b64Deploy}" | base64 -d > /tmp/docenty-deploy.sh && chmod +x /tmp/docenty-deploy.sh && nohup /tmp/docenty-deploy.sh >> /var/log/docenty-install.log 2>&1 & echo $! > /tmp/docenty-deploy.pid && echo "DEPLOY_PID=$(cat /tmp/docenty-deploy.pid)"`;
+
+    const result = await runSshCommand(creds, launchCmd, 20000);
+    return res.json({
+      ok: true,
+      started: true,
+      output: result.stdout,
+      message: "Despliegue iniciado en segundo plano. Monitoreando logs...",
+    });
+  } catch (err: any) {
+    return res.status(500).json({
+      ok: false,
+      error: err.message || "Error al iniciar el despliegue Git",
+    });
+  }
+});
+
 // 4. Consultar Estado y Logs en tiempo real de la instalación
 app.post("/api/vps/install-status", async (req, res) => {
   const { host = "165.22.180.160", port = 22, username = "root", password, privateKey } = req.body;

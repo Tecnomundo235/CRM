@@ -204,7 +204,7 @@ export function VpsRemoteConsole({ defaultIp = "165.22.180.160", showToast }: Vp
     }
   };
 
-  // Deploy Git Code into /var/www/docenty
+  // Deploy Git Code into /var/www/docenty with nohup protection
   const handleDeployGit = async () => {
     if (!gitRepoUrl.trim()) {
       showToast("Ingresa la URL del repositorio Git de Docenty PRO", "error");
@@ -216,13 +216,28 @@ export function VpsRemoteConsole({ defaultIp = "165.22.180.160", showToast }: Vp
     }
     localStorage.setItem("docenty_vps_git_url", gitRepoUrl);
     setCloningGit(true);
+    setTerminalOutput((prev) => `${prev}\n\n[GIT DEPLOY INICIADO]: Clonando ${gitRepoUrl} en /var/www/docenty...`);
     showToast("Clonando repositorio y levantando PM2 en el Droplet...", "info");
 
-    const cmd = `cd /var/www/docenty && if [ ! -d .git ]; then git clone ${gitRepoUrl} . ; else git pull origin main || git pull; fi && npm install --omit=dev || npm install && npm run build && pm2 delete docenty-pro 2>/dev/null || true && pm2 start ecosystem.config.cjs && pm2 save && pm2 status`;
+    try {
+      const res = await fetch("/api/vps/deploy-git", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ host, port, username, password, repoUrl: gitRepoUrl.trim() }),
+      });
 
-    await handleExecuteCommand(cmd);
-    setCloningGit(false);
-    checkStatusOnce();
+      const data = await res.json();
+      if (data.ok) {
+        showToast("🚀 Proceso de clonación y compilación iniciado en el Droplet", "success");
+        startPollingStatus();
+      } else {
+        showToast(data.error || "Error al iniciar despliegue Git", "error");
+        setCloningGit(false);
+      }
+    } catch (err: any) {
+      showToast("Error de conexión: " + err.message, "error");
+      setCloningGit(false);
+    }
   };
 
   // Poll Installation Status & Logs
@@ -272,17 +287,25 @@ export function VpsRemoteConsole({ defaultIp = "165.22.180.160", showToast }: Vp
           stepText = "Paso 7: Iniciando servicio PM2 docenty-pro...";
         }
 
-        if (data.isSuccess) {
+        if (data.logs.includes("DOCENTY_GIT_DEPLOY_SUCCESS")) {
+          prog = 100;
+          stepText = "🎉 ¡Docenty PRO clonado, compilado y ONLINE en PM2!";
+          setInstallSuccess(true);
+          setCloningGit(false);
+          setInstalling(false);
+          stopPollingStatus();
+          showToast("🎉 ¡Docenty PRO desplegado y corriendo en PM2!", "success");
+        } else if (data.isSuccess) {
           prog = 100;
           stepText = "¡Instalación completada con éxito! Docenty PRO está listo en la VPS.";
           setInstallSuccess(true);
           setInstalling(false);
           stopPollingStatus();
-          showToast("🎉 ¡Servidor configurado y activo en DigitalOcean!", "success");
         } else if (!data.isRunning && prog >= 90) {
           prog = 100;
           stepText = "Proceso finalizado. El servidor está configurado.";
           setInstalling(false);
+          setCloningGit(false);
           stopPollingStatus();
         }
 
