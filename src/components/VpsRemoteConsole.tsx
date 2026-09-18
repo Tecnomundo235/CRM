@@ -29,9 +29,9 @@ interface VpsRemoteConsoleProps {
   showToast: (text: string, type: "success" | "error" | "info") => void;
 }
 
-export function VpsRemoteConsole({ defaultIp = "165.22.188.160", showToast }: VpsRemoteConsoleProps) {
+export function VpsRemoteConsole({ defaultIp = "165.22.180.160", showToast }: VpsRemoteConsoleProps) {
   // SSH Credentials
-  const [host, setHost] = useState(() => localStorage.getItem("docenty_vps_ip") || defaultIp || "165.22.188.160");
+  const [host, setHost] = useState(() => localStorage.getItem("docenty_vps_ip") || defaultIp || "165.22.180.160");
   const [port, setPort] = useState("22");
   const [username, setUsername] = useState("root");
   const [password, setPassword] = useState(() => localStorage.getItem("docenty_vps_pwd") || "");
@@ -418,7 +418,8 @@ export function VpsRemoteConsole({ defaultIp = "165.22.188.160", showToast }: Vp
     };
   }, []);
 
-  const manualCurlCommand = `curl -sSL "https://${window.location.host}/api/vps/bootstrap-script?ip=${host}&domain=${domain}" | nohup bash > /var/log/docenty-install.log 2>&1 & echo "Instalación iniciada en fondo con PID: $!" && tail -f /var/log/docenty-install.log`;
+  const manualCurlCommand = `curl -sSL "https://${window.location.host}/deploy.sh" | bash`;
+  const manualNohupCommand = `nohup bash -c 'curl -sSL "https://${window.location.host}/deploy.sh" | bash' > /var/log/docenty-install.log 2>&1 & echo "Despliegue iniciado con PID: $!" && sleep 2 && tail -n 30 /var/log/docenty-install.log`;
 
   return (
     <div className="bg-[#121212]/95 rounded-3xl border border-blue-900/40 p-5 sm:p-7 space-y-6 shadow-2xl">
@@ -501,7 +502,7 @@ export function VpsRemoteConsole({ defaultIp = "165.22.188.160", showToast }: Vp
               value={host}
               onChange={(e) => handleHostChange(e.target.value)}
               className="w-full bg-black/60 border border-zinc-700 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-hidden focus:border-blue-500"
-              placeholder="165.22.188.160"
+              placeholder="165.22.180.160"
             />
           </div>
 
@@ -776,22 +777,42 @@ export function VpsRemoteConsole({ defaultIp = "165.22.188.160", showToast }: Vp
         </button>
 
         {showAdvancedSsh && (
-          <div className="mt-3 bg-black/70 p-3.5 rounded-xl border border-zinc-800 space-y-2 text-xs">
+          <div className="mt-3 bg-black/70 p-4 rounded-xl border border-zinc-800 space-y-3 text-xs">
             <p className="text-zinc-400 leading-relaxed">
-              Si por alguna razón prefieres entrar a la consola web de DigitalOcean, este comando único descarga e inicia todo con <code className="text-amber-300">nohup</code>, por lo que <strong>aunque la pestaña se cierre o apagues el móvil, la instalación continuará</strong>:
+              Si prefieres entrar directamente a la consola web de DigitalOcean, copia y pega este comando único. Se encarga de todo: <strong>SWAP 2GB, Node.js 20, Nginx, clonar tu repo, compilar y dejar PM2 online</strong>:
             </p>
-            <div className="flex items-center gap-2">
-              <code className="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800 font-mono text-[11px] text-amber-300 flex-1 break-all select-all">
-                {manualCurlCommand}
-              </code>
-              <button
-                type="button"
-                onClick={() => handleCopy(manualCurlCommand, "manual_curl")}
-                className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs px-3 py-2.5 rounded-lg shrink-0 flex items-center gap-1 transition cursor-pointer"
-              >
-                {copiedField === "manual_curl" ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-                <span>{copiedField === "manual_curl" ? "Copiado" : "Copiar"}</span>
-              </button>
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-semibold text-emerald-400">1. Ejecución con visualización en tiempo real:</span>
+              <div className="flex items-center gap-2">
+                <code className="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800 font-mono text-[11px] text-emerald-300 flex-1 break-all select-all">
+                  {manualCurlCommand}
+                </code>
+                <button
+                  type="button"
+                  onClick={() => handleCopy(manualCurlCommand, "manual_curl")}
+                  className="bg-emerald-800 hover:bg-emerald-700 text-white text-xs px-3 py-2.5 rounded-lg shrink-0 flex items-center gap-1 transition cursor-pointer font-bold"
+                >
+                  {copiedField === "manual_curl" ? <Check className="h-3.5 w-3.5 text-emerald-300" /> : <Copy className="h-3.5 w-3.5" />}
+                  <span>{copiedField === "manual_curl" ? "Copiado" : "Copiar"}</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5 pt-1">
+              <span className="text-[11px] font-semibold text-amber-400">2. O con protección anti-cierre (en segundo plano / nohup):</span>
+              <div className="flex items-center gap-2">
+                <code className="bg-zinc-950 p-2.5 rounded-lg border border-zinc-800 font-mono text-[11px] text-amber-300 flex-1 break-all select-all">
+                  {manualNohupCommand}
+                </code>
+                <button
+                  type="button"
+                  onClick={() => handleCopy(manualNohupCommand, "manual_nohup")}
+                  className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs px-3 py-2.5 rounded-lg shrink-0 flex items-center gap-1 transition cursor-pointer"
+                >
+                  {copiedField === "manual_nohup" ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                  <span>{copiedField === "manual_nohup" ? "Copiado" : "Copiar"}</span>
+                </button>
+              </div>
             </div>
           </div>
         )}

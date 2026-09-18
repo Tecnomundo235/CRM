@@ -75,7 +75,7 @@ export function runSshCommand(
       });
 
     const connectConfig: ConnectConfig = {
-      host: creds.host || "165.22.188.160",
+      host: creds.host || "165.22.180.160",
       port: creds.port || 22,
       username: creds.username || "root",
       readyTimeout: 15000,
@@ -107,7 +107,7 @@ export function buildBootstrapScript(config: {
   ip?: string;
   envContent?: string;
 }): string {
-  const ip = config.ip || "165.22.188.160";
+  const ip = config.ip || "165.22.180.160";
   const domain = config.domain && config.domain !== ip ? config.domain : ip;
   const envContent = config.envContent || "";
 

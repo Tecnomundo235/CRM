@@ -466,25 +466,192 @@ app.post("/api/vps/install-status", async (req, res) => {
   }
 });
 
+// Ruta para descargar directamente el bundle compilado actualizado
+app.get(["/dist/server.cjs", "/api/download/server.cjs"], (req, res) => {
+  const filePath = path.join(process.cwd(), "dist/server.cjs");
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
+  }
+  return res.status(404).send("Bundle not compiled yet");
+});
+
 // 5. Script bash directo para descargar/ejecutar manualmente (Opción curl)
-app.get("/api/vps/bootstrap-script", async (req, res) => {
+app.get(["/deploy.sh", "/install.sh", "/api/vps/bootstrap-script"], async (req, res) => {
   const metaConfig = await getActiveMetaConfig();
-  const domain = (req.query.domain as string) || "165.22.188.160";
-  const ip = (req.query.ip as string) || "165.22.188.160";
-  const envContent = `NODE_ENV=production
+  const domain = (req.query.domain as string) || "165.22.180.160";
+  const ip = (req.query.ip as string) || "165.22.180.160";
+  const repoUrl = (req.query.repo as string) || "https://github.com/Tecnomundo235/CRM.git";
+
+  const fullScript = `#!/bin/bash
+# ==============================================================================
+# DOCENTY PRO & CRM - SCRIPT UNIFICADO DE INSTALACIÓN Y DESPLIEGUE DIGITALOCEAN
+# Droplet: Ubuntu 24.04 (1 vCPU, 512 MB RAM, 10 GB SSD) | IP: ${ip}
+# ==============================================================================
+set -e
+
+echo "🚀 ==============================================================="
+echo "🚀 INICIANDO INSTALACIÓN UNIFICADA DE DOCENTY PRO EN DIGITALOCEAN"
+echo "⏰ Fecha: \$(date)"
+echo "🚀 ==============================================================="
+
+# 1. SWAP VITAL DE 2GB (Para evitar que el kernel mate Node.js en 512MB RAM)
+echo "💾 [1/7] Verificando memoria SWAP de 2GB..."
+if ! swapon --show | grep -q "/swapfile"; then
+  echo "Creando archivo SWAP de 2GB..."
+  fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  grep -qxF '/swapfile none swap sw 0 0' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  sysctl vm.swappiness=20
+  echo 'vm.swappiness=20' >> /etc/sysctl.conf 2>/dev/null || true
+  echo "✅ SWAP de 2GB activada correctamente."
+else
+  echo "✅ SWAP de 2GB ya está activa."
+fi
+
+# 2. DEPENDENCIAS DEL SISTEMA
+echo "📦 [2/7] Actualizando repositorios e instalando paquetes base..."
+apt-get update -y
+DEBIAN_FRONTEND=noninteractive apt-get install -y curl wget git nginx ufw build-essential
+
+# 3. NODE.JS 20 LTS Y PM2
+echo "⚡ [3/7] Verificando Node.js 20 y PM2..."
+if ! command -v node &> /dev/null || ! node -v | grep -q "v20"; then
+  echo "Instalando Node.js 20 LTS oficial..."
+  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+  DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
+fi
+echo "Node versión: \$(node -v)"
+echo "NPM versión: \$(npm -v)"
+
+if ! command -v pm2 &> /dev/null; then
+  echo "Instalando PM2..."
+  npm install -g pm2
+fi
+
+# 4. FIREWALL Y NGINX REVERSE PROXY
+echo "🛡️ [4/7] Configurando Firewall UFW y Nginx..."
+ufw allow 22/tcp || true
+ufw allow 80/tcp || true
+ufw allow 443/tcp || true
+ufw --force enable || true
+
+cat << 'NGINX_EOF' > /etc/nginx/sites-available/docenty
+server {
+    listen 80;
+    server_name _;
+    client_max_body_size 50M;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 300s;
+    }
+}
+NGINX_EOF
+
+ln -sf /etc/nginx/sites-available/docenty /etc/nginx/sites-enabled/docenty
+rm -f /etc/nginx/sites-enabled/default
+nginx -t && systemctl reload nginx
+echo "✅ Nginx configurado y recargado."
+
+# 5. CLONAR O ACTUALIZAR REPOSITORIO
+echo "📥 [5/7] Descargando código de GitHub (${repoUrl})..."
+mkdir -p /var/www/docenty
+cd /var/www/docenty
+
+if [ ! -d .git ]; then
+  git clone ${repoUrl} . || {
+    git init
+    git remote add origin ${repoUrl}
+    git fetch --depth=1 origin main || git fetch origin
+    git checkout -f main || git checkout -f master || true
+  }
+else
+  git remote set-url origin ${repoUrl} || true
+  git fetch origin main || git fetch origin || true
+  git checkout -f main || git checkout -f master || true
+  git pull origin main || git pull || true
+fi
+
+# 6. CONFIGURAR .ENV
+echo "⚙️ [6/7] Configurando variables de entorno (.env)..."
+cat << 'ENV_EOF' > /var/www/docenty/.env
+NODE_ENV=production
 PORT=3000
 GEMINI_API_KEY=${process.env.GEMINI_API_KEY || ""}
 MONGODB_URI=${process.env.MONGODB_URI || ""}
-APP_URL=http://${domain}
+APP_URL=http://${ip}
 META_WA_TOKEN=${metaConfig.accessToken || ""}
 META_PHONE_NUM=${metaConfig.phoneNumberId || "1221464777727895"}
 META_PHONE_NUMBER_ID=${metaConfig.phoneNumberId || "1221464777727895"}
 META_WABA_ID=${metaConfig.wabaId || "2562659904236968"}
 META_VERIFY_TOKEN=${metaConfig.verifyToken || "docenty_pro_secure_verify_2026"}
+EVOLUTION_API_URL=http://${ip}:8080
+EVOLUTION_API_KEY=docenty_pro_secret_key_2026
+EVOLUTION_INSTANCE_NAME=docenty-pro
+ENV_EOF
+
+# 7. INSTALACIÓN Y COMPILACIÓN
+echo "🏗️ [7/7] Instalando dependencias y compilando aplicación..."
+export NODE_OPTIONS="--max-old-space-size=1536"
+npm install --include=dev --no-audit --no-fund
+npm run build
+
+# Crear ecosystem.config.cjs si no existe
+if [ ! -f ecosystem.config.cjs ]; then
+cat << 'PM2_EOF' > ecosystem.config.cjs
+module.exports = {
+  apps: [
+    {
+      name: "docenty-pro",
+      script: "dist/server.cjs",
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: "350M",
+      node_args: "--max-old-space-size=256",
+      env: {
+        NODE_ENV: "production",
+        PORT: 3000
+      },
+      env_file: ".env",
+      exp_backoff_restart_delay: 200,
+      error_file: "logs/err.log",
+      out_file: "logs/out.log",
+      merge_logs: true,
+      time: true
+    }
+  ]
+};
+PM2_EOF
+fi
+
+mkdir -p logs
+pm2 delete docenty-pro 2>/dev/null || true
+pm2 start ecosystem.config.cjs
+pm2 save
+pm2 startup systemd -u root --hp /root || true
+
+echo ""
+echo "=================================================================="
+echo "🎉 ¡DOCENTY PRO Y WHATSAPP AI INSTALADOS Y ONLINE EN PM2!"
+echo "⏰ Fin: \$(date)"
+echo "🌐 URL Pública: http://${ip}"
+echo "=================================================================="
+pm2 status docenty-pro
 `;
 
-  const script = buildBootstrapScript({ ip, domain, envContent });
-  res.type("text/x-shellscript").send(script);
+  res.type("text/x-shellscript").send(fullScript);
 });
 
 // 1. ENDPOINT DE VERIFICACIÓN DE WEBHOOK
@@ -857,8 +1024,15 @@ async function sendWhatsAppMessage(targetPhone: string, textBody: string): Promi
   }
 }
 
-async function sendAdminNotification(messageText: string) {
+async function sendAdminNotification(messageText: string, fromLeadPhone?: string) {
   const adminPhone = "584144783204"; // Número personal del arquitecto Reymon Castillo
+  
+  // Si el mensaje proviene del mismo número del administrador que está probando, no enviarle el eco de su propio mensaje
+  if (fromLeadPhone && cleanPhoneNumber(fromLeadPhone) === cleanPhoneNumber(adminPhone)) {
+    console.log("[Admin Notification] Omitiendo notificación al admin para evitar eco en su propio chat de prueba.");
+    return;
+  }
+
   // No bloquear la ejecución principal si falla la notificación al admin
   sendWhatsAppMessage(adminPhone, messageText).catch((err) => {
     console.warn("[Admin Notification] No se pudo enviar alerta al admin:", err);
@@ -928,11 +1102,11 @@ async function processWebhookInBackground(incoming: EvolutionIncomingPayload) {
     await updateLead(lead);
     broadcastToDashboard("lead:updated", lead);
 
-    // Notificación en tiempo real al administrador por WhatsApp
+    // Notificación en tiempo real al administrador por WhatsApp (sin eco al propio admin)
     const notifyMsg = isNewLead
       ? `🆕 *Nuevo Prospecto Registrado*\n\n*Nombre:* ${senderName}\n*Celular:* ${from}\n*Referencia:* ${lead.assignedRef}\n\n*Mensaje:* "${promptInput}"`
       : `💬 *Mensaje de:* ${lead.name} (${lead.phone})\n*Mensaje:* "${promptInput}"`;
-    await sendAdminNotification(notifyMsg);
+    await sendAdminNotification(notifyMsg, from);
 
     if (lead.isPaused) {
       console.log(`[Webhook Background] Camila está pausada para ${lead.name}. Se omite auto-respuesta.`);
@@ -963,48 +1137,59 @@ Puedes escribirle directamente a su WhatsApp haciendo clic aquí: https://wa.me/
       await updateLead(lead);
       broadcastToDashboard("lead:updated", lead);
 
-      await sendAdminNotification(`⚠️ *Atención Humana Requerida*\nEl docente *${lead.name}* (${lead.phone}) ha solicitado un asesor humano.`);
+      await sendAdminNotification(`⚠️ *Atención Humana Requerida*\nEl docente *${lead.name}* (${lead.phone}) ha solicitado un asesor humano.`, from);
       await sendWhatsAppMessage(from, botReply);
       return;
     }
 
-    // ENRUTADOR DE INTENCIONES (GREETING, PURCHASE, OTHER)
+    // ENRUTADOR DE INTENCIONES (GREETING, OPTION_1, OPTION_2, PURCHASE, OTHER)
     let intent = "OTHER";
     
     const normalizedInput = promptInput.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-    const isGreeting = /^(hola|buen(as|os)|tardes|noches|saludo|epale|alo|hey|hi|buen dia)/.test(normalizedInput);
-    const isPayment = /pago|pagar|comprar|precio|costo|datos|banco|bcv|transferencia|suscri|cuenta|adquirir|web|pago movil/.test(normalizedInput);
+    const isGreeting = /^(hola|buen(as|os)|tardes|noches|saludo|epale|alo|hey|hi|buen dia)\b/i.test(normalizedInput);
+    const isOption1 = /\b(opcion\s*1|la\s*1|^1$|docenty|planificacion|escolar|plataforma|informacion\s*(sobre|de)?\s*(la\s*)?(plataforma|docenty)?|quiero\s*informacion)\b/i.test(normalizedInput);
+    const isOption2 = /\b(opcion\s*2|la\s*2|^2$|desarrollo|web|pagina\s*web|tienda|pos|ecommerce|aplicaci|software|sistema)\b/i.test(normalizedInput);
+    const isPayment = /\b(pago|pagar|comprar|precio|costo|datos|banco|bcv|transferencia|suscri|cuenta|adquirir|pago\s*movil|quiero\s*pagar)\b/i.test(normalizedInput);
 
-    if (isGreeting && !isPayment) {
-      intent = "GREETING";
-    } else if (isPayment) {
+    if (isPayment) {
       intent = "PURCHASE";
+    } else if (isOption1 && !isGreeting) {
+      intent = "OPTION_1";
+    } else if (isOption2 && !isGreeting) {
+      intent = "OPTION_2";
+    } else if (isGreeting) {
+      intent = "GREETING";
     } else {
-      // Uso de clasificación inteligente con Gemini para mayor precisión
-      try {
-        const classifierPrompt = `Analiza el siguiente mensaje de un usuario de WhatsApp y clasifícalo en una de estas categorías:
-1. "GREETING" (Si es un saludo amigable como Hola, Buenos días, Hola Camila, etc.)
-2. "PURCHASE" (Si expresa interés explícito en pagar, comprar la página web, adquirir la suscripción, costo, precio, datos de pago móvil, banco, o cómo transferir)
-3. "OTHER" (Cualquier otra consulta, pregunta educativa, características de Docenty PRO, dudas técnicas, etc.)
+      // Intento de clasificación semántica con Gemini
+      if (process.env.GEMINI_API_KEY) {
+        try {
+          const classifierPrompt = `Analiza el siguiente mensaje de un usuario de WhatsApp y clasifícalo en una de estas categorías:
+1. "GREETING" (Si es un saludo inicial)
+2. "OPTION_1" (Si pide información sobre Docenty PRO, planificación escolar, planes para profesores o docentes)
+3. "OPTION_2" (Si pide información sobre desarrollo web, tiendas online, software, aplicaciones o páginas)
+4. "PURCHASE" (Si quiere pagar, comprar, datos de pago móvil, banco o tasa)
+5. "OTHER" (Cualquier otra consulta)
 
 Mensaje: "${promptInput}"
+Responde ÚNICAMENTE con la palabra de la categoría.`;
 
-Responde ÚNICAMENTE con una palabra: GREETING, PURCHASE o OTHER.`;
-
-        const classificationRes = await ai.models.generateContent({
-          model: "gemini-3.5-flash",
-          contents: classifierPrompt,
-          config: { temperature: 0.1 }
-        });
-        const resText = classificationRes.text?.toUpperCase().trim() || "";
-        if (resText.includes("GREETING")) intent = "GREETING";
-        else if (resText.includes("PURCHASE")) intent = "PURCHASE";
-      } catch (err) {
-        console.error("Fallo al clasificar intención con Gemini, usando regex:", err);
+          const classificationRes = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: classifierPrompt,
+            config: { temperature: 0.1 }
+          });
+          const resText = classificationRes.text?.toUpperCase().trim() || "";
+          if (resText.includes("OPTION_1")) intent = "OPTION_1";
+          else if (resText.includes("OPTION_2")) intent = "OPTION_2";
+          else if (resText.includes("PURCHASE")) intent = "PURCHASE";
+          else if (resText.includes("GREETING")) intent = "GREETING";
+        } catch (err) {
+          console.error("Fallo al clasificar intención con Gemini:", err);
+        }
       }
     }
 
-    console.log(`[Intent Router] Mensaje clasificado como: ${intent}`);
+    console.log(`[Intent Router] Mensaje: "${promptInput}" -> Clasificado como: ${intent}`);
 
     if (intent === "GREETING") {
       botReply = `¡Hola! ¿Cómo estás? Es un gusto saludarte. 😊 Soy **Camila**, la asistente virtual de **META TC**. Me complace darte la bienvenida a nuestro canal oficial de atención.
@@ -1013,8 +1198,38 @@ Responde ÚNICAMENTE con una palabra: GREETING, PURCHASE o OTHER.`;
 1. 📚 **Docenty PRO**: Nuestra plataforma de planificación escolar automatizada con Inteligencia Artificial que simplifica y optimiza tu carga académica diaria.
 2. 💻 **Desarrollo Digital**: Diseñamos páginas web corporativas, tiendas virtuales (e-commerce), sistemas de facturación POS y aplicaciones móviles a medida de alta calidad.
 
-¿Cuál de estas opciones te gustaría conocer a detalle hoy? ¡Cuéntame y con gusto te asesoro!`;
+👉 Responde con el número **1** o **2** para darte información detallada. ¡Cuéntame y con gusto te asesoro!`;
     } 
+    else if (intent === "OPTION_1") {
+      botReply = `📚 *Docenty PRO - Plataforma Inteligente de Planificación Escolar*
+
+Docenty PRO está diseñada para facilitar la labor pedagógica de docentes y directivos escolares en Venezuela e Hispanoamérica:
+
+✨ **Generación de Planes de Clase en Segundos:** Crea proyectos de aprendizaje, planes de lapso y semanales ajustados a los lineamientos curriculares oficiales.
+📊 **Instrumentos de Evaluación Automatizados:** Genera rúbricas, escalas de estimación, listas de cotejo y pruebas con criterios pedagógicos rigurosos.
+📝 **Control de Asistencia y Calificaciones:** Registra el avance de tus estudiantes sin papeleos ni complicaciones.
+📥 **Exportación Profesional Inmediata:** Descarga todos tus planes en formato PDF y Word con membrete listo para entregar a coordinación.
+
+💎 **Plan Premium Docenty PRO:**
+• Acceso ilimitado a todas las herramientas con IA.
+• Tan solo **$2.00 USD al mes** (calculado en bolívares a la tasa oficial del BCV).
+
+👉 Si deseas activar tu cuenta hoy mismo, escribe **"Quiero Pagar"** para recibir los datos de Pago Móvil con tu código de reserva único: **${lead.assignedRef}**.
+¿O tienes alguna duda pedagógica que te gustaría consultar?`;
+    }
+    else if (intent === "OPTION_2") {
+      botReply = `💻 *Desarrollo Digital & Soluciones Tecnológicas - META TC*
+
+Impulsamos tu negocio con tecnología moderna, rápida y a medida:
+
+🌐 **Páginas Web Corporativas & Portafolios:** Diseños vanguardistas adaptados a teléfonos móviles para captar clientes 24/7.
+🛒 **Tiendas Virtuales (E-Commerce):** Catálogos digitales interactivos con integración a WhatsApp y métodos de cobro en bolívares y divisas.
+🧾 **Sistemas POS & Facturación:** Control de inventario, ventas diarias, cuentas por cobrar y reportes financieros en tiempo real.
+📱 **Aplicaciones Móviles & Web Apps:** Software personalizado para automatizar cualquier proceso administrativo o comercial.
+
+👨‍💻 **Atención Personalizada con el Desarrollador:**
+Para cotizar tu proyecto o recibir una asesoría técnica directa con **Reymon Castillo** (Arquitecto de Software), escribe la palabra **"Humano"** o contáctalo en https://wa.me/584144783204.`;
+    }
     else if (intent === "PURCHASE") {
       botReply = `¡Excelente elección! 🚀 Para activar tu **Suscripción Premium de 30 días** en **Docenty PRO** ($2 USD al cambio oficial del BCV en bolívares) realiza tu Pago Móvil a los siguientes datos oficiales de transferencia:
 
@@ -1031,38 +1246,46 @@ Una vez que completes el Pago Móvil, envíanos la **captura de pantalla o compr
     } 
     else {
       // Fallback: Generación dinámica contextual inteligente con Gemini
-      try {
-        const historyContext = lead.messages
-          .map((m) => `${m.sender === "bot" ? "Docenty AI" : lead.name}: ${m.text}`)
-          .join("\n");
+      let geminiSuccess = false;
+      if (process.env.GEMINI_API_KEY) {
+        try {
+          const historyContext = lead.messages
+            .map((m) => `${m.sender === "bot" ? "Docenty AI (Camila)" : lead.name}: ${m.text}`)
+            .join("\n");
 
-        const currentCodesText = systemConfigs.premiumCodes && systemConfigs.premiumCodes.length > 0
-          ? `\n\n[SISTEMA - CÓDIGOS DE ACTIVACIÓN DISPONIBLES EN EL CRM]
-Los siguientes códigos Premium están actualmente DISPONIBLES para ser entregados. Elige uno de estos códigos si el pago ha sido aprobado:
-${systemConfigs.premiumCodes.map(c => `- CÓDIGO: [${c}] | ESTADO: DISPONIBLE`).join("\n")}`
-          : `\n\n[SISTEMA - CÓDIGOS DE ACTIVACIÓN DISPONIBLES EN EL CRM]
-No hay códigos premium en el CRM en este momento. Si necesitas entregar un código, indica que un administrador le proporcionará su código de acceso de inmediato por este chat.`;
+          const currentCodesText = systemConfigs.premiumCodes && systemConfigs.premiumCodes.length > 0
+            ? `\n\n[SISTEMA - CÓDIGOS DE ACTIVACIÓN DISPONIBLES EN EL CRM]\n${systemConfigs.premiumCodes.map(c => `- CÓDIGO: [${c}] | ESTADO: DISPONIBLE`).join("\n")}`
+            : "";
 
-        const prompt = `Historial de la conversación de WhatsApp hasta ahora:\n${historyContext}\n\nResponde el último mensaje del cliente en WhatsApp con tu personalidad de Docenty AI (Camila). Recuerda que la referencia asignada a este cliente es: ${lead.assignedRef}.\nNo inventes referencias de otros clientes. Si el cliente pregunta qué plan tiene disponible, recuérdale que tiene reservada la Suscripción Premium de $2 USD (al cambio oficial del BCV en bolívares) con esa referencia.\nRecuerda ofrecer de forma opcional y amable la transferencia con un asesor humano si su consulta requiere soporte técnico especializado.`;
+          const prompt = `Historial de la conversación de WhatsApp hasta ahora:\n${historyContext}\n\nResponde el último mensaje del cliente en WhatsApp con tu personalidad de Camila (asistente de META TC y Docenty PRO).\nEl usuario dijo: "${promptInput}".\nSi el usuario pregunta por planes o la opción 1, explícale con entusiasmo las ventajas de Docenty PRO y recuérdale que cuesta $2 USD (tasa BCV) con la referencia ${lead.assignedRef}.\nSi el usuario pregunta por desarrollo de páginas web o la opción 2, invítalo a contactar a Reymon Castillo con la palabra "Humano".`;
 
-        const response = await ai.models.generateContent({
-          model: "gemini-3.5-flash",
-          contents: prompt,
-          config: {
-            systemInstruction: systemConfigs.botSystemPrompt + currentCodesText,
-            temperature: 0.7,
-          },
-        });
+          const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+              systemInstruction: systemConfigs.botSystemPrompt + currentCodesText,
+              temperature: 0.7,
+            },
+          });
 
-        botReply = response.text || "Disculpe, ¿podría repetir su consulta? Estoy aquí para ayudarle con Docenty PRO.";
-        
-        // Agregar nota de transferencia humana si no está presente
-        if (!botReply.includes("04144783204") && !botReply.toLowerCase().includes("humano")) {
-          botReply += `\n\n📌 *Nota:* Si prefieres atención directa con una persona o necesitas soporte técnico complejo, escribe la palabra **"Humano"** o **"Asesor"** en cualquier momento y te transferiré con el arquitecto del sistema.`;
+          if (response.text && response.text.trim()) {
+            botReply = response.text.trim();
+            geminiSuccess = true;
+          }
+        } catch (err) {
+          console.error("Error al procesar consulta general con Gemini:", err);
         }
-      } catch (err) {
-        console.error("Error al procesar consulta general con Gemini:", err);
-        botReply = `¡Hola, ${lead.name}! Gracias por comunicarte con Docenty PRO. Si deseas activar tu cuenta Premium por $2 USD (tasa BCV) escribe **"Quiero Pagar"** para recibir los datos de transferencia. Si tienes alguna duda, escribe **"Humano"** y con gusto te transferiré con nuestro soporte. 😊`;
+      }
+
+      if (!geminiSuccess) {
+        // Respuesta contextual amigable sin repetir el mensaje de venta rígido
+        botReply = `¡Con gusto te ayudo, ${lead.name}! 😊
+
+Para orientarte mejor, ¿en cuál de nuestras soluciones estás más interesado?
+1️⃣ **Docenty PRO**: Planificación escolar con IA para docentes y directivos ($2 USD / mes tasa BCV).
+2️⃣ **Desarrollo Web & Software**: Páginas web corporativas, tiendas online y sistemas a medida.
+
+Escribe **1** para conocer más de Docenty PRO, **2** para desarrollo de páginas web, o **"Humano"** si deseas hablar directamente con Reymon Castillo. 🤝`;
       }
     }
 
@@ -1089,8 +1312,8 @@ No hay códigos premium en el CRM en este momento. Si necesitas entregar un cód
       base64Str = await downloadEvolutionMedia(incoming.rawMessage);
     }
 
-    // Notificar al administrador por WhatsApp
-    await sendAdminNotification(`📸 *Capture Recibido* de *${lead.name}* (${lead.phone}). Analizando comprobante de pago con Inteligencia Artificial...`);
+    // Notificar al administrador por WhatsApp (sin eco al propio admin)
+    await sendAdminNotification(`📸 *Capture Recibido* de *${lead.name}* (${lead.phone}). Analizando comprobante de pago con Inteligencia Artificial...`, from);
 
     if (base64Str) {
       try {
@@ -1098,7 +1321,7 @@ No hay códigos premium en el CRM en este momento. Si necesitas entregar un cód
         Determina si la transferencia de Pago Móvil fue hecha con éxito, busca el monto, la fecha, el banco emisor y muy importante: busca si el concepto, nota o código de referencia coincide de alguna manera con la referencia de este cliente: ${lead.assignedRef} o si tiene alguna otra referencia de pago válida para Docenty.`;
 
         const response = await ai.models.generateContent({
-          model: "gemini-3.5-flash",
+          model: "gemini-2.5-flash",
           contents: [
             {
               inlineData: {
@@ -1179,11 +1402,11 @@ No hay códigos premium en el CRM en este momento. Si necesitas entregar un cód
           const premiumCode = await assignPremiumCode(lead);
           botReply = `🎉 **¡PAGO CONFIRMADO Y ACTIVADO CON ÉXITO!** 🎉\n\nEstimado/a ${lead.name}, nuestro sistema de visión inteligente ha validado su comprobante de pago de manera exitosa.\n\n• **Monto detectado:** ${receiptData.monto}\n• **Estado:** Activo Premium ✅\n\nSu cuenta de **Docenty PRO** está lista para ser activada con acceso completo a las planeaciones por IA.\n\n🔑 **Instrucciones para ingresar:**\n1. **Accede a la plataforma:** https://docente-pro-by-meta-tc.vercel.app/\n2. **Inicia sesión:** Elige la opción de **Iniciar sesión con Google** con tu cuenta de correo personal.\n3. **Activa tu licencia:** Una vez dentro, introduce tu **Código de Activación Premium** único para activar tus 30 días de acceso ilimitado:\n   👉 **Código Premium:** \`${premiumCode}\`\n\n*Nota: No necesitas ninguna contraseña provisional ni datos de usuario adicionales. Tu acceso se gestiona de forma segura directamente con tu cuenta de Google.*\n\n¡Te damos una cordial bienvenida a bordo! Estamos sumamente emocionados de ayudarte a simplificar tu planificación y ahorrar valioso tiempo. 🚀📚`;
           
-          await sendAdminNotification(`✅ *Pago Aprobado Automáticamente*\n\n*Cliente:* ${lead.name}\n*Monto:* ${receiptData.monto}\n*Referencia:* ${receiptData.referencia}\n*Código Premium:* ${premiumCode}`);
+          await sendAdminNotification(`✅ *Pago Aprobado Automáticamente*\n\n*Cliente:* ${lead.name}\n*Monto:* ${receiptData.monto}\n*Referencia:* ${receiptData.referencia}\n*Código Premium:* ${premiumCode}`, from);
         } else {
           botReply = `⚠️ **Validación de Pago en Espera**\n\nHola ${lead.name}, he recibido tu comprobante de pago pero nuestro sistema detecta un detalle:\n\n• **Monto leído:** ${receiptData.monto || "No detectado"}\n• **Referencia leída:** \`${receiptData.referencia || "Ninguna"}\`\n• **Tu Referencia Asignada:** \`${lead.assignedRef}\`\n\n${receiptData.status === "REJECTED" ? "El archivo enviado no parece ser un comprobante de transferencia válido." : "Por favor, confirma que la transferencia se haya realizado ingresando correctamente tu código de referencia asignado. Un ejecutivo revisará el comprobante manualmente a la brevedad."}\n\nSi consideras que hay un error, puedes volver a intentar enviando una captura más legible. 😊`;
           
-          await sendAdminNotification(`⚠️ *Pago en Espera / Rechazado*\n\n*Cliente:* ${lead.name}\n*Monto:* ${receiptData.monto}\n*Referencia Leída:* ${receiptData.referencia}\n*Análisis:* ${receiptData.analisis}`);
+          await sendAdminNotification(`⚠️ *Pago en Espera / Rechazado*\n\n*Cliente:* ${lead.name}\n*Monto:* ${receiptData.monto}\n*Referencia Leída:* ${receiptData.referencia}\n*Análisis:* ${receiptData.analisis}`, from);
         }
 
         await updateLead(lead);
@@ -1230,7 +1453,7 @@ No hay códigos premium en el CRM en este momento. Si necesitas entregar un cód
         await updateLead(lead);
         broadcastToDashboard("lead:updated", lead);
 
-        await sendAdminNotification(`✅ *Pago Aprobado (Visión Fallback)*\n*Cliente:* ${lead.name}\n*Monto:* ${receiptData.monto}\n*Referencia:* ${receiptData.referencia}\n*Código:* ${premiumCode}`);
+        await sendAdminNotification(`✅ *Pago Aprobado (Visión Fallback)*\n*Cliente:* ${lead.name}\n*Monto:* ${receiptData.monto}\n*Referencia:* ${receiptData.referencia}\n*Código:* ${premiumCode}`, from);
 
         if (lead.isPaused) {
           console.log(`[Webhook Background] Camila está pausada para ${lead.name}. Se omite respuesta al capture.`);
@@ -1275,8 +1498,8 @@ No hay códigos premium en el CRM en este momento. Si necesitas entregar un cód
       base64Str = await downloadEvolutionMedia(incoming.rawMessage);
     }
 
-    // Notificar al administrador por WhatsApp
-    await sendAdminNotification(`🎤 *Nota de voz recibida* de *${lead.name}* (${lead.phone}). Procesando audio con Inteligencia Artificial...`);
+    // Notificar al administrador por WhatsApp (sin eco al propio admin)
+    await sendAdminNotification(`🎤 *Nota de voz recibida* de *${lead.name}* (${lead.phone}). Procesando audio con Inteligencia Artificial...`, from);
 
     if (base64Str) {
       let cleanMimeType = mimeType;
@@ -1328,7 +1551,7 @@ ${systemConfigs.premiumCodes.map(c => `- CÓDIGO: [${c}] | ESTADO: DISPONIBLE`).
 No hay códigos premium disponibles en el pool en este momento. Si necesitas entregar un código, dile que un administrador le enviará su código de acceso de inmediato por este chat.`;
 
         const response = await ai.models.generateContent({
-          model: "gemini-3.5-flash",
+          model: "gemini-2.5-flash",
           contents: [
             {
               inlineData: {
