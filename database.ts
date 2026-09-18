@@ -149,41 +149,53 @@ Protocolo de Seguridad:
   }
 };
 
-// In-Memory & File Fallback State (will be used if MONGODB_URI is not set)
+// In-Memory & File Fallback State (will be used if MONGODB_URI is not set or temporarily down)
 let localLeadsStore: Lead[] = [];
 let localConfigStore: SystemConfigs = { ...DEFAULT_CONFIG };
 
-const LEADS_FILE = path.join(process.cwd(), "leads_store.json");
-const CONFIG_FILE = path.join(process.cwd(), "config_store.json");
+// In serverless environments like AWS Lambda / Vercel, process.cwd() is read-only (/var/task).
+// Only /tmp is writable for temporary disk persistence.
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const STORAGE_DIR = isServerless ? "/tmp" : process.cwd();
+const LEADS_FILE = path.join(STORAGE_DIR, "leads_store.json");
+const CONFIG_FILE = path.join(STORAGE_DIR, "config_store.json");
+const BUNDLED_LEADS_FILE = path.join(process.cwd(), "leads_store.json");
+const BUNDLED_CONFIG_FILE = path.join(process.cwd(), "config_store.json");
 
 function loadLocalStores() {
   try {
+    let raw = "";
     if (fs.existsSync(LEADS_FILE)) {
-      const data = fs.readFileSync(LEADS_FILE, "utf-8");
-      localLeadsStore = JSON.parse(data);
-      console.log(`[CRM Storage] Loaded ${localLeadsStore.length} leads from local JSON store.`);
+      raw = fs.readFileSync(LEADS_FILE, "utf-8");
+    } else if (fs.existsSync(BUNDLED_LEADS_FILE)) {
+      raw = fs.readFileSync(BUNDLED_LEADS_FILE, "utf-8");
+    }
+    if (raw) {
+      localLeadsStore = JSON.parse(raw);
+      console.log(`[CRM Storage] Loaded ${localLeadsStore.length} leads from local store.`);
     } else {
-      fs.writeFileSync(LEADS_FILE, JSON.stringify(DEFAULT_LEADS, null, 2));
       localLeadsStore = [...DEFAULT_LEADS];
-      console.log("[CRM Storage] Initialized local leads JSON file.");
     }
   } catch (err) {
-    console.error("Error loading local leads file store:", err);
+    console.warn("[CRM Storage Warning] Could not load local leads file store:", err);
     localLeadsStore = [...DEFAULT_LEADS];
   }
 
   try {
+    let raw = "";
     if (fs.existsSync(CONFIG_FILE)) {
-      const data = fs.readFileSync(CONFIG_FILE, "utf-8");
-      localConfigStore = JSON.parse(data);
-      console.log("[CRM Storage] Loaded system configs from local JSON store.");
+      raw = fs.readFileSync(CONFIG_FILE, "utf-8");
+    } else if (fs.existsSync(BUNDLED_CONFIG_FILE)) {
+      raw = fs.readFileSync(BUNDLED_CONFIG_FILE, "utf-8");
+    }
+    if (raw) {
+      localConfigStore = JSON.parse(raw);
+      console.log("[CRM Storage] Loaded system configs from local store.");
     } else {
-      fs.writeFileSync(CONFIG_FILE, JSON.stringify(DEFAULT_CONFIG, null, 2));
       localConfigStore = { ...DEFAULT_CONFIG };
-      console.log("[CRM Storage] Initialized local configs JSON file.");
     }
   } catch (err) {
-    console.error("Error loading local configs file store:", err);
+    console.warn("[CRM Storage Warning] Could not load local configs file store:", err);
     localConfigStore = { ...DEFAULT_CONFIG };
   }
 }
@@ -191,16 +203,18 @@ function loadLocalStores() {
 function saveLocalLeadsStore() {
   try {
     fs.writeFileSync(LEADS_FILE, JSON.stringify(localLeadsStore, null, 2));
-  } catch (err) {
-    console.error("Error saving local leads file store:", err);
+  } catch (err: any) {
+    // Non-fatal fallback: localLeadsStore is maintained in-memory
+    console.warn("[CRM Storage Warning] Could not persist leads to disk (using in-memory store):", err.message);
   }
 }
 
 function saveLocalConfigStore() {
   try {
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(localConfigStore, null, 2));
-  } catch (err) {
-    console.error("Error saving local configs file store:", err);
+  } catch (err: any) {
+    // Non-fatal fallback: localConfigStore is maintained in-memory
+    console.warn("[CRM Storage Warning] Could not persist config to disk (using in-memory store):", err.message);
   }
 }
 
@@ -211,12 +225,15 @@ loadLocalStores();
 let mongoClient: MongoClient | null = null;
 let mongoDb: Db | null = null;
 let isConnecting = false;
+let lastMongoErrorTime = 0;
+const MONGO_COOLDOWN_MS = 25000; // 25s circuit-breaker to avoid 8-32s timeouts on every request when Atlas is unreachable
 const MONGODB_URI = process.env.MONGODB_URI || "";
 
 /**
  * Ensures an active MongoDB database connection.
  * If the connection dropped due to prolonged inactivity (e.g., 1-2 days),
  * it automatically re-establishes the connection without losing data.
+ * Implements a circuit-breaker to prevent hanging serverless functions when Atlas firewall blocks IPs.
  */
 export async function getDbConnection(): Promise<Db | null> {
   if (!MONGODB_URI) {
@@ -234,14 +251,22 @@ export async function getDbConnection(): Promise<Db | null> {
     }
   }
 
+  // Circuit-breaker: if Atlas failed recently (e.g., IP not whitelisted or paused), fail fast and use local store
+  if (lastMongoErrorTime > 0 && Date.now() - lastMongoErrorTime < MONGO_COOLDOWN_MS) {
+    return null;
+  }
+
   // Prevent multiple parallel reconnection attempts
   if (isConnecting) {
     let retries = 0;
     while (isConnecting && retries < 10) {
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 200));
       retries++;
     }
     if (mongoDb) return mongoDb;
+    if (lastMongoErrorTime > 0 && Date.now() - lastMongoErrorTime < MONGO_COOLDOWN_MS) {
+      return null;
+    }
   }
 
   isConnecting = true;
@@ -256,20 +281,22 @@ export async function getDbConnection(): Promise<Db | null> {
     }
 
     mongoClient = new MongoClient(MONGODB_URI, {
-      maxPoolSize: 20,
-      minPoolSize: 2,
-      maxIdleTimeMS: 60000,
-      serverSelectionTimeoutMS: 8000,
-      socketTimeoutMS: 45000,
-      connectTimeoutMS: 10000,
+      maxPoolSize: 10,
+      minPoolSize: 0,
+      maxIdleTimeMS: 30000,
+      serverSelectionTimeoutMS: 3500, // Fail fast in 3.5s instead of 8s
+      socketTimeoutMS: 20000,
+      connectTimeoutMS: 4000,
     });
 
     await mongoClient.connect();
     mongoDb = mongoClient.db("docenty_crm");
+    lastMongoErrorTime = 0;
     console.log("[MongoDB Audit] MongoDB connection successfully established and verified!");
     return mongoDb;
-  } catch (error) {
-    console.error("[MongoDB Audit ERROR] Failed to connect to MongoDB Atlas:", error);
+  } catch (error: any) {
+    lastMongoErrorTime = Date.now();
+    console.error("[MongoDB Audit ERROR] Failed to connect to MongoDB Atlas:", error.message || error);
     mongoClient = null;
     mongoDb = null;
     return null;

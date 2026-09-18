@@ -92,16 +92,17 @@ async function getActiveMetaConfig() {
 }
 
 // Evolution API WhatsApp Configuration (Self-hosted on VPS - Fallback/Secondary)
-const EVOLUTION_API_URL = (process.env.EVOLUTION_API_URL || "http://165.22.188.168:8080").replace(/\/+$/, "");
+// Note: Default points to verified DigitalOcean Droplet IP 165.22.180.160
+const EVOLUTION_API_URL = (process.env.EVOLUTION_API_URL || "http://165.22.180.160:8080").replace(/\/+$/, "");
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || "docenty_pro_secret_key_2026";
 const EVOLUTION_INSTANCE_NAME = process.env.EVOLUTION_INSTANCE_NAME || "docenty-pro";
 
-// Health check and Keep-Alive Ping endpoint
+// Health check and Keep-Alive Ping endpoint (Returns 200 OK so uptime monitors do not flap during cold-starts)
 app.get(["/api/health", "/health", "/ping"], async (req, res) => {
   const dbHealth = await checkDbHealth();
   const metaConfig = await getActiveMetaConfig();
   const healthData = {
-    status: dbHealth.status === "connected" || dbHealth.status === "in_memory" ? "ok" : "degraded",
+    status: dbHealth.status === "connected" ? "ok" : "degraded",
     timestamp: new Date().toISOString(),
     uptimeSeconds: Math.floor(process.uptime()),
     database: dbHealth,
@@ -125,8 +126,8 @@ app.get(["/api/health", "/health", "/ping"], async (req, res) => {
     },
   };
 
-  const statusCode = dbHealth.status === "disconnected" ? 503 : 200;
-  return res.status(statusCode).json(healthData);
+  // Always return 200 in serverless to keep function alive while reporting degraded state if MongoDB is reconnecting
+  return res.status(200).json(healthData);
 });
 
 // 1. ENDPOINT DE VERIFICACIÓN DE WEBHOOK
@@ -391,20 +392,30 @@ function checkAndRegisterWAMID(wamid: string): boolean {
 }
 
 // Envía mensajes de WhatsApp usando la API Oficial de Meta Cloud API con fallback a Evolution API
-async function sendWhatsAppMessage(targetPhone: string, textBody: string) {
+export interface SendWhatsAppResult {
+  success: boolean;
+  provider: "meta" | "evolution" | "none";
+  messageId?: string;
+  error?: string;
+  details?: any;
+}
+
+async function sendWhatsAppMessage(targetPhone: string, textBody: string): Promise<SendWhatsAppResult> {
   const cleanedTarget = cleanPhoneNumber(targetPhone);
   if (!cleanedTarget) {
     console.warn("[WhatsApp Sender] Número de destino inválido:", targetPhone);
-    return;
+    return { success: false, provider: "none", error: "Número inválido: " + targetPhone };
   }
 
   const metaConfig = await getActiveMetaConfig();
   const provider = metaConfig.activeProvider || "meta";
 
-  // Intentar primero con la API Oficial de Meta si está activa y configurada
+  // Intentar primero con la API Oficial de Meta si está configurada
   if (provider === "meta" && metaConfig.accessToken && metaConfig.phoneNumberId) {
+    const metaEndpoint = `https://graph.facebook.com/${META_API_VERSION}/${metaConfig.phoneNumberId}/messages`;
+    console.log(`[Meta Cloud API Outbound] Enviando mensaje a ${cleanedTarget} vía Phone Number ID: ${metaConfig.phoneNumberId}`);
+
     try {
-      const metaEndpoint = `https://graph.facebook.com/${META_API_VERSION}/${metaConfig.phoneNumberId}/messages`;
       const response = await axios.post(
         metaEndpoint,
         {
@@ -422,14 +433,35 @@ async function sendWhatsAppMessage(targetPhone: string, textBody: string) {
             Authorization: `Bearer ${metaConfig.accessToken}`,
             "Content-Type": "application/json",
           },
-          timeout: 15000,
+          timeout: 8000,
         }
       );
-      console.log(`[Meta Cloud API] Mensaje oficial entregado a ${cleanedTarget} (WAMID: ${response.data?.messages?.[0]?.id})`);
-      return response.data;
+      const wamid = response.data?.messages?.[0]?.id;
+      console.log(`[Meta Cloud API Success] Mensaje oficial entregado con éxito a ${cleanedTarget} (HTTP ${response.status}, WAMID: ${wamid})`);
+      return { success: true, provider: "meta", messageId: wamid, details: response.data };
     } catch (metaErr: any) {
-      console.error("[Meta Cloud API] Error al enviar mensaje oficial:", metaErr.response?.data || metaErr.message);
-      // Si falla Meta, continuar con el fallback a Evolution API para garantizar entrega
+      const httpStatus = metaErr.response?.status;
+      const metaErrData = metaErr.response?.data?.error || metaErr.response?.data;
+      const metaErrMsg = metaErrData?.message || metaErr.message;
+      const metaErrCode = metaErrData?.code;
+      const metaErrSubcode = metaErrData?.error_subcode;
+
+      console.error(`[Meta Cloud API Error ${httpStatus || "Network"}] Falla al enviar mensaje a ${cleanedTarget}:`, {
+        code: metaErrCode,
+        error_subcode: metaErrSubcode,
+        message: metaErrMsg,
+        fbtrace_id: metaErrData?.fbtrace_id,
+      });
+
+      // Diagnóstico accionable en consola
+      if (metaErrCode === 100 && metaErrSubcode === 33) {
+        console.error(`[Meta Cloud API Diagnóstico] ⚠️ ERROR CRÍTICO 100/33: El objeto Phone Number ID '${metaConfig.phoneNumberId}' no existe o el token no tiene permisos sobre él.`);
+        console.error(`👉 CAUSA: Es muy probable que hayas copiado el 'ID de la aplicación' o el 'WABA ID' en vez del 'Identificador de número de teléfono' (Phone number ID), o el Token de Meta pertenece a otra app/usuario del sistema.`);
+        console.error(`👉 SOLUCIÓN: Ve a Meta for Developers > Tu App > WhatsApp > Configuración de la API > Copia el 'Identificador de número de teléfono' exacto.`);
+      } else if (httpStatus === 401 || metaErrCode === 190) {
+        console.error(`[Meta Cloud API Diagnóstico] ⚠️ TOKEN EXPIRADO O INVÁLIDO (Error 401 / Code 190). Genera un token nuevo en Meta for Developers o configura un Token Permanente.`);
+      }
+
       console.log(`[WhatsApp Sender] Intentando entrega de contingencia vía Evolution API...`);
     }
   }
@@ -449,22 +481,31 @@ async function sendWhatsAppMessage(targetPhone: string, textBody: string) {
             apikey: EVOLUTION_API_KEY,
             "Content-Type": "application/json"
           },
-          timeout: 15000
+          timeout: 4500 // 4.5s máximo para evitar saturar funciones de Vercel
         }
       );
-      console.log(`[Evolution API] Respuesta enviada exitosamente a ${cleanedTarget}`);
-      return response.data;
+      console.log(`[Evolution API Success] Respuesta enviada exitosamente a ${cleanedTarget}`);
+      return { success: true, provider: "evolution", details: response.data };
     } catch (error: any) {
-      console.error("[Evolution API] Error al enviar mensaje:", error.response?.data || error.message);
+      console.error("[Evolution API Error] Error al enviar mensaje:", error.response?.data || error.message);
+      return {
+        success: false,
+        provider: "none",
+        error: `Error al enviar: Meta falló (verifica Phone Number ID y Token). Evolution: ${error.message}`,
+      };
     }
   } else {
     console.warn("[WhatsApp Sender] Credenciales de Meta o Evolution no configuradas para:", cleanedTarget);
+    return { success: false, provider: "none", error: "Credenciales de WhatsApp no configuradas" };
   }
 }
 
 async function sendAdminNotification(messageText: string) {
   const adminPhone = "584144783204"; // Número personal del arquitecto Reymon Castillo
-  await sendWhatsAppMessage(adminPhone, messageText);
+  // No bloquear la ejecución principal si falla la notificación al admin
+  sendWhatsAppMessage(adminPhone, messageText).catch((err) => {
+    console.warn("[Admin Notification] No se pudo enviar alerta al admin:", err);
+  });
 }
 
 interface EvolutionIncomingPayload {
@@ -981,7 +1022,14 @@ No hay códigos premium disponibles en el pool en este momento. Si necesitas ent
   }
 
   // Enviar respuesta por WhatsApp mediante Meta Cloud API Oficial (con fallback a Evolution API)
-  await sendWhatsAppMessage(from, botReply);
+  console.log(`[Camila AI -> WhatsApp] Intentando entregar respuesta a ${from} (${botReply.length} caracteres)...`);
+  const replyResult = await sendWhatsAppMessage(from, botReply);
+  console.log(`[Camila AI -> WhatsApp] Resultado de envío a ${from}:`, {
+    success: replyResult?.success,
+    provider: replyResult?.provider,
+    messageId: replyResult?.messageId,
+    error: replyResult?.error,
+  });
 }
 
 // 3. RECEPTOR CENTRAL DE WEBHOOK (Compatible con Meta WhatsApp Cloud API Oficial y Evolution API)
@@ -1009,7 +1057,10 @@ app.post(["/api/webhook", "/webhook"], async (req, res) => {
 
             for (const msg of messages) {
               const fromPhone = cleanPhoneNumber(msg.from || "");
-              if (!fromPhone) continue;
+              if (!fromPhone) {
+                console.warn("[Meta Webhook] Mensaje entrante sin remitente válido:", msg);
+                continue;
+              }
 
               const messageId = msg.id;
               if (messageId && checkAndRegisterWAMID(messageId)) {
@@ -1046,6 +1097,8 @@ app.post(["/api/webhook", "/webhook"], async (req, res) => {
                 textContent = msg.button?.text || "";
               }
 
+              console.log(`[Meta Webhook Depuración] Mensaje extraído correctamente -> De: ${fromPhone} (${senderName}), Tipo: ${msgType}, Texto: "${textContent.substring(0, 80)}"`);
+
               if (msgType === "other") {
                 console.log(`[Meta Webhook] Tipo de mensaje de Meta no procesado: ${msg.type}`);
                 continue;
@@ -1064,6 +1117,8 @@ app.post(["/api/webhook", "/webhook"], async (req, res) => {
                   metaPayload: msg,
                 },
               };
+
+              console.log(`[Meta Webhook Depuración] Pasando mensaje a Camila AI para generación de respuesta...`);
 
               // Procesar en segundo plano
               processWebhookInBackground(incoming).catch((err) => {
@@ -1188,6 +1243,17 @@ app.get("/api/meta/status", async (req, res) => {
         configured: false,
         active: false,
         message: "No se ha configurado el Token de Acceso de Meta (META_WA_TOKEN).",
+        diagnostic: "Falta configurar el Token de Acceso en la sección de Meta Cloud API.",
+        config: metaConfig,
+      });
+    }
+
+    if (!metaConfig.phoneNumberId) {
+      return res.json({
+        configured: false,
+        active: false,
+        message: "No se ha configurado el Phone Number ID de Meta.",
+        diagnostic: "Falta configurar el Phone Number ID en la sección de Meta Cloud API.",
         config: metaConfig,
       });
     }
@@ -1197,7 +1263,7 @@ app.get("/api/meta/status", async (req, res) => {
       `https://graph.facebook.com/${META_API_VERSION}/${metaConfig.phoneNumberId}?fields=verified_name,display_phone_number,quality_rating,code_verification_status`,
       {
         headers: { Authorization: `Bearer ${token}` },
-        timeout: 10000,
+        timeout: 8000,
       }
     );
 
@@ -1210,12 +1276,23 @@ app.get("/api/meta/status", async (req, res) => {
     });
   } catch (err: any) {
     const metaConfig = await getActiveMetaConfig();
+    const errData = err.response?.data?.error || err.response?.data;
+    const httpStatus = err.response?.status;
+    let diagnostic = "Error al comunicarse con Meta Graph API. Verifica el Token de Acceso o Phone Number ID.";
+
+    if (errData?.code === 100 && errData?.error_subcode === 33) {
+      diagnostic = `Error 100 (subcódigo 33): El objeto '${metaConfig.phoneNumberId}' no existe o el token no tiene permisos. Verifica que estés usando el 'Identificador de número de teléfono' (Phone number ID) copiado desde developers.facebook.com > WhatsApp > Configuración de la API, y NO el WABA ID ni el ID de la App.`;
+    } else if (httpStatus === 401 || errData?.code === 190) {
+      diagnostic = "Error de autenticación (401/190): El token de Meta ha expirado o no es válido. Genera un nuevo token temporal o crea un Token Permanente con un Usuario del Sistema.";
+    }
+
     return res.status(200).json({
       configured: Boolean(metaConfig.accessToken),
       active: false,
-      error: err.response?.data?.error || err.message,
+      error: errData || err.message,
+      diagnostic,
       config: metaConfig,
-      message: "Error al comunicarse con Meta Graph API. Verifica el Token de Acceso o Phone Number ID.",
+      message: diagnostic,
     });
   }
 });
@@ -1229,11 +1306,11 @@ app.post("/api/meta/config", async (req, res) => {
     const updatedConfig = {
       ...current,
       metaConfig: {
-        phoneNumberId: phoneNumberId || current.metaConfig?.phoneNumberId || META_PHONE_NUMBER_ID,
-        wabaId: wabaId || current.metaConfig?.wabaId || META_WABA_ID,
-        verifyToken: verifyToken || current.metaConfig?.verifyToken || META_VERIFY_TOKEN,
-        accessToken: accessToken !== undefined ? accessToken : (current.metaConfig?.accessToken || META_WA_TOKEN),
-        businessPhone: businessPhone || current.metaConfig?.businessPhone || META_BUSINESS_PHONE,
+        phoneNumberId: phoneNumberId !== undefined ? phoneNumberId.trim() : (current.metaConfig?.phoneNumberId || META_PHONE_NUMBER_ID),
+        wabaId: wabaId !== undefined ? wabaId.trim() : (current.metaConfig?.wabaId || META_WABA_ID),
+        verifyToken: verifyToken !== undefined ? verifyToken.trim() : (current.metaConfig?.verifyToken || META_VERIFY_TOKEN),
+        accessToken: accessToken !== undefined ? accessToken.trim() : (current.metaConfig?.accessToken || META_WA_TOKEN),
+        businessPhone: businessPhone !== undefined ? businessPhone.trim() : (current.metaConfig?.businessPhone || META_BUSINESS_PHONE),
         activeProvider: activeProvider || current.metaConfig?.activeProvider || "meta",
       },
     };
@@ -1253,9 +1330,17 @@ app.post("/api/meta/test-message", async (req, res) => {
     const text = message || "🤖 *Prueba de Conexión Oficial Meta Cloud API*\n\n¡Hola! El sistema de WhatsApp de Docenty PRO está conectado exitosamente con la API oficial de Meta para Desarrolladores.";
 
     const result = await sendWhatsAppMessage(target, text);
-    res.json({ success: true, result, target });
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        error: result.error || "Falla al entregar mensaje por WhatsApp",
+        result,
+        target,
+      });
+    }
+    return res.json({ success: true, result, target });
   } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
 

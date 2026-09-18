@@ -254,6 +254,17 @@ export const MetaCloudApiView: React.FC<MetaCloudApiViewProps> = ({
             <span>Proveedor Activo: <strong className="text-teal-400 uppercase">{activeProvider}</strong></span>
           </div>
         </div>
+
+        {/* Diagnostic Banner if Meta is not active */}
+        {metaStatus && !metaStatus.active && (
+          <div className="mt-4 bg-amber-950/40 border border-amber-500/40 p-4 rounded-2xl flex items-start gap-3 text-amber-200 text-xs leading-relaxed">
+            <AlertCircle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <strong className="text-amber-300 block font-semibold">Diagnóstico de Meta Cloud API:</strong>
+              <p>{metaStatus.diagnostic || metaStatus.message}</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Grid: Credentials & Webhook Setup */}
