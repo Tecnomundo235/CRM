@@ -59,6 +59,10 @@ export function VpsRemoteConsole({ defaultIp = "165.22.180.160", showToast }: Vp
     "DOCENTY PRO - Consola VPS Remota\nConexión directa vía SSH a tu servidor DigitalOcean.\nSelecciona un comando rápido o pulsa 'Instalar Automáticamente'."
   );
 
+  // Git Deployment
+  const [gitRepoUrl, setGitRepoUrl] = useState(() => localStorage.getItem("docenty_vps_git_url") || "");
+  const [cloningGit, setCloningGit] = useState(false);
+
   // UI Accordions
   const [showAdvancedSsh, setShowAdvancedSsh] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -198,6 +202,27 @@ export function VpsRemoteConsole({ defaultIp = "165.22.180.160", showToast }: Vp
       setInstallStep("Fallo de red");
       showToast("Error de conexión: " + err.message, "error");
     }
+  };
+
+  // Deploy Git Code into /var/www/docenty
+  const handleDeployGit = async () => {
+    if (!gitRepoUrl.trim()) {
+      showToast("Ingresa la URL del repositorio Git de Docenty PRO", "error");
+      return;
+    }
+    if (!password) {
+      showToast("Ingresa la contraseña de root del Droplet", "error");
+      return;
+    }
+    localStorage.setItem("docenty_vps_git_url", gitRepoUrl);
+    setCloningGit(true);
+    showToast("Clonando repositorio y levantando PM2 en el Droplet...", "info");
+
+    const cmd = `cd /var/www/docenty && if [ ! -d .git ]; then git clone ${gitRepoUrl} . ; else git pull origin main || git pull; fi && npm install --omit=dev || npm install && npm run build && pm2 delete docenty-pro 2>/dev/null || true && pm2 start ecosystem.config.cjs && pm2 save && pm2 status`;
+
+    await handleExecuteCommand(cmd);
+    setCloningGit(false);
+    checkStatusOnce();
   };
 
   // Poll Installation Status & Logs
@@ -504,6 +529,44 @@ export function VpsRemoteConsole({ defaultIp = "165.22.180.160", showToast }: Vp
           </div>
         </div>
       )}
+
+      {/* Git Deployment / Pull Card (Final Step to Start PM2) */}
+      <div className="bg-zinc-900/90 p-5 rounded-2xl border border-emerald-900/40 space-y-3.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="p-1.5 bg-emerald-500/20 text-emerald-300 rounded-lg border border-emerald-500/30">
+              <CheckCircle2 className="h-4 w-4" />
+            </span>
+            <div>
+              <h4 className="font-bold text-sm text-white">
+                Paso Final: Desplegar Código de Docenty PRO y Arrancar PM2
+              </h4>
+              <p className="text-[11px] text-zinc-400">
+                El entorno base de tu VPS ya está 100% configurado. Solo ingresa tu repositorio de GitHub para clonar e iniciar el CRM.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+          <input
+            type="text"
+            value={gitRepoUrl}
+            onChange={(e) => setGitRepoUrl(e.target.value)}
+            placeholder="https://github.com/tu-usuario/docenty-pro.git"
+            className="flex-1 bg-black/60 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs font-mono text-emerald-300 focus:outline-hidden focus:border-emerald-500"
+          />
+          <button
+            type="button"
+            onClick={handleDeployGit}
+            disabled={cloningGit || executing || !password || !gitRepoUrl.trim()}
+            className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-950/40 shrink-0"
+          >
+            <Play className={`h-3.5 w-3.5 ${cloningGit ? "animate-spin" : ""}`} />
+            <span>{cloningGit ? "Clonando y Compilando..." : "🚀 Clonar y Levantar PM2"}</span>
+          </button>
+        </div>
+      </div>
 
       {/* Interactive Web Terminal & Quick Mobile Commands */}
       <div className="bg-black/80 rounded-2xl border border-zinc-800 overflow-hidden space-y-0">
