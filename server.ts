@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import dotenv from "dotenv";
 import axios from "axios";
 import { GoogleGenAI, Type } from "@google/genai";
@@ -1192,13 +1193,7 @@ Responde ÚNICAMENTE con la palabra de la categoría.`;
     console.log(`[Intent Router] Mensaje: "${promptInput}" -> Clasificado como: ${intent}`);
 
     if (intent === "GREETING") {
-      botReply = `¡Hola! ¿Cómo estás? Es un gusto saludarte. 😊 Soy **Camila**, la asistente virtual de **META TC**. Me complace darte la bienvenida a nuestro canal oficial de atención.
-
-¿En qué puedo ayudarte hoy? Ofrecemos soluciones digitales de alto impacto:
-1. 📚 **Docenty PRO**: Nuestra plataforma de planificación escolar automatizada con Inteligencia Artificial que simplifica y optimiza tu carga académica diaria.
-2. 💻 **Desarrollo Digital**: Diseñamos páginas web corporativas, tiendas virtuales (e-commerce), sistemas de facturación POS y aplicaciones móviles a medida de alta calidad.
-
-👉 Responde con el número **1** o **2** para darte información detallada. ¡Cuéntame y con gusto te asesoro!`;
+      botReply = `¡Hola! ¿Cómo estás? Es un gusto saludarte. Soy Camila, la asistente virtual de R-LTC. Me encantaría conocerte un poco más. ¿Cuál es el motivo de tu consulta hoy? ¿Eres docente buscando simplificar tu carga de planificación escolar con Docenty PRO, o te gustaría recibir información sobre nuestros servicios de desarrollo digital?`;
     } 
     else if (intent === "OPTION_1") {
       botReply = `📚 *Docenty PRO - Plataforma Inteligente de Planificación Escolar*
@@ -1218,7 +1213,7 @@ Docenty PRO está diseñada para facilitar la labor pedagógica de docentes y di
 ¿O tienes alguna duda pedagógica que te gustaría consultar?`;
     }
     else if (intent === "OPTION_2") {
-      botReply = `💻 *Desarrollo Digital & Soluciones Tecnológicas - META TC*
+      botReply = `💻 *Desarrollo Digital & Soluciones Tecnológicas - R-LTC*
 
 Impulsamos tu negocio con tecnología moderna, rápida y a medida:
 
@@ -1257,7 +1252,7 @@ Una vez que completes el Pago Móvil, envíanos la **captura de pantalla o compr
             ? `\n\n[SISTEMA - CÓDIGOS DE ACTIVACIÓN DISPONIBLES EN EL CRM]\n${systemConfigs.premiumCodes.map(c => `- CÓDIGO: [${c}] | ESTADO: DISPONIBLE`).join("\n")}`
             : "";
 
-          const prompt = `Historial de la conversación de WhatsApp hasta ahora:\n${historyContext}\n\nResponde el último mensaje del cliente en WhatsApp con tu personalidad de Camila (asistente de META TC y Docenty PRO).\nEl usuario dijo: "${promptInput}".\nSi el usuario pregunta por planes o la opción 1, explícale con entusiasmo las ventajas de Docenty PRO y recuérdale que cuesta $2 USD (tasa BCV) con la referencia ${lead.assignedRef}.\nSi el usuario pregunta por desarrollo de páginas web o la opción 2, invítalo a contactar a Reymon Castillo con la palabra "Humano".`;
+          const prompt = `Historial de la conversación de WhatsApp hasta ahora:\n${historyContext}\n\nResponde el último mensaje del cliente en WhatsApp con tu personalidad de Camila (asistente de R-LTC y Docenty PRO).\nEl usuario dijo: "${promptInput}".\nSi el usuario pregunta por planes o la opción 1, explícale con entusiasmo las ventajas de Docenty PRO y recuérdale que cuesta $2 USD (tasa BCV) con la referencia ${lead.assignedRef}.\nSi el usuario pregunta por desarrollo de páginas web o la opción 2, invítalo a contactar a Reymon Castillo con la palabra "Humano".`;
 
           const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
