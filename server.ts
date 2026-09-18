@@ -1165,15 +1165,12 @@ ${historyContext || "(Inicio de la conversación)"}
 [ÚLTIMO MENSAJE ENVIADO POR EL CLIENTE EN WHATSAPP]:
 "${promptInput}"
 
-[DIRECTIVAS DE CONSCIENCIA COGNITIVA Y ATENCIÓN CONVERSACIONAL]:
-Responde a este último mensaje como Camila. Demuestra verdadera empatía, consciencia del contexto e inteligencia conversacional:
-1. Lee atentamente el historial previo antes de responder.
-2. Si ya te presentaste o saludaste en mensajes anteriores del historial, ESTÁ ESTRICTAMENTE PROHIBIDO volver a decir "¡Hola!", "Soy Camila" o "Es un gusto saludarte". Continúa la conversación con total fluidez como en un chat humano de WhatsApp.
-3. CERO MENÚS O CONMUTADORES ROBÓTICOS: Queda terminantemente prohibido decir "Responde con el número 1 o 2", "Escribe 1", "Escribe 'Quiero Pagar'" o "Escribe 'Humano'". Eres una asesora de carne y hueso. Trata al usuario como una persona en una conversación real de WhatsApp.
-4. Si el cliente dice "No entiendo" o muestra duda: Sé comprensiva, discúlpate con amabilidad por cualquier complejidad anterior y explícale con una analogía cotidiana y simple cómo Docenty PRO le ahorra horas de trabajo en sus planificaciones escolares.
-5. Si el cliente dice "Me das más información" o "¿En qué me ayuda?": Explícale el beneficio humano para el docente (ahorrarse el trasnocho de hacer proyectos PPA, planes de lapso y rúbricas a mano, listos para el Ministerio de Educación) y hazle una pregunta amigable sobre qué grado o nivel imparte.
-6. Si el cliente pregunta precio o dice que quiere pagar: Facilítale con amabilidad los datos de Pago Móvil de $2 USD al BCV con su código de referencia único: ${lead.assignedRef}.
-7. Mantén las respuestas en párrafos breves (máximo 2 a 3 párrafos concisos), con calidez, cercanía y excelente formato para lectura en celular.`;
+[DIRECTIVAS CONVERSACIONALES DE CAMILA]:
+1. Ve directo al grano con naturalidad. Si el usuario saluda, preséntate brevemente y pregúntale cómo va su carga académica o si le interesa simplificar sus planificaciones.
+2. JAMÁS envíes bloques gigantescos de texto o listas interminables de viñetas si la conversación ya avanzó. Responde de forma corta y fluida, como un chat real de WhatsApp.
+3. NUNCA repitas el mismo mensaje textualmente si el usuario se confunde o responde con un número. Adapta siempre tu respuesta al contexto anterior.
+4. Si el cliente muestra interés en adquirir la plataforma, el precio oficial es de $2.00 USD al mes (calculado en bolívares a la tasa oficial del BCV). Guíalo de forma amigable para indicarle cómo pagar con Pago Móvil usando su código de reserva único: ${lead.assignedRef}.
+5. Si el cliente tiene una duda técnica compleja, un caso especial o desea hablar directamente con el equipo humano, ofrécele con naturalidad comunicarse con tu creador y administrador, Reymon Castillo.`;
 
         const response = await ai.models.generateContent({
           model: "gemini-3.8-flash",
@@ -1194,43 +1191,41 @@ Responde a este último mensaje como Camila. Demuestra verdadera empatía, consc
     }
 
     if (!geminiSuccess) {
-      // Fallback empático y conversacional (cero menús rígidos)
+      // Fallback empático y conversacional alineado con las directivas
       const norm = promptInput.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
       const hasPreviousMessages = lead.messages.length > 2;
 
       if (norm.includes("no entiendo") || norm.includes("confund")) {
         botReply = `¡Disculpa si te envié mucha información junta antes! 😊
 
-Te lo resumo súper fácil: Docenty PRO es una plataforma que te ayuda a redactar tus proyectos de aula (PPA), planes semanales y rúbricas de evaluación en un par de minutos, cumpliendo con los formatos del Ministerio en Venezuela. Así te evitas pasar horas trasnochándote con el papeleo.
+Te lo resumo súper fácil: Docenty PRO te ayuda a redactar tus proyectos de aula (PPA), planes semanales y rúbricas de evaluación en un par de minutos, cumpliendo con los formatos oficiales. Así evitas horas de trasnocho con el papeleo.
 
-¿Qué materia o grado escolar das tú actualmente?`;
+¿Qué grado o materia impartes tú actualmente?`;
       } else if (norm.includes("en que me ayuda") || norm.includes("mas informacion") || norm.includes("para que sirve") || norm.includes("como funciona")) {
-        botReply = `Docenty PRO te ahorra entre 15 y 20 horas de papeleo escolar cada mes. 📝✨
+        botReply = `Docenty PRO te ahorra entre 15 y 20 horas de papeleo escolar al mes. 📝✨
 
-En minutos te genera los Proyectos Pedagógicos de Aula (PPA), planes de lapso, escalas de estimación y listas de cotejo, ya ajustados a las normativas del Ministerio de Educación de Venezuela. Además puedes descargar todo directo en Word y PDF listo para entregar a coordinación.
+En minutos genera tus Proyectos Pedagógicos de Aula (PPA), planes de lapso, escalas de estimación y listas de cotejo, listos para descargar en Word y PDF con membrete institucional.
 
-Tiene un costo accesible de solo $2 USD al mes (a tasa oficial BCV). ¿Te gustaría ver cómo funciona para tu área de enseñanza?`;
+Tiene un costo de tan solo $2.00 USD al mes (a tasa oficial BCV). ¿Te gustaría simplificar tus planificaciones escolares con la plataforma?`;
       } else if (norm.includes("pago") || norm.includes("pagar") || norm.includes("precio") || norm.includes("costo") || norm.includes("cuenta") || norm.includes("bcv")) {
-        botReply = `¡Claro que sí! La suscripción mensual de Docenty PRO es de tan solo **$2.00 USD** (al cambio oficial del BCV en bolívares). 🚀
+        botReply = `¡Con gusto! El acceso a Docenty PRO tiene un costo oficial de tan solo **$2.00 USD al mes** (calculado en bolívares a la tasa oficial del BCV). 🚀
 
 Puedes realizar tu Pago Móvil a estos datos oficiales:
 • **Banco:** Banco de Venezuela (0102)
 • **Teléfono:** \`04262953484\`
 • **Cédula:** \`24755720\`
 • **Titular:** Reymon Castillo
-• **Referencia para el concepto:** \`${lead.assignedRef}\`
+• **Código de reserva (en concepto):** \`${lead.assignedRef}\`
 
-En cuanto hagas la transferencia, envíame la foto o captura del comprobante por aquí para activarte de inmediato. ¡Quedo atenta!`;
-      } else if (norm.includes("web") || norm.includes("pagina") || norm.includes("tienda") || norm.includes("sistema") || norm.includes("pos")) {
-        botReply = `¡Qué bien! En R-LTC diseñamos páginas web modernas, tiendas virtuales y sistemas de ventas POS a la medida para negocios y emprendedores. 🌐💻
-
-¿De qué trata tu proyecto o empresa? Si prefieres una asesoría técnica directa con **Reymon Castillo** (nuestro arquitecto de software), te puedo conectar con él de inmediato con mucho gusto.`;
+En cuanto realices la transferencia, envíame el comprobante por este chat y te activamos de inmediato. ¡Quedo atenta!`;
+      } else if (norm.includes("web") || norm.includes("software") || norm.includes("desarrollo") || norm.includes("tienda") || norm.includes("pos")) {
+        botReply = `Para solicitudes especiales de desarrollo web o software a la medida, puedo comunicarte con mucho gusto con mi creador y administrador, **Reymon Castillo** (+58 414-4783204). ¿Deseas que le pase tus datos o le escribes directamente?`;
       } else if (!hasPreviousMessages) {
-        botReply = `¡Hola! Qué gusto saludarte. Soy Camila, asesora de Docenty PRO y R-LTC. 😊
+        botReply = `¡Hola! Qué gusto saludarte. Soy Camila, asistente virtual de R-LTC. 😊
 
-¿Cómo estás hoy? Cuéntame, ¿eres docente buscando simplificar tus planificaciones escolares o te gustaría consultar sobre desarrollo de páginas web y software?`;
+Cuéntame, ¿cómo va tu carga académica últimamente? ¿Te interesaría simplificar la redacción de tus planificaciones escolares con Docenty PRO?`;
       } else {
-        botReply = `¡Con gusto te ayudo, ${lead.name}! Cuéntame con confianza qué duda o inquietud tienes sobre Docenty PRO, y con mucho gusto te oriento paso a paso. Y si en algún momento deseas conversar directamente con Reymon Castillo, avísame y te pongo en contacto con él. 😊`;
+        botReply = `¡Con gusto te asesoro! Cuéntame qué duda tienes sobre Docenty PRO y te explico con todo detalle. Y si necesitas atención personalizada con mi creador Reymon Castillo, avísame con confianza. 😊`;
       }
     }
 
