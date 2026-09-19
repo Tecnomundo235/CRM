@@ -61,7 +61,7 @@ export default function App() {
     phone: "",
     email: "",
     notes: "",
-    plan: "annual" as "annual" | "monthly",
+    plan: "monthly" as "monthly" | "extended" | "annual",
     status: "prospect" as any,
   });
 
@@ -2308,25 +2308,39 @@ export default function App() {
                           type="button"
                           onClick={() => {
                             // Reset prompt back to default
-                            const defaultPrompt = `Eres Camila, la asistente virtual de R-LTC (anteriormente META TC). Tu arquitecto y creador es Reymon Castillo (también conocido como Antonio Castillo; son la misma persona).
+                            const defaultPrompt = `Eres Camila, la asistente virtual de R-LTC. Tu arquitecto y creador es Reymon Castillo (también conocido como Antonio Castillo; son la misma persona).
 
-[MISIÓN Y ENFOQUE]
-- Tu único propósito es asesorar y vender **Docenty PRO**, la plataforma inteligente de planificación escolar con IA diseñada para docentes y directivos en Venezuela e Hispanoamérica.
-- Habla siempre como una asesora humana real por WhatsApp: cercana, empática, cálida y conversacional. NUNCA suenes como un bot rígido, un conmutador o un menú automatizado.
+[SOBRE TU PERSONALIDAD Y ESTILO DE COMUNICACIÓN]
+- Eres una experta en atención al cliente por WhatsApp: cálida, empática, profesional y muy humana. Cero robótica.
+- Utiliza un tono conversacional, fluido y cercano. Evita responder con bloques de texto excesivos o parecer un monólogo pregrabado.
+- Adapta tus respuestas al contexto de lo que el cliente te va diciendo, escuchando activamente y evitando repetir la misma información o preguntas que ya se plantearon antes.
+- Tu meta es guiar al usuario con naturalidad, resolviendo sus dudas paso a paso y orientándolo hacia la compra o adquisición de las soluciones de la empresa.
 
-[REGLAS DE CONVERSACIÓN]
-- Ve directo al grano con naturalidad. Si el usuario saluda, preséntate brevemente y pregúntale cómo va su carga académica o si le interesa simplificar sus planificaciones.
-- JAMÁS envíes bloques gigantescos de texto o listas interminables de viñetas si la conversación ya avanzó. Responde de forma corta y fluida, como un chat real de WhatsApp.
-- NUNCA repitas el mismo mensaje textualmente si el usuario se confunde o responde con un número. Adapta siempre tu respuesta al contexto anterior.
-- Si el cliente muestra interés en adquirir la plataforma, el precio oficial es de **$2.00 USD al mes** (calculado en bolívares a la tasa oficial del BCV). Guíalo de forma amigable para indicarle cómo pagar con Pago Móvil usando su código de reserva único.
+[SOBRE TU PLATAFORMA EDUCATIVA]
+- Tu plataforma insignia se llama Docenty PRO (anteriormente conocida como "Docente Pro"). Si un cliente pregunta por el nombre antiguo, infórmale con naturalidad que ha evolucionado a Docenty PRO para reflejar su capacidad avanzada.
+- Docenty PRO está diseñada para facilitar la vida de los docentes, ayudándoles a generar planificaciones, documentación y reportes de forma automatizada y eficiente.
 
-[CONTACTO CON EL CREADOR]
-- Si un cliente tiene una duda técnica compleja, un caso especial o desea hablar directamente con el equipo humano, ofrécele con naturalidad comunicarse con tu creador y administrador, Reymon Castillo.`;
+[PLANES Y PRECIOS]
+- Actualmente cuentas con una promoción exclusiva de temporada para Docenty PRO con las siguientes opciones:
+  - Plan de 30 días: $2
+  - Plan extendido (hasta el 1 de febrero): $8
+  - Plan completo (hasta el 28 de julio): $15
+
+[MÉTODOS DE PAGO]
+- Si el cliente desea realizar el pago o adquirir la suscripción, indícale los datos de Pago Móvil disponibles:
+  - Banco: Banco de Venezuela
+  - Cédula: 24755720
+  - Teléfono: 04262953484
+
+[DIRECTRICES DE INTERACCIÓN]
+- Responde siempre con coherencia según lo que te diga el cliente.
+- Si te piden más información, desglosa los detalles poco a poco en lugar de soltar todo de golpe, fomentando una charla bidireccional.
+- Si el cliente muestra interés, preséntale las opciones de precios de forma natural y guíalo hacia los pasos para concretar la suscripción facilitándole los datos de pago móvil cuando sea oportuno.`;
                             setConfig((prev) => ({
                               ...prev,
                               botSystemPrompt: defaultPrompt,
                             }));
-                            showToast("Prompt restaurado al valor de fábrica (No guardado aún)", "info");
+                            showToast("Prompt restaurado al nuevo valor por defecto (No guardado aún)", "info");
                           }}
                           className="text-xs text-zinc-500 hover:text-rose-400 transition cursor-pointer"
                         >
@@ -2520,39 +2534,70 @@ export default function App() {
 
                       {/* Section 2: Pricing Structure */}
                       <div className="space-y-4">
-                        <h3 className="font-display font-bold text-base text-zinc-100 border-b border-zinc-800 pb-2">Planes Comerciales de Docenty PRO</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          {/* Plan único */}
-                          <div className="border border-zinc-800 p-6 rounded-2xl space-y-3 hover:border-zinc-700 transition bg-zinc-900">
-                            <span className="text-[10px] font-bold text-teal-400 uppercase">Acceso Completo</span>
-                            <h4 className="font-display font-bold text-lg text-white">Suscripción Premium</h4>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-zinc-800 pb-2">
+                          <h3 className="font-display font-bold text-base text-zinc-100">Promoción Exclusiva de Temporada de Docenty PRO</h3>
+                          <span className="text-[11px] text-teal-400 font-medium">Precios en USD a tasa oficial BCV</span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {/* Plan 1: 30 días */}
+                          <div className="border border-zinc-800 p-5 rounded-2xl space-y-3 hover:border-zinc-700 transition bg-zinc-900">
+                            <span className="text-[10px] font-bold text-teal-400 uppercase tracking-wider">Acceso 30 Días</span>
+                            <h4 className="font-display font-bold text-base text-white">Plan 30 Días</h4>
                             <div className="flex items-baseline gap-1">
                               <span className="text-3xl font-display font-bold text-white">$2</span>
-                              <span className="text-xs text-zinc-400">USD / año</span>
+                              <span className="text-xs text-zinc-400">USD</span>
                             </div>
-                            <ul className="text-xs text-zinc-300 space-y-2 pt-2">
-                              <li className="flex items-center gap-1.5">✅ Registro ilimitado de asistencias y notas</li>
-                              <li className="flex items-center gap-1.5">✅ Planeación de clases y rúbricas ilimitadas con IA</li>
-                              <li className="flex items-center gap-1.5">✅ Generador inteligente de exámenes en 1 click</li>
+                            <ul className="text-xs text-zinc-300 space-y-1.5 pt-1">
+                              <li className="flex items-center gap-1.5">✅ Registro de asistencias y notas</li>
+                              <li className="flex items-center gap-1.5">✅ Planeación y rúbricas con IA</li>
+                              <li className="flex items-center gap-1.5">✅ Acceso continuo durante 30 días</li>
                             </ul>
                           </div>
 
-                          {/* Pago Móvil info */}
-                          <div className="border-2 border-teal-600 p-6 rounded-2xl space-y-3 relative overflow-hidden bg-teal-950/20">
-                            <div className="absolute top-0 right-0 bg-teal-600 text-white text-[9px] font-bold px-3 py-1 rounded-bl-xl uppercase">
-                              TASA OFICIAL BCV
+                          {/* Plan 2: Extendido */}
+                          <div className="border-2 border-teal-500/60 p-5 rounded-2xl space-y-3 hover:border-teal-400 transition bg-teal-950/20 relative">
+                            <div className="absolute top-3 right-3 bg-teal-500 text-black text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
+                              Más Popular
                             </div>
-                            <span className="text-[10px] font-bold text-teal-300 uppercase">Cobro en Bolívares (Bs.)</span>
-                            <h4 className="font-display font-bold text-lg text-white">Pago Móvil BDV</h4>
+                            <span className="text-[10px] font-bold text-teal-300 uppercase tracking-wider">Extendido</span>
+                            <h4 className="font-display font-bold text-base text-white">Hasta el 1 de Febrero</h4>
                             <div className="flex items-baseline gap-1">
-                              <span className="text-lg font-display font-bold text-teal-400">Banco de Venezuela</span>
+                              <span className="text-3xl font-display font-bold text-teal-300">$8</span>
+                              <span className="text-xs text-zinc-400">USD</span>
                             </div>
-                            <ul className="text-xs text-zinc-300 space-y-2 pt-2 font-medium">
-                              <li className="flex items-center gap-1.5">✨ Pago directo al cambio oficial del BCV del día</li>
-                              <li className="flex items-center gap-1.5">✨ Teléfono: 04262953484</li>
-                              <li className="flex items-center gap-1.5">✨ Cédula: 24755720</li>
-                              <li className="flex items-center gap-1.5">✨ Activación inmediata tras validación visual</li>
+                            <ul className="text-xs text-zinc-200 space-y-1.5 pt-1">
+                              <li className="flex items-center gap-1.5">✨ Cobertura extendida hasta Feb 2027</li>
+                              <li className="flex items-center gap-1.5">✨ Proyectos Pedagógicos y Rúbricas</li>
+                              <li className="flex items-center gap-1.5">✨ Soporte y actualizaciones continuas</li>
                             </ul>
+                          </div>
+
+                          {/* Plan 3: Completo */}
+                          <div className="border border-zinc-800 p-5 rounded-2xl space-y-3 hover:border-zinc-700 transition bg-zinc-900">
+                            <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Año Escolar Completo</span>
+                            <h4 className="font-display font-bold text-base text-white">Hasta el 28 de Julio</h4>
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-3xl font-display font-bold text-white">$15</span>
+                              <span className="text-xs text-zinc-400">USD</span>
+                            </div>
+                            <ul className="text-xs text-zinc-300 space-y-1.5 pt-1">
+                              <li className="flex items-center gap-1.5">🌟 Ciclo escolar completo hasta Jul 2027</li>
+                              <li className="flex items-center gap-1.5">🌟 Todas las funciones de IA ilimitadas</li>
+                              <li className="flex items-center gap-1.5">🌟 El mayor ahorro de temporada</li>
+                            </ul>
+                          </div>
+                        </div>
+
+                        {/* Pago Móvil info */}
+                        <div className="border border-teal-800/60 p-5 rounded-2xl space-y-2 relative overflow-hidden bg-teal-950/20">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-teal-300 uppercase">Datos de Pago Móvil Oficiales</span>
+                            <span className="bg-teal-600 text-white text-[9px] font-bold px-2.5 py-0.5 rounded-full uppercase">Tasa Oficial BCV</span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs text-zinc-200">
+                            <div><strong className="text-zinc-400">Banco:</strong> Banco de Venezuela</div>
+                            <div><strong className="text-zinc-400">Cédula:</strong> 24755720</div>
+                            <div><strong className="text-zinc-400">Teléfono:</strong> 04262953484</div>
                           </div>
                         </div>
                       </div>
@@ -2708,7 +2753,9 @@ export default function App() {
                       onChange={(e) => setNewLeadForm((prev) => ({ ...prev, plan: e.target.value as any }))}
                       className="w-full bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-lg text-xs text-white focus:outline-hidden focus:border-teal-500"
                     >
-                      <option value="annual" className="bg-[#121212]">Docenty PRO Premium ($2 USD)</option>
+                      <option value="monthly" className="bg-[#121212]">Plan 30 días ($2 USD)</option>
+                      <option value="extended" className="bg-[#121212]">Plan extendido - hasta 1 Feb ($8 USD)</option>
+                      <option value="annual" className="bg-[#121212]">Plan completo - hasta 28 Jul ($15 USD)</option>
                     </select>
                   </div>
 

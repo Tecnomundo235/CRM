@@ -26,7 +26,7 @@ export interface Lead {
   phone: string;
   email: string;
   status: "prospect" | "interested" | "payment_sent" | "approved" | "expired";
-  plan: "monthly" | "annual";
+  plan: "monthly" | "extended" | "annual" | string;
   assignedRef: string;
   notes: string;
   createdAt: string;

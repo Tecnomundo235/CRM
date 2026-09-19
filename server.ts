@@ -1165,12 +1165,24 @@ ${historyContext || "(Inicio de la conversación)"}
 [ÚLTIMO MENSAJE ENVIADO POR EL CLIENTE EN WHATSAPP]:
 "${promptInput}"
 
-[DIRECTIVAS CONVERSACIONALES DE CAMILA]:
-1. Ve directo al grano con naturalidad. Si el usuario saluda, preséntate brevemente y pregúntale cómo va su carga académica o si le interesa simplificar sus planificaciones.
-2. JAMÁS envíes bloques gigantescos de texto o listas interminables de viñetas si la conversación ya avanzó. Responde de forma corta y fluida, como un chat real de WhatsApp.
-3. NUNCA repitas el mismo mensaje textualmente si el usuario se confunde o responde con un número. Adapta siempre tu respuesta al contexto anterior.
-4. Si el cliente muestra interés en adquirir la plataforma, el precio oficial es de $2.00 USD al mes (calculado en bolívares a la tasa oficial del BCV). Guíalo de forma amigable para indicarle cómo pagar con Pago Móvil usando su código de reserva único: ${lead.assignedRef}.
-5. Si el cliente tiene una duda técnica compleja, un caso especial o desea hablar directamente con el equipo humano, ofrécele con naturalidad comunicarse con tu creador y administrador, Reymon Castillo.`;
+[DIRECTIVAS DE INTERACCIÓN DE CAMILA]:
+- Eres Camila, la asistente virtual de R-LTC. Tu arquitecto y creador es Reymon Castillo (también conocido como Antonio Castillo; son la misma persona).
+- Eres una experta en atención al cliente por WhatsApp: cálida, empática, profesional y muy humana. Cero robótica.
+- Utiliza un tono conversacional, fluido y cercano. Evita responder con bloques de texto excesivos o parecer un monólogo pregrabado.
+- Adapta tus respuestas al contexto de lo que el cliente te va diciendo, escuchando activamente y evitando repetir la misma información o preguntas que ya se plantearon antes.
+- Tu meta es guiar al usuario con naturalidad, resolviendo sus dudas paso a paso y orientándolo hacia la compra o adquisición de las soluciones de la empresa.
+- Tu plataforma insignia se llama Docenty PRO (anteriormente conocida como "Docente Pro"). Si un cliente pregunta por el nombre antiguo, infórmale con naturalidad que ha evolucionado a Docenty PRO para reflejar su capacidad avanzada.
+- Promoción exclusiva de temporada para Docenty PRO:
+  • Plan de 30 días: $2
+  • Plan extendido (hasta el 1 de febrero): $8
+  • Plan completo (hasta el 28 de julio): $15
+- Métodos de pago (Pago Móvil):
+  • Banco: Banco de Venezuela
+  • Cédula: 24755720
+  • Teléfono: 04262953484
+  • Código único de reserva asignado: ${lead.assignedRef}
+- Si te piden más información, desglosa los detalles poco a poco en lugar de soltar todo de golpe, fomentando una charla bidireccional.
+- Si el cliente muestra interés, preséntale las opciones de precios de forma natural y guíalo hacia los pasos para concretar la suscripción facilitándole los datos de pago móvil cuando sea oportuno.`;
 
         const response = await ai.models.generateContent({
           model: "gemini-3.8-flash",
@@ -1191,41 +1203,48 @@ ${historyContext || "(Inicio de la conversación)"}
     }
 
     if (!geminiSuccess) {
-      // Fallback empático y conversacional alineado con las directivas
+      // Fallback empático y conversacional alineado con las directivas de Camila
       const norm = promptInput.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
       const hasPreviousMessages = lead.messages.length > 2;
 
       if (norm.includes("no entiendo") || norm.includes("confund")) {
         botReply = `¡Disculpa si te envié mucha información junta antes! 😊
 
-Te lo resumo súper fácil: Docenty PRO te ayuda a redactar tus proyectos de aula (PPA), planes semanales y rúbricas de evaluación en un par de minutos, cumpliendo con los formatos oficiales. Así evitas horas de trasnocho con el papeleo.
+Te lo resumo con calma: Docenty PRO te ayuda a redactar tus proyectos de aula (PPA), planes semanales y rúbricas de evaluación en minutos, cumpliendo con los formatos oficiales. Así te ahorras horas de trasnocho con el papeleo.
 
-¿Qué grado o materia impartes tú actualmente?`;
+¿Qué materia o grado escolar estás dando en estos momentos?`;
       } else if (norm.includes("en que me ayuda") || norm.includes("mas informacion") || norm.includes("para que sirve") || norm.includes("como funciona")) {
-        botReply = `Docenty PRO te ahorra entre 15 y 20 horas de papeleo escolar al mes. 📝✨
+        botReply = `Docenty PRO está diseñada para facilitarte la vida docente: te ayuda a generar planificaciones, documentación y reportes de forma automatizada y súper eficiente. 📝✨
 
-En minutos genera tus Proyectos Pedagógicos de Aula (PPA), planes de lapso, escalas de estimación y listas de cotejo, listos para descargar en Word y PDF con membrete institucional.
+Actualmente contamos con una promoción exclusiva de temporada:
+• Plan de 30 días: $2
+• Plan extendido (hasta el 1 de febrero): $8
+• Plan completo (hasta el 28 de julio): $15
 
-Tiene un costo de tan solo $2.00 USD al mes (a tasa oficial BCV). ¿Te gustaría simplificar tus planificaciones escolares con la plataforma?`;
-      } else if (norm.includes("pago") || norm.includes("pagar") || norm.includes("precio") || norm.includes("costo") || norm.includes("cuenta") || norm.includes("bcv")) {
-        botReply = `¡Con gusto! El acceso a Docenty PRO tiene un costo oficial de tan solo **$2.00 USD al mes** (calculado en bolívares a la tasa oficial del BCV). 🚀
+¿Qué grado o área impartes actualmente para contarte cómo te ayudaría?`;
+      } else if (norm.includes("pago") || norm.includes("pagar") || norm.includes("precio") || norm.includes("costo") || norm.includes("cuenta") || norm.includes("bcv") || norm.includes("planes") || norm.includes("plan")) {
+        botReply = `¡Con gusto! Contamos con estas opciones de promoción para Docenty PRO:
+• **Plan de 30 días:** $2
+• **Plan extendido (hasta el 1 de febrero):** $8
+• **Plan completo (hasta el 28 de julio):** $15
 
-Puedes realizar tu Pago Móvil a estos datos oficiales:
-• **Banco:** Banco de Venezuela (0102)
-• **Teléfono:** \`04262953484\`
-• **Cédula:** \`24755720\`
-• **Titular:** Reymon Castillo
-• **Código de reserva (en concepto):** \`${lead.assignedRef}\`
+*(Calculado en bolívares a la tasa oficial del BCV)*
 
-En cuanto realices la transferencia, envíame el comprobante por este chat y te activamos de inmediato. ¡Quedo atenta!`;
+Puedes realizar tu Pago Móvil a estos datos:
+• **Banco:** Banco de Venezuela
+• **Cédula:** 24755720
+• **Teléfono:** 04262953484
+• **Código de reserva:** \`${lead.assignedRef}\`
+
+En cuanto realices el pago, me envías el comprobante por acá para validarlo de una vez. ¿Cuál opción se adapta mejor a lo que necesitas?`;
       } else if (norm.includes("web") || norm.includes("software") || norm.includes("desarrollo") || norm.includes("tienda") || norm.includes("pos")) {
-        botReply = `Para solicitudes especiales de desarrollo web o software a la medida, puedo comunicarte con mucho gusto con mi creador y administrador, **Reymon Castillo** (+58 414-4783204). ¿Deseas que le pase tus datos o le escribes directamente?`;
+        botReply = `Para requerimientos especiales de software o desarrollo a la medida, puedo ponerte en contacto directo con mi creador, **Reymon Castillo** (+58 414-4783204). ¿Te gustaría que le comparta tus datos o prefieres escribirle?`;
       } else if (!hasPreviousMessages) {
-        botReply = `¡Hola! Qué gusto saludarte. Soy Camila, asistente virtual de R-LTC. 😊
+        botReply = `¡Hola! Qué gusto saludarte. Soy Camila, la asistente virtual de R-LTC. 😊
 
-Cuéntame, ¿cómo va tu carga académica últimamente? ¿Te interesaría simplificar la redacción de tus planificaciones escolares con Docenty PRO?`;
+Cuéntame, ¿cómo va tu carga académica últimamente? ¿Te interesaría simplificar la redacción de tus planificaciones y reportes escolares con Docenty PRO?`;
       } else {
-        botReply = `¡Con gusto te asesoro! Cuéntame qué duda tienes sobre Docenty PRO y te explico con todo detalle. Y si necesitas atención personalizada con mi creador Reymon Castillo, avísame con confianza. 😊`;
+        botReply = `¡Con gusto te oriento! Cuéntame qué duda tienes sobre Docenty PRO y la vamos resolviendo paso a paso. Y si requieres hablar con mi creador Reymon Castillo, avísame con total confianza. 😊`;
       }
     }
 
@@ -1479,9 +1498,9 @@ Cuéntame, ¿cómo va tu carga académica últimamente? ¿Te interesaría simpli
 ${historyContext}
 
 El cliente ${lead.name} te acaba de enviar una nota de voz. Por favor, "escucha" y analiza con cuidado el contenido del audio (su intención, preguntas, tono y detalles).
-Genera una respuesta en texto en tu personalidad de Docenty AI (Camila).
+Genera una respuesta en texto en tu personalidad de Camila.
 Recuerda que la referencia asignada a este cliente es: ${lead.assignedRef}.
-No inventes referencias de otros clientes. Si el cliente pregunta qué plan tiene disponible, recuérdale que tiene reservada la Suscripción Premium de $2 USD (al cambio oficial del BCV en bolívares) con esa referencia.`;
+No inventes referencias de otros clientes. Si el cliente pregunta qué planes tiene disponibles, preséntale las opciones de promoción de temporada ($2 por 30 días, $8 extendido hasta el 1 de febrero, $15 completo hasta el 28 de julio) con su referencia para Pago Móvil.`;
 
         const currentCodesText = systemConfigs.premiumCodes && systemConfigs.premiumCodes.length > 0
           ? `\n\n[SISTEMA - CÓDIGOS DE ACTIVACIÓN DISPONIBLES EN EL CRM]
@@ -1512,7 +1531,7 @@ No hay códigos premium disponibles en el pool en este momento. Si necesitas ent
         botReply = response.text || "Disculpe, ¿podría repetir su consulta? Estoy aquí para ayudarle con Docenty PRO.";
       } catch (err: any) {
         console.error("Error al procesar audio en webhook con Gemini:", err);
-        botReply = `¡Hola, ${lead.name}! Gracias por tu nota de voz. Para confirmar la activación de tu Suscripción Premium ($2 USD al cambio oficial BCV en bolívares) por favor realiza el Pago Móvil de referencia **${lead.assignedRef}** al Banco de Venezuela (Teléfono: 04262953484, Cédula: 24755720) y mándanos el comprobante por este chat para validarlo de inmediato. 😊`;
+        botReply = `¡Hola, ${lead.name}! Gracias por tu nota de voz. Tenemos en promoción Docenty PRO: Plan de 30 días ($2), Plan extendido hasta 1 de febrero ($8) y Plan completo hasta 28 de julio ($15) a tasa oficial BCV. Para activar, realiza tu Pago Móvil de referencia **${lead.assignedRef}** al Banco de Venezuela (Teléfono: 04262953484, Cédula: 24755720) y mándanos el comprobante por este chat para validarlo de inmediato. 😊`;
       }
 
       const botMsg: Message = {
@@ -2302,8 +2321,8 @@ app.post("/api/leads/:id/chat", async (req, res) => {
         if (isMockAudio) {
           // Simulator helper mock prompt
           promptString += `El cliente ${lead.name} te acaba de enviar una nota de voz. 
-[Simulación] La nota de voz dice exactamente lo siguiente: "Hola Camila, me interesa saber si Docenty PRO me puede ayudar a automatizar la carga de notas finales de mi colegio y la asistencia de mis alumnos, y cuánto cuesta la activación anual".
-Por favor, responde a este audio en texto con tu personalidad de Docenty AI (Camila), con un tono amable, explicando brevemente los beneficios (automatización, asistencia) y las opciones de pago de $2 USD con tu referencia ${lead.assignedRef}.`;
+[Simulación] La nota de voz dice exactamente lo siguiente: "Hola Camila, me interesa saber si Docenty PRO me puede ayudar con las planificaciones y qué planes de precios tienen disponibles".
+Por favor, responde a este audio en texto con tu personalidad de Camila, con un tono cálido y conversacional, explicando brevemente los beneficios y las opciones de precios de temporada ($2 por 30 días, $8 extendido hasta 1 de febrero, $15 completo hasta 28 de julio) con la referencia ${lead.assignedRef}.`;
 
           response = await ai.models.generateContent({
             model: "gemini-3.8-flash",
@@ -2316,8 +2335,8 @@ Por favor, responde a este audio en texto con tu personalidad de Docenty AI (Cam
         } else {
           // Real audio multimodal processing
           promptString += `El cliente ${lead.name} te acaba de enviar una nota de voz. Por favor, "escucha" y analiza con cuidado el contenido del audio (su intención, preguntas, tono y detalles).
-Genera una respuesta en texto en tu personalidad de Docenty AI (Camila).
-Recuerda que la referencia asignada a este cliente es: ${lead.assignedRef}.\nNo inventes referencias de otros clientes. Si el cliente pregunta qué plan tiene disponible, recuérdale que tiene reservada la Suscripción Premium de $2 USD (al cambio oficial del BCV en bolívares) con esa referencia.`;
+Genera una respuesta en texto en tu personalidad de Camila.
+Recuerda que la referencia asignada a este cliente es: ${lead.assignedRef}.\nNo inventes referencias de otros clientes. Si el cliente pregunta qué planes tiene disponibles, preséntale las opciones de promoción de temporada ($2 por 30 días, $8 extendido hasta el 1 de febrero, $15 completo hasta el 28 de julio) con su referencia.`;
 
           response = await ai.models.generateContent({
             model: "gemini-3.8-flash",
@@ -2340,7 +2359,7 @@ Recuerda que la referencia asignada a este cliente es: ${lead.assignedRef}.\nNo 
         }
       } else {
         // Standard text reply
-        const prompt = `Historial de la conversación de WhatsApp hasta ahora:\n${historyContext}\n\nResponde el último mensaje del cliente en WhatsApp con tu personalidad de Docenty AI (Camila). Recuerda que la referencia asignada a este cliente es: ${lead.assignedRef}.\nNo inventes referencias de otros clientes. Si el cliente pregunta qué plan tiene disponible, recuérdale que tiene reservada la Suscripción Premium de $2 USD (al cambio oficial del BCV en bolívares) con esa referencia.`;
+        const prompt = `Historial de la conversación de WhatsApp hasta ahora:\n${historyContext}\n\nResponde el último mensaje del cliente en WhatsApp con tu personalidad de Camila. Recuerda que la referencia asignada a este cliente es: ${lead.assignedRef}.\nNo inventes referencias de otros clientes. Si el cliente pregunta qué planes tiene disponibles, preséntale las opciones de temporada ($2 por 30 días, $8 hasta el 1 de febrero, $15 hasta el 28 de julio) y datos de Pago Móvil cuando sea oportuno.`;
 
         response = await ai.models.generateContent({
           model: "gemini-3.8-flash",
@@ -2367,11 +2386,15 @@ Recuerda que la referencia asignada a este cliente es: ${lead.assignedRef}.\nNo 
     } catch (err: any) {
       console.error("Gemini Error:", err);
       // Graceful fallback if API key is not configured or fails
-      let fallbackReply = `¡Hola, ${lead.name}! Gracias por tu nota de voz o mensaje. El sistema está configurando tu cuenta. Para confirmar la activación de la Suscripción Premium ($2 USD al cambio oficial BCV en bolívares) por favor realiza el Pago Móvil de referencia **${lead.assignedRef}** al Banco de Venezuela (Teléfono: 04262953484, Cédula: 24755720) y mándanos el comprobante por este chat.`;
+      let fallbackReply = `¡Hola, ${lead.name}! Gracias por tu mensaje. Actualmente contamos con una promoción exclusiva de temporada para Docenty PRO: Plan de 30 días ($2), Plan extendido hasta 1 de febrero ($8) y Plan completo hasta 28 de julio ($15), al cambio oficial BCV. Para activar tu suscripción, realiza tu Pago Móvil al Banco de Venezuela (Teléfono: 04262953484, Cédula: 24755720) con tu código **${lead.assignedRef}** y envíanos el comprobante por este chat.`;
       
       const msgLower = (message || "").toLowerCase();
       if (isAudio || msgLower.includes("plan") || msgLower.includes("costo") || msgLower.includes("precio")) {
-        fallbackReply = `Claro que sí. La suscripción de Docenty PRO cuesta solo $2 USD (al cambio oficial de la tasa BCV del día en Bolívares). Puedes realizar el Pago Móvil con tu código de referencia único **${lead.assignedRef}** al Banco de Venezuela (Teléfono: 04262953484, Cédula: 24755720). ¡Mándanos la captura de pantalla por este chat!`;
+        fallbackReply = `¡Hola! Tenemos tres opciones en promoción para Docenty PRO:
+• Plan de 30 días: $2
+• Plan extendido (hasta el 1 de febrero): $8
+• Plan completo (hasta el 28 de julio): $15
+(Al cambio oficial del BCV). Puedes realizar tu Pago Móvil con tu código de reserva único **${lead.assignedRef}** al Banco de Venezuela (Teléfono: 04262953484, Cédula: 24755720). ¡Mándanos la captura por aquí!`;
       }
 
       const botMsg: Message = {
