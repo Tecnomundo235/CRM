@@ -36,6 +36,9 @@ import {
   Bell,
   Download,
   Server,
+  HelpCircle,
+  Smartphone,
+  Laptop,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Lead, Message, BankDetails, SystemConfigs } from "./types";
@@ -110,11 +113,22 @@ export default function App() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const initialSyncDone = useRef(false);
   const [notifPermission, setNotifPermission] = useState<string>("default");
+  const [showNotifHelpModal, setShowNotifHelpModal] = useState<boolean>(false);
+  const [notifHelpPlatform, setNotifHelpPlatform] = useState<"android" | "pc">("android");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Play an elegant, clean high-pitch synthesizer chime
+  // Play an elegant, clean high-pitch synthesizer chime + phone haptic vibration
   const playNotificationChime = () => {
     try {
+      // Trigger haptic vibration on mobile devices
+      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+        try {
+          navigator.vibrate([120, 60, 120]);
+        } catch (vErr) {
+          // Ignore vibration policy restrictions
+        }
+      }
+
       const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContext) return;
       const ctx = new AudioContext();
@@ -150,42 +164,87 @@ export default function App() {
     }
   };
 
-  // Fetch initial data
+  // Fetch initial data & auto-sync browser notification permissions
   useEffect(() => {
     fetchLeads();
     fetchConfig();
 
-    // Request native browser notifications permission
-    if ("Notification" in window) {
-      setNotifPermission(Notification.permission);
-      if (Notification.permission === "default") {
-        Notification.requestPermission().then((perm) => {
-          setNotifPermission(perm);
+    const checkAndSyncNotificationPerm = () => {
+      if ("Notification" in window) {
+        const current = Notification.permission;
+        setNotifPermission((prev) => {
+          if (prev !== "granted" && current === "granted") {
+            showToast("¡Notificaciones detectadas y activadas con éxito! 🎉", "success");
+            playNotificationChime();
+          }
+          return current;
         });
       }
-    }
+    };
+
+    // Initial check
+    checkAndSyncNotificationPerm();
+
+    // Auto-detect when user returns from browser/system settings tab
+    window.addEventListener("focus", checkAndSyncNotificationPerm);
+    document.addEventListener("visibilitychange", checkAndSyncNotificationPerm);
+
+    return () => {
+      window.removeEventListener("focus", checkAndSyncNotificationPerm);
+      document.removeEventListener("visibilitychange", checkAndSyncNotificationPerm);
+    };
   }, []);
 
   const requestNotificationPermission = async () => {
     if (!("Notification" in window)) {
-      showToast("Este navegador no soporta notificaciones", "error");
+      showToast("Este navegador no soporta notificaciones de sistema. Las alertas sonoras seguirán funcionando.", "error");
       return;
     }
+
+    // If already denied, browser refuses to show prompt; guide user immediately
+    if (Notification.permission === "denied") {
+      setShowNotifHelpModal(true);
+      showToast("Tu navegador tiene el permiso bloqueado. Sigue estos sencillos pasos para activarlas.", "info");
+      return;
+    }
+
     try {
       const permission = await Notification.requestPermission();
       setNotifPermission(permission);
       if (permission === "granted") {
         showToast("¡Notificaciones activadas con éxito! 🎉", "success");
-        new Notification("Docenty PRO", {
-          body: "Las notificaciones están activadas para avisarte de nuevos chats.",
-          icon: "/favicon.ico"
-        });
+        try {
+          new Notification("Docenty PRO", {
+            body: "Las notificaciones están activadas para avisarte al instante de nuevos clientes y chats.",
+            icon: "/favicon.ico"
+          });
+        } catch (e) {}
         playNotificationChime();
       } else if (permission === "denied") {
-        showToast("El permiso fue denegado. Por favor, actívalas en los ajustes de tu navegador.", "error");
+        setShowNotifHelpModal(true);
+        showToast("El navegador bloqueó el permiso. Toca en 'Cómo Desbloquear' para solucionarlo fácilmente.", "error");
       }
     } catch (err) {
       console.error("Error requesting notification permission:", err);
+      setShowNotifHelpModal(true);
+    }
+  };
+
+  const handleCheckPermissionAgain = () => {
+    if ("Notification" in window) {
+      const current = Notification.permission;
+      setNotifPermission(current);
+      if (current === "granted") {
+        showToast("¡Excelente! Permiso detectado como CONCEDIDO 🎉", "success");
+        playNotificationChime();
+      } else if (current === "denied") {
+        showToast("Sigue apareciendo Bloqueado en tu navegador. Sigue la guía de pasos.", "error");
+        setShowNotifHelpModal(true);
+      } else {
+        requestNotificationPermission();
+      }
+    } else {
+      showToast("Este navegador no soporta notificaciones de escritorio.", "error");
     }
   };
 
@@ -2363,18 +2422,30 @@ export default function App() {
                     {/* Tarjeta A: Notificaciones en mi Dispositivo */}
                     <div className="bg-[#121212]/90 rounded-2xl border border-zinc-800/80 p-5 sm:p-6 shadow-xs flex flex-col justify-between space-y-4">
                       <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <Bell className="h-5 w-5 text-teal-400" />
-                          <h4 className="font-display font-bold text-sm text-white">Notificaciones en Tiempo Real</h4>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Bell className="h-5 w-5 text-teal-400" />
+                            <h4 className="font-display font-bold text-sm text-white">Notificaciones en Tiempo Real</h4>
+                          </div>
+                          {notifPermission === "denied" && (
+                            <button
+                              type="button"
+                              onClick={() => setShowNotifHelpModal(true)}
+                              className="text-[11px] text-amber-400 hover:text-amber-300 font-medium flex items-center gap-1 transition cursor-pointer"
+                            >
+                              <HelpCircle className="h-3.5 w-3.5" />
+                              ¿Cómo desbloquear?
+                            </button>
+                          )}
                         </div>
                         <p className="text-xs text-zinc-400 leading-relaxed">
-                          Recibe alertas con sonido y ventanas emergentes (push notifications) en tu celular o computadora de inmediato cuando un cliente potencial escriba.
+                          Recibe alertas con sonido, vibración y ventanas emergentes en tu celular o computadora en el instante exacto en que un cliente potencial escriba.
                         </p>
                         
-                        <div className="mt-4 p-3 rounded-xl bg-zinc-950/40 border border-zinc-800/50 space-y-2">
+                        <div className="mt-4 p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800/70 space-y-2.5">
                           <div className="flex items-center justify-between">
-                            <span className="text-xs text-zinc-400">Estado de Permiso:</span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border ${
+                            <span className="text-xs text-zinc-400 font-medium">Estado de Permiso:</span>
+                            <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase border tracking-wider ${
                               notifPermission === "granted" 
                                 ? "bg-teal-500/10 border-teal-500/20 text-teal-400" 
                                 : notifPermission === "denied" 
@@ -2384,19 +2455,70 @@ export default function App() {
                               {notifPermission === "granted" ? "Concedido (Activo)" : notifPermission === "denied" ? "Denegado (Bloqueado)" : "Sin configurar"}
                             </span>
                           </div>
-                          <p className="text-[10px] text-zinc-500 leading-normal">
-                            {notifPermission === "granted" 
-                              ? "¡Excelente! Tu dispositivo recibirá alertas instantáneas con sonido e información del mensaje."
-                              : notifPermission === "denied" 
-                                ? "Bloqueado por el navegador. Haz clic en el icono del candado en la barra de direcciones de tu navegador y activa las Notificaciones."
-                                : "Haz clic en el botón de abajo para activar y probar las alertas en este dispositivo."
-                            }
-                          </p>
+
+                          {notifPermission === "denied" ? (
+                            <div className="space-y-2 pt-1 border-t border-zinc-900">
+                              <p className="text-[11px] text-rose-300/90 leading-snug">
+                                🔒 <strong>Bloqueado por el navegador:</strong> Al estar denegado, el navegador impide solicitar el permiso directamente con un botón. Requiere activarse desde los ajustes de la barra web.
+                              </p>
+                              <div className="bg-amber-950/20 border border-amber-900/30 p-2.5 rounded-lg">
+                                <p className="text-[10px] text-amber-200/90 leading-relaxed">
+                                  💡 <strong>No te preocupes:</strong> Mientras tengas la app abierta, el sonido de campana y los avisos visuales en pantalla seguirán alertándote con cada mensaje.
+                                </p>
+                              </div>
+                            </div>
+                          ) : notifPermission === "granted" ? (
+                            <p className="text-[11px] text-teal-300/90 leading-normal">
+                              ✨ <strong>¡Todo listo!</strong> Tu dispositivo recibirá alertas instantáneas con sonido, vibración y vista previa del chat.
+                            </p>
+                          ) : (
+                            <p className="text-[11px] text-zinc-400 leading-normal">
+                              Toca el botón inferior para solicitar permiso de notificaciones en este dispositivo.
+                            </p>
+                          )}
                         </div>
                       </div>
 
                       <div className="flex flex-wrap gap-2 pt-2">
-                        {notifPermission !== "granted" && (
+                        {notifPermission === "denied" ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setShowNotifHelpModal(true)}
+                              className="bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs px-4 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-md shadow-amber-950/40"
+                            >
+                              <Smartphone className="h-4 w-4" />
+                              Cómo Desbloquear en mi Celular
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleCheckPermissionAgain}
+                              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold text-xs px-3 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 border border-zinc-700/50"
+                              title="Verificar si ya lo permitiste en los ajustes"
+                            >
+                              <RefreshCw className="h-3.5 w-3.5" />
+                              Comprobar
+                            </button>
+                          </>
+                        ) : notifPermission === "granted" ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              try {
+                                new Notification("Docenty PRO", {
+                                  body: "¡Notificación de prueba exitosa! Todo funciona correctamente.",
+                                  icon: "/favicon.ico"
+                                });
+                              } catch (e) {}
+                              playNotificationChime();
+                              showToast("Notificación enviada a tu dispositivo 🔔", "success");
+                            }}
+                            className="bg-teal-600 hover:bg-teal-700 text-white font-semibold text-xs px-4 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-md shadow-teal-950/40"
+                          >
+                            <Bell className="h-4 w-4" />
+                            Probar Notificación Push
+                          </button>
+                        ) : (
                           <button
                             type="button"
                             onClick={requestNotificationPermission}
@@ -2406,9 +2528,13 @@ export default function App() {
                             Activar Notificaciones
                           </button>
                         )}
+
                         <button
                           type="button"
-                          onClick={playNotificationChime}
+                          onClick={() => {
+                            playNotificationChime();
+                            showToast("Reproduciendo timbre y vibración de prueba 🔔", "info");
+                          }}
                           className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold text-xs px-4 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 border border-zinc-700/50"
                         >
                           <Volume2 className="h-4 w-4" />
@@ -2889,6 +3015,204 @@ export default function App() {
                   <Play className="h-3.5 w-3.5" />
                   Generar y Enviar a WhatsApp
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL 3: NOTIFICATIONS UNBLOCK GUIDE */}
+      <AnimatePresence>
+        {showNotifHelpModal && (
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-[#121212]/98 rounded-3xl border border-zinc-800 max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4 text-white max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex justify-between items-start border-b border-zinc-800/80 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                    <Bell className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-display font-bold text-base text-white">Desbloquear Notificaciones</h3>
+                    <p className="text-[11px] text-zinc-400">Activa las alertas automáticas para nuevos mensajes</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowNotifHelpModal(false)}
+                  className="p-1 hover:bg-zinc-800 rounded-lg transition cursor-pointer text-zinc-400 hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Selector de Dispositivo */}
+              <div className="grid grid-cols-2 gap-2 bg-zinc-950 p-1 rounded-xl border border-zinc-800/80">
+                <button
+                  type="button"
+                  onClick={() => setNotifHelpPlatform("android")}
+                  className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                    notifHelpPlatform === "android"
+                      ? "bg-amber-600 text-white shadow-xs"
+                      : "text-zinc-400 hover:text-white"
+                  }`}
+                >
+                  <Smartphone className="h-4 w-4" />
+                  En mi Celular (Android)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNotifHelpPlatform("pc")}
+                  className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                    notifHelpPlatform === "pc"
+                      ? "bg-amber-600 text-white shadow-xs"
+                      : "text-zinc-400 hover:text-white"
+                  }`}
+                >
+                  <Laptop className="h-4 w-4" />
+                  En Computadora (PC)
+                </button>
+              </div>
+
+              {notifHelpPlatform === "android" ? (
+                /* PASOS PARA ANDROID / CHROME */
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-zinc-900/70 border border-zinc-800/70">
+                    <div className="h-6 w-6 rounded-full bg-amber-500/20 text-amber-400 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                      1
+                    </div>
+                    <div className="space-y-1">
+                      <h5 className="text-xs font-bold text-white">Toca el icono al lado del enlace</h5>
+                      <p className="text-[11px] text-zinc-400 leading-relaxed">
+                        En la parte superior donde ves la dirección web, toca el icono de <strong>Ajustes de Sitio 🎛️</strong> o el <strong>Candado 🔒</strong>. 
+                        <br />
+                        <span className="text-[10px] text-zinc-500">(Si no lo ves, presiona los <strong>tres puntos ⋮</strong> arriba a la derecha y selecciona <strong>Configuración del sitio</strong>).</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-zinc-900/70 border border-zinc-800/70">
+                    <div className="h-6 w-6 rounded-full bg-amber-500/20 text-amber-400 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                      2
+                    </div>
+                    <div className="space-y-1">
+                      <h5 className="text-xs font-bold text-white">Entra a «Permisos» o «Notificaciones»</h5>
+                      <p className="text-[11px] text-zinc-400 leading-relaxed">
+                        Verás la lista de permisos asignados a esta página web.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-zinc-900/70 border border-zinc-800/70">
+                    <div className="h-6 w-6 rounded-full bg-amber-500/20 text-amber-400 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                      3
+                    </div>
+                    <div className="space-y-1">
+                      <h5 className="text-xs font-bold text-white">Cambia de "Bloqueado" a "Permitir"</h5>
+                      <p className="text-[11px] text-zinc-400 leading-relaxed">
+                        Activa el interruptor o selecciona <strong>«Permitir»</strong>. También puedes presionar <strong>«Restablecer permisos»</strong> para que el navegador vuelva a preguntarte.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-zinc-900/70 border border-zinc-800/70">
+                    <div className="h-6 w-6 rounded-full bg-teal-500/20 text-teal-400 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                      4
+                    </div>
+                    <div className="space-y-1">
+                      <h5 className="text-xs font-bold text-white">¡Listo! Vuelve a esta pestaña</h5>
+                      <p className="text-[11px] text-zinc-400 leading-relaxed">
+                        Al regresar a esta página se sincronizará automáticamente, o pulsa el botón inferior para verificarlo.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* PASOS PARA COMPUTADORA */
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-zinc-900/70 border border-zinc-800/70">
+                    <div className="h-6 w-6 rounded-full bg-amber-500/20 text-amber-400 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                      1
+                    </div>
+                    <div className="space-y-1">
+                      <h5 className="text-xs font-bold text-white">Haz clic en el candado 🔒 en la barra de direcciones</h5>
+                      <p className="text-[11px] text-zinc-400 leading-relaxed">
+                        En la parte izquierda del link en Chrome, Edge o Safari, haz clic en el candado o sintonizador de permisos.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-zinc-900/70 border border-zinc-800/70">
+                    <div className="h-6 w-6 rounded-full bg-amber-500/20 text-amber-400 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                      2
+                    </div>
+                    <div className="space-y-1">
+                      <h5 className="text-xs font-bold text-white">Cambia Notificaciones a «Permitir»</h5>
+                      <p className="text-[11px] text-zinc-400 leading-relaxed">
+                        En la fila de <strong>Notificaciones</strong>, cambia el selector de <em>Bloqueado</em> a <strong>Permitir</strong>.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-zinc-900/70 border border-zinc-800/70">
+                    <div className="h-6 w-6 rounded-full bg-teal-500/20 text-teal-400 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                      3
+                    </div>
+                    <div className="space-y-1">
+                      <h5 className="text-xs font-bold text-white">Recarga la página o pulsa Comprobar</h5>
+                      <p className="text-[11px] text-zinc-400 leading-relaxed">
+                        El navegador aplicará el cambio de inmediato.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Nota de respaldo con sonido */}
+              <div className="bg-teal-950/20 border border-teal-900/30 p-3 rounded-xl">
+                <p className="text-[11px] text-teal-200/90 leading-relaxed">
+                  🔊 <strong>Alerta Sonora Activa:</strong> Mientras tengas la página del CRM abierta, el timbre y la vibración se reproducirán siempre con cada mensaje entrante aunque las notificaciones push del sistema no estén habilitadas.
+                </p>
+              </div>
+
+              <div className="pt-3 border-t border-zinc-800/80 flex flex-wrap justify-between items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    playNotificationChime();
+                    showToast("Sonido y vibración de prueba emitidos 🔔", "info");
+                  }}
+                  className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold px-3 py-2 rounded-xl transition cursor-pointer flex items-center gap-1.5 border border-zinc-700/50"
+                >
+                  <Volume2 className="h-3.5 w-3.5" />
+                  Probar Sonido
+                </button>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if ("Notification" in window && Notification.permission === "granted") {
+                        setShowNotifHelpModal(false);
+                      }
+                      handleCheckPermissionAgain();
+                    }}
+                    className="bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold px-4 py-2 rounded-xl transition cursor-pointer shadow-md shadow-amber-950/40 flex items-center gap-1.5"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Comprobar Ahora
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowNotifHelpModal(false)}
+                    className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold px-4 py-2 rounded-xl transition cursor-pointer border border-zinc-700/50"
+                  >
+                    Cerrar
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>
