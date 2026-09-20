@@ -1151,7 +1151,7 @@ export default function App() {
   });
 
   return (
-    <div className="min-h-screen bg-carbon flex flex-col font-sans antialiased text-zinc-100" id="crm-app-root">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-carbon flex flex-col font-sans antialiased text-zinc-100" id="crm-app-root">
       {/* Toast Notification */}
       <AnimatePresence>
         {notification && (
@@ -1310,7 +1310,7 @@ export default function App() {
       </header>
 
       {/* Main Workspace Layout */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden min-w-0 w-full max-w-full">
         {/* Navigation Sidebar */}
         <aside className="hidden md:flex w-64 bg-[#121212]/90 border-r border-zinc-800/80 flex-col justify-between" id="app-sidebar">
           <div className="p-4 flex flex-col gap-1">
@@ -1410,7 +1410,11 @@ export default function App() {
         </aside>
 
         {/* Content Container */}
-        <main className="flex-1 overflow-y-auto bg-carbon pb-20 md:pb-0">
+        <main className={`flex-1 min-w-0 w-full max-w-full bg-carbon ${
+          activeTab === "whatsapp"
+            ? "flex flex-col h-[calc(100dvh-54px)] md:h-auto overflow-hidden pb-18 md:pb-0"
+            : "overflow-y-auto pb-24 md:pb-0"
+        }`}>
           {loading ? (
             <div className="h-full flex flex-col items-center justify-center p-8">
               <RefreshCw className="h-8 w-8 text-teal-500 animate-spin mb-4" />
@@ -1646,9 +1650,9 @@ export default function App() {
 
               {/* TAB 2: WHATSAPP CHAT SIMULATOR */}
               {activeTab === "whatsapp" && (
-                <div className="h-[calc(100vh-137px)] md:h-[calc(100vh-73px)] w-full flex overflow-hidden" id="whatsapp-simulator">
+                <div className="h-full flex-1 w-full max-w-full flex overflow-hidden min-w-0" id="whatsapp-simulator">
                   {/* Left Column: Chat List */}
-                  <div className={`${mobileChatView === "chat" ? "hidden" : "w-full"} md:flex md:w-80 bg-[#121212]/95 border-r border-zinc-800/80 flex flex-col h-full flex-shrink-0`}>
+                  <div className={`${mobileChatView === "chat" ? "hidden" : "w-full"} md:flex md:w-80 bg-[#121212]/95 border-r border-zinc-800/80 flex flex-col h-full flex-shrink-0 min-w-0`}>
                     {/* Search Chat */}
                     <div className="p-3 border-b border-zinc-800/80">
                       <div className="relative">
@@ -1723,11 +1727,11 @@ export default function App() {
                   </div>
 
                   {/* Right Column: Chat Window */}
-                  <div className={`${mobileChatView === "list" ? "hidden" : "flex"} flex-1 flex flex-col h-full bg-[#0d0d0d] relative`}>
+                  <div className={`${mobileChatView === "list" ? "hidden" : "flex"} flex-1 min-w-0 w-full max-w-full flex-col h-full bg-[#0d0d0d] relative overflow-hidden`}>
                     {activeLead ? (
                       <>
                         {/* Chat Header */}
-                        <div className="bg-[#121212]/95 text-white px-4 py-2.5 sm:py-3 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between border-b border-zinc-800/80 shadow-xs z-10">
+                        <div className="bg-[#121212]/95 backdrop-blur-md text-white px-3 sm:px-4 py-2 sm:py-2.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-zinc-800/80 shadow-xs z-10 w-full max-w-full min-w-0 overflow-hidden shrink-0">
                           <div className="flex items-center">
                             {/* Back to list button on mobile */}
                             <button
@@ -1738,12 +1742,12 @@ export default function App() {
                               <ArrowLeft className="h-5 w-5" />
                             </button>
 
-                            <div className="flex items-center gap-3">
-                              <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-zinc-800 text-teal-400 font-bold flex items-center justify-center text-sm uppercase border border-zinc-700/50 flex-shrink-0">
+                            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                              <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-zinc-800 text-teal-400 font-bold flex items-center justify-center text-sm uppercase border border-teal-500/30 flex-shrink-0 shadow-[0_0_8px_rgba(20,184,166,0.2)]">
                                 {activeLead.name.substring(0, 2)}
                               </div>
-                              <div>
-                                <h3 className="font-bold text-xs sm:text-sm text-white">{activeLead.name}</h3>
+                              <div className="min-w-0">
+                                <h3 className="font-bold text-xs sm:text-sm text-white truncate">{activeLead.name}</h3>
                                 {activeLead.isPaused ? (
                                   <p className="text-[9px] sm:text-[10px] text-amber-400 flex items-center gap-1 font-semibold">
                                     <span className="h-1.5 w-1.5 rounded-full bg-amber-400 inline-block"></span>
@@ -1759,8 +1763,8 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* Header Action Buttons - scrollable horizontally on mobile to save vertical space */}
-                          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-none">
+                          {/* Header Action Buttons - scrollable horizontally on mobile */}
+                          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 sm:pb-0 w-full sm:w-auto max-w-full no-scrollbar shrink-0">
                             {/* Pause Toggle Button */}
                             <button
                               onClick={async () => {
@@ -1829,19 +1833,29 @@ export default function App() {
                         </div>
 
                         {/* Leads Context Sidebar Overlay for WhatsApp test */}
-                        <div className="bg-[#121212]/80 px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs border-b border-zinc-800/80 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-zinc-300 justify-between">
-                          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                            <span>📋 **Notas:** {activeLead.notes || "Sin notas específicas"}</span>
-                            <span>🔑 **Ref:** <code className="bg-zinc-950 border border-zinc-800 text-teal-400 px-1 rounded font-bold font-mono">{activeLead.assignedRef}</code></span>
-                            <span className="hidden xs:inline">📦 **Plan:** <span className="font-bold capitalize text-teal-400">Premium ($2 USD)</span></span>
+                        <div className="bg-[#121212]/90 backdrop-blur-md px-3 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs border-b border-zinc-800/80 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-zinc-300 justify-between w-full min-w-0 max-w-full overflow-hidden shrink-0">
+                          <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0 max-w-full">
+                            <span className="truncate max-w-full text-zinc-300">
+                              📋 <strong className="text-zinc-400">Notas:</strong> {activeLead.notes || "Sin notas específicas"}
+                            </span>
+                            <span className="shrink-0">
+                              🔑 <strong className="text-zinc-400">Ref:</strong>{" "}
+                              <code className="bg-zinc-950 border border-teal-500/30 text-teal-400 px-1.5 py-0.5 rounded font-bold font-mono text-[10px]">
+                                {activeLead.assignedRef}
+                              </code>
+                            </span>
+                            <span className="hidden xs:inline shrink-0">
+                              📦 <strong className="text-zinc-400">Plan:</strong>{" "}
+                              <span className="font-bold capitalize text-teal-400">Premium ($2 USD)</span>
+                            </span>
                           </div>
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold uppercase self-start sm:self-auto ${
+                            className={`px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold uppercase shrink-0 self-start sm:self-auto ${
                               activeLead.status === "approved"
-                                ? "bg-teal-950/60 text-teal-300 border border-teal-800/30"
+                                ? "bg-teal-950/80 text-teal-300 border border-teal-700/50 shadow-[0_0_8px_rgba(20,184,166,0.2)]"
                                 : activeLead.status === "payment_sent"
-                                ? "bg-amber-950/60 text-amber-300 border border-amber-800/30"
-                                : "bg-zinc-900 text-zinc-400 border border-zinc-800/60"
+                                ? "bg-amber-950/80 text-amber-300 border border-amber-700/50"
+                                : "bg-zinc-900 text-zinc-400 border border-zinc-800"
                             }`}
                           >
                             Estado: {activeLead.status === "approved" ? "Activo" : activeLead.status === "payment_sent" ? "Verificando" : "Prospecto"}
@@ -1850,7 +1864,8 @@ export default function App() {
 
                         {/* WhatsApp Messages Display */}
                         <div
-                          className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col"
+                          id="whatsapp-messages-container"
+                          className="flex-1 min-w-0 w-full overflow-y-auto overflow-x-hidden px-3 sm:px-5 py-3 sm:py-4 space-y-3 flex flex-col"
                           style={{
                             backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')",
                             backgroundBlendMode: "multiply",
@@ -1873,50 +1888,50 @@ export default function App() {
                             return (
                               <div
                                 key={index}
-                                className={`flex flex-col ${isBot ? "items-start" : "items-end"} max-w-[80%] ${
-                                  isBot ? "self-start" : "self-end"
-                                }`}
+                                className={`flex flex-col w-full ${isBot ? "items-start" : "items-end"} min-w-0`}
                               >
                                 <div
-                                  className={`p-3 rounded-xl shadow-xs relative ${
+                                  className={`max-w-[85%] sm:max-w-[78%] p-3 sm:p-3.5 rounded-2xl shadow-md relative min-w-0 break-words [overflow-wrap:anywhere] [word-break:break-word] ${
                                     isBot
-                                      ? "bg-zinc-800 text-zinc-100 rounded-tl-none border border-zinc-700/50"
-                                      : "bg-teal-900/60 text-teal-100 border border-teal-800/60 rounded-tr-none"
+                                      ? "bg-zinc-800/95 text-zinc-100 rounded-tl-xs border border-zinc-700/60 mr-2 sm:mr-4"
+                                      : "bg-gradient-to-br from-teal-900/95 to-emerald-950/95 text-teal-50 border border-teal-600/40 rounded-tr-xs ml-2 sm:ml-4 shadow-[0_2px_12px_rgba(20,184,166,0.18)]"
                                   }`}
                                 >
                                   {/* Custom header if receipt attachment */}
                                   {msg.isReceipt && msg.receiptData && (
-                                    <div className="mb-2 border border-dashed border-teal-500/50 p-2 rounded-lg bg-teal-950/40">
-                                      <div className="flex items-center gap-1.5 text-xs font-bold text-teal-300 mb-1">
-                                        <ImageIcon className="h-3.5 w-3.5" />
-                                        <span>Captura de Comprobante Recibido</span>
+                                    <div className="mb-2 border border-dashed border-teal-500/50 p-2 sm:p-2.5 rounded-xl bg-teal-950/50 min-w-0">
+                                      <div className="flex items-center gap-1.5 text-xs font-bold text-teal-300 mb-1.5">
+                                        <ImageIcon className="h-3.5 w-3.5 shrink-0" />
+                                        <span className="truncate">Comprobante Recibido</span>
                                       </div>
                                       
                                       {msg.receiptData.imageUrl && (
                                         <img
                                           src={msg.receiptData.imageUrl}
                                           alt="Receipt"
-                                          className="w-full max-h-48 object-contain rounded border border-zinc-800 mb-2 bg-[#121212]"
+                                          className="w-full max-h-44 object-contain rounded-lg border border-zinc-800 mb-2 bg-[#121212]"
                                         />
                                       )}
 
                                       {/* OCR Readout */}
-                                      <div className="text-[11px] space-y-1 bg-[#121212] p-2 rounded border border-zinc-800">
-                                        <div className="flex justify-between">
-                                          <span className="text-zinc-500">Monto:</span>
-                                          <span className="font-bold text-zinc-100">{msg.receiptData.monto}</span>
+                                      <div className="text-[11px] space-y-1 bg-[#121212]/90 p-2 rounded-lg border border-zinc-800/80">
+                                        <div className="flex justify-between items-baseline gap-2">
+                                          <span className="text-zinc-400">Monto:</span>
+                                          <span className="font-bold text-zinc-100 font-mono">{msg.receiptData.monto}</span>
                                         </div>
-                                        <div className="flex justify-between">
-                                          <span className="text-zinc-500">Ref Leída:</span>
-                                          <span className="font-bold font-mono text-teal-400">{msg.receiptData.referencia || "No legible"}</span>
+                                        <div className="flex justify-between items-baseline gap-2 min-w-0">
+                                          <span className="text-zinc-400 shrink-0">Ref:</span>
+                                          <span className="font-bold font-mono text-teal-400 truncate text-[10px] sm:text-xs">{msg.receiptData.referencia || "No legible"}</span>
                                         </div>
-                                        <div className="flex justify-between">
-                                          <span className="text-zinc-500">Banco:</span>
-                                          <span className="text-zinc-300">{msg.receiptData.banco || "Banca Digital"}</span>
+                                        <div className="flex justify-between items-baseline gap-2">
+                                          <span className="text-zinc-400">Banco:</span>
+                                          <span className="text-zinc-300 truncate">{msg.receiptData.banco || "Banca Digital"}</span>
                                         </div>
-                                        <div className="mt-1.5 pt-1.5 border-t border-zinc-800/80 text-[10px] text-zinc-400 leading-relaxed italic">
-                                          &ldquo;{msg.receiptData.analisis}&rdquo;
-                                        </div>
+                                        {msg.receiptData.analisis && (
+                                          <div className="mt-1.5 pt-1.5 border-t border-zinc-800 text-[10px] text-zinc-400 leading-relaxed italic break-words">
+                                            &ldquo;{msg.receiptData.analisis}&rdquo;
+                                          </div>
+                                        )}
                                       </div>
 
                                       {activeLead.status !== "approved" && (() => {
@@ -1924,13 +1939,13 @@ export default function App() {
                                         const inputClientVal = assocClientRefs[uniqueKey] !== undefined ? assocClientRefs[uniqueKey] : activeLead.assignedRef;
                                         const inputBankVal = assocBankRefs[uniqueKey] !== undefined ? assocBankRefs[uniqueKey] : (msg.receiptData.referencia || "");
                                         return (
-                                          <div className="mt-3 pt-3 border-t border-zinc-800 space-y-2">
-                                            <div className="text-[10px] uppercase tracking-wider font-bold text-teal-400">
+                                          <div className="mt-2.5 pt-2.5 border-t border-zinc-800 space-y-2">
+                                            <div className="text-[9px] sm:text-[10px] uppercase tracking-wider font-bold text-teal-400">
                                               Asociación Manual de Referencia
                                             </div>
-                                            <div className="grid grid-cols-2 gap-2">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
                                               <div>
-                                                <label className="block text-[9px] text-zinc-500 mb-0.5">Ref. Cliente (CRM)</label>
+                                                <label className="block text-[9px] text-zinc-400 mb-0.5">Ref. Cliente (CRM)</label>
                                                 <input
                                                   type="text"
                                                   value={inputClientVal}
@@ -1940,7 +1955,7 @@ export default function App() {
                                                 />
                                               </div>
                                               <div>
-                                                <label className="block text-[9px] text-zinc-500 mb-0.5">Ref. Operación (Banco)</label>
+                                                <label className="block text-[9px] text-zinc-400 mb-0.5">Ref. Banco</label>
                                                 <input
                                                   type="text"
                                                   value={inputBankVal}
@@ -1953,22 +1968,22 @@ export default function App() {
                                             
                                             <div className="flex flex-col gap-1.5 mt-2">
                                               <button
+                                                type="button"
                                                 onClick={() => handleAssociatePayment(activeLead.id, inputClientVal, inputBankVal, index)}
                                                 disabled={!!associatingKey}
-                                                className="w-full bg-teal-600 hover:bg-teal-500 disabled:bg-teal-800/50 disabled:opacity-50 text-white font-bold text-[10px] py-1.5 rounded flex items-center justify-center gap-1.5 transition cursor-pointer"
-                                                title="Vincular referencia del banco con la del cliente y activar cuenta"
+                                                className="w-full bg-teal-600 hover:bg-teal-500 disabled:bg-teal-800/50 disabled:opacity-50 text-white font-bold text-[10px] py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition cursor-pointer"
                                               >
-                                                <Link className="h-3.5 w-3.5" />
+                                                <Link className="h-3 w-3 shrink-0" />
                                                 <span>{associatingKey === uniqueKey ? "Asociando..." : "Asociar y Activar Premium"}</span>
                                               </button>
                                               
                                               <button
+                                                type="button"
                                                 onClick={() => handleApprovePayment(activeLead.id)}
                                                 disabled={approvingLeadId === activeLead.id}
-                                                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-[10px] py-1.5 rounded flex items-center justify-center gap-1.5 transition cursor-pointer"
-                                                title="Aprobar el pago de este docente directamente"
+                                                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-[10px] py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition cursor-pointer"
                                               >
-                                                <CircleCheck className="h-3.5 w-3.5" />
+                                                <CircleCheck className="h-3 w-3 shrink-0" />
                                                 <span>{approvingLeadId === activeLead.id ? "Aprobando..." : "Aprobar Comprobante Directo"}</span>
                                               </button>
                                             </div>
@@ -1980,24 +1995,24 @@ export default function App() {
 
                                   {/* Custom audio player if audio message */}
                                   {msg.isAudio && msg.audioData && (
-                                    <div className="mb-2 p-2 rounded-lg bg-zinc-900 border border-zinc-800 flex flex-col gap-1 w-full min-w-[240px]">
+                                    <div className="mb-2 p-2 rounded-xl bg-zinc-900/90 border border-zinc-800 flex flex-col gap-1 w-full min-w-0">
                                       <div className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-300">
-                                        <Mic className="h-3 w-3 text-teal-400 animate-pulse" />
+                                        <Mic className="h-3 w-3 text-teal-400 animate-pulse shrink-0" />
                                         <span>Mensaje de Voz</span>
                                       </div>
                                       <audio
                                         controls
                                         src={`data:${msg.audioData.mimeType};base64,${msg.audioData.base64}`}
-                                        className="w-full h-8 mt-1"
+                                        className="w-full max-w-full h-8 mt-1"
                                       />
                                     </div>
                                   )}
 
-                                  {/* Message text with basic styling for line breaks */}
-                                  <p className="text-xs leading-relaxed whitespace-pre-wrap select-text">{msg.text}</p>
+                                  {/* Message text with word wrapping for URLs and long tokens */}
+                                  <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap select-text break-words [overflow-wrap:anywhere] [word-break:break-word]">{msg.text}</p>
                                   
                                   {/* Metadata footer */}
-                                  <div className="flex justify-end items-center gap-1 mt-1 text-[9px] text-zinc-500">
+                                  <div className="flex justify-end items-center gap-1 mt-1 text-[9px] sm:text-[10px] text-zinc-400 font-mono">
                                     <span>
                                       {new Date(msg.timestamp).toLocaleTimeString([], {
                                         hour: "2-digit",
@@ -2005,7 +2020,7 @@ export default function App() {
                                       })}
                                     </span>
                                     {!isBot && (
-                                      <CheckCheck className="h-3.5 w-3.5 text-teal-400" />
+                                      <CheckCheck className="h-3.5 w-3.5 text-teal-300 shrink-0" />
                                     )}
                                   </div>
                                 </div>
@@ -2015,23 +2030,23 @@ export default function App() {
 
                           {/* Loading animations */}
                           {(sendingMsg || simulatingBuyer) && (
-                            <div className="self-start bg-zinc-800 border border-zinc-700/50 p-3 rounded-xl rounded-tl-none shadow-xs text-xs text-zinc-300 flex items-center gap-2 max-w-[200px]">
+                            <div className="self-start bg-zinc-800/90 border border-zinc-700/50 p-2.5 sm:p-3 rounded-2xl rounded-tl-xs shadow-xs text-xs text-zinc-300 flex items-center gap-2 max-w-[200px]">
                               <span className="flex h-2 w-2 relative">
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
                                 <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
                               </span>
-                              <span>Camila escribiendo...</span>
+                              <span className="text-[11px] sm:text-xs">Camila escribiendo...</span>
                             </div>
                           )}
 
                           {verifyingReceipt && (
-                            <div className="self-start bg-zinc-800 p-4 rounded-xl shadow-md border border-teal-500/30 flex flex-col gap-2 max-w-xs">
+                            <div className="self-start bg-zinc-800/90 p-3 sm:p-4 rounded-2xl rounded-tl-xs shadow-md border border-teal-500/30 flex flex-col gap-2 max-w-xs">
                               <div className="flex items-center gap-2 text-xs font-semibold text-teal-300 animate-pulse">
-                                <RefreshCw className="h-4 w-4 animate-spin text-teal-400" />
-                                <span>IA analizando comprobante con Visión...</span>
+                                <RefreshCw className="h-4 w-4 animate-spin text-teal-400 shrink-0" />
+                                <span>IA analizando comprobante...</span>
                               </div>
                               <p className="text-[10px] text-zinc-400 leading-relaxed">
-                                Escaneando el comprobante en la imagen, decodificando los códigos OCR y cotejando la referencia con la asignada.
+                                Escaneando imagen OCR y cotejando la referencia con la base de datos.
                               </p>
                             </div>
                           )}
@@ -2040,10 +2055,10 @@ export default function App() {
                         </div>
 
                         {/* Chat Footer Input bar */}
-                        <div className="bg-[#121212] p-3 flex items-center gap-2 border-t border-zinc-800/80">
+                        <div className="bg-[#121212]/95 backdrop-blur-md p-2 sm:p-3 flex items-center gap-1 sm:gap-2 border-t border-zinc-800/80 w-full max-w-full min-w-0 shrink-0 z-10">
                           {/* File input proxy button */}
-                          <label className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg cursor-pointer transition flex items-center justify-center" title="Subir Imagen de Comprobante">
-                            <ImageIcon className="h-5 w-5" />
+                          <label className="p-1.5 sm:p-2 text-zinc-400 hover:text-white hover:bg-zinc-800/80 rounded-lg cursor-pointer transition flex items-center justify-center shrink-0" title="Subir Imagen de Comprobante">
+                            <ImageIcon className="h-4 w-4 sm:h-5 sm:w-5 text-teal-400" />
                             <input
                               type="file"
                               accept="image/*"
@@ -2052,9 +2067,9 @@ export default function App() {
                             />
                           </label>
 
-                          {/* Audio upload proxy button */}
-                          <label className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg cursor-pointer transition flex items-center justify-center" title="Subir Archivo de Audio">
-                            <Volume2 className="h-5 w-5" />
+                          {/* Audio upload proxy button - hidden on mobile to give room */}
+                          <label className="hidden sm:flex p-2 text-zinc-400 hover:text-white hover:bg-zinc-800/80 rounded-lg cursor-pointer transition items-center justify-center shrink-0" title="Subir Archivo de Audio">
+                            <Volume2 className="h-5 w-5 text-cyan-400" />
                             <input
                               type="file"
                               accept="audio/*"
@@ -2066,19 +2081,21 @@ export default function App() {
                           {/* Record audio button */}
                           {isRecording ? (
                             <button
+                              type="button"
                               onClick={stopRecording}
-                              className="p-2 text-white bg-red-600 hover:bg-red-700 rounded-lg cursor-pointer transition flex items-center justify-center animate-pulse animate-duration-1000"
+                              className="p-1.5 sm:p-2 text-white bg-red-600 hover:bg-red-700 rounded-lg cursor-pointer transition flex items-center justify-center animate-pulse shrink-0"
                               title="Detener grabación"
                             >
-                              <Square className="h-5 w-5 fill-white" />
+                              <Square className="h-4 w-4 sm:h-5 sm:w-5 fill-white" />
                             </button>
                           ) : (
                             <button
+                              type="button"
                               onClick={startRecording}
-                              className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg cursor-pointer transition flex items-center justify-center"
+                              className="p-1.5 sm:p-2 text-zinc-400 hover:text-white hover:bg-zinc-800/80 rounded-lg cursor-pointer transition flex items-center justify-center shrink-0"
                               title="Grabar nota de voz"
                             >
-                              <Mic className="h-5 w-5" />
+                              <Mic className="h-4 w-4 sm:h-5 sm:w-5 text-zinc-400" />
                             </button>
                           )}
 
@@ -2086,17 +2103,17 @@ export default function App() {
                           <button
                             type="button"
                             onClick={handleSimulatePresetVoiceNote}
-                            className="px-2.5 py-1.5 text-[10px] bg-teal-950/40 hover:bg-teal-950/80 border border-teal-800/40 text-teal-400 font-bold rounded-xl cursor-pointer transition flex items-center gap-1 shrink-0"
+                            className="px-2 sm:px-2.5 py-1.5 text-[9px] sm:text-[10px] bg-teal-950/60 hover:bg-teal-900/60 border border-teal-700/50 text-teal-300 font-bold rounded-xl cursor-pointer transition flex items-center gap-1 shrink-0"
                             title="Simular nota de voz del cliente"
                           >
-                            <Sparkles className="h-3 w-3 text-teal-400 animate-pulse" />
-                            <span>Simular Audio</span>
+                            <Sparkles className="h-3 w-3 text-teal-400 animate-pulse shrink-0" />
+                            <span className="hidden xs:inline">Simular Audio</span>
                           </button>
 
                           <input
                             type="text"
-                            placeholder={activeLead.isPaused ? "Escribe tu mensaje manual como operador..." : "Escribe como profesor interesado... (ej. ¿Qué planes tienen?)"}
-                            className="flex-1 bg-zinc-900 border border-zinc-800 px-4 py-2 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-hidden focus:border-teal-500"
+                            placeholder={activeLead.isPaused ? "Mensaje manual de operador..." : "Escribe como profesor... (ej. ¿Precios?)"}
+                            className="flex-1 min-w-0 bg-zinc-900/90 border border-zinc-800 focus:border-teal-500 focus:outline-hidden px-3 sm:px-4 py-2 rounded-xl text-xs text-white placeholder-zinc-500 transition"
                             value={chatInput}
                             onChange={(e) => setChatInput(e.target.value)}
                             onKeyDown={(e) => {
@@ -2111,6 +2128,7 @@ export default function App() {
                           />
 
                           <button
+                            type="button"
                             onClick={() => {
                               if (activeLead.isPaused) {
                                 handleSendManualMsg();
@@ -2119,7 +2137,8 @@ export default function App() {
                               }
                             }}
                             disabled={!chatInput.trim() || sendingMsg}
-                            className="p-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-30 text-white rounded-xl transition cursor-pointer flex items-center justify-center shadow-md shadow-teal-950/40"
+                            className="p-2 sm:px-3 sm:py-2 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 disabled:opacity-30 text-zinc-950 font-bold rounded-xl transition cursor-pointer flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(20,184,166,0.3)]"
+                            title="Enviar mensaje"
                           >
                             <Send className="h-4 w-4" />
                           </button>
