@@ -44,11 +44,18 @@ import { motion, AnimatePresence } from "motion/react";
 import { Lead, Message, BankDetails, SystemConfigs } from "./types";
 import { MetaCloudApiView } from "./components/MetaCloudApiView";
 import { DocentyKnowledgeView } from "./components/DocentyKnowledgeView";
+import { FuturisticMetricsBar } from "./components/FuturisticMetricsBar";
+import { FuturisticMobileLeadCard } from "./components/FuturisticMobileLeadCard";
+import { MobileLeadDetailDrawer } from "./components/MobileLeadDetailDrawer";
 
 export default function App() {
   // Tabs: "crm", "whatsapp", "meta", "config", "about"
   const [activeTab, setActiveTab] = useState<"crm" | "whatsapp" | "meta" | "config" | "about">("crm");
   
+  // Futuristic & Social Reel recording mode
+  const [socialReelMode, setSocialReelMode] = useState<boolean>(false);
+  const [selectedLeadForDetail, setSelectedLeadForDetail] = useState<Lead | null>(null);
+
   // Leads & Config States
   const [leads, setLeads] = useState<Lead[]>([]);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
@@ -1236,52 +1243,68 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Header */}
-      <header className="bg-[#121212]/90 backdrop-blur-md border-b border-zinc-800/80 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between sticky top-0 z-20" id="app-header">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="bg-teal-600 text-white p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl shadow-md shadow-teal-950/40 flex items-center justify-center">
-            <Sparkles className="h-4 w-4 sm:h-6 sm:w-6" />
+      {/* Futuristic Header */}
+      <header className="bg-zinc-950/80 backdrop-blur-xl border-b border-teal-500/20 px-3.5 sm:px-6 py-2.5 sm:py-3.5 flex items-center justify-between sticky top-0 z-20 shadow-[0_4px_20px_rgba(0,0,0,0.5)]" id="app-header">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="relative">
+            <div className="bg-gradient-to-tr from-teal-600 to-emerald-400 text-black p-2 sm:p-2.5 rounded-xl shadow-[0_0_15px_rgba(20,184,166,0.4)] flex items-center justify-center font-black">
+              <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
+            </div>
+            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 border-2 border-black animate-ping" />
+            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 border-2 border-black" />
           </div>
           <div>
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <h1 className="font-display font-bold text-base sm:text-xl tracking-tight text-white">Docenty PRO</h1>
-              <span className="bg-teal-950/60 text-teal-300 text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded border border-teal-800/50">CRM IA</span>
+              <h1 className="font-display font-extrabold text-base sm:text-xl tracking-tight text-white flex items-center gap-1.5">
+                Docenty <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-cyan-300">PRO</span>
+              </h1>
+              <span className="bg-teal-950/80 text-teal-300 text-[9px] sm:text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md border border-teal-500/40 shadow-[0_0_8px_rgba(20,184,166,0.2)]">
+                v3.2 AI
+              </span>
             </div>
-            <p className="text-xs text-zinc-400 hidden sm:block">Gestor de WhatsApp & Ventas SaaS en Piloto Automático</p>
+            <div className="flex items-center gap-1.5 text-[11px] text-zinc-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span className="font-mono text-[10px] text-emerald-400/90 font-medium">LIVE AUTOMATION</span>
+              <span className="text-zinc-600 hidden sm:inline">•</span>
+              <p className="text-xs text-zinc-400 hidden sm:block">WhatsApp & Ventas SaaS Piloto Automático</p>
+            </div>
           </div>
         </div>
 
         {/* Top bar controls */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3">
           <button
+            type="button"
             onClick={() => setActiveTab("meta")}
-            className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg font-semibold transition cursor-pointer border ${
+            className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl font-semibold transition cursor-pointer border ${
               activeTab === "meta"
-                ? "bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-950/40"
-                : "text-blue-300 bg-blue-950/40 hover:bg-blue-900/60 border-blue-800/50"
+                ? "bg-cyan-500 text-black border-cyan-400 font-bold shadow-[0_0_12px_rgba(6,182,212,0.4)]"
+                : "text-cyan-300 bg-cyan-950/40 hover:bg-cyan-900/60 border-cyan-800/40"
             }`}
             title="Consola VPS DigitalOcean & Meta Cloud API"
           >
             <Server className="h-3.5 w-3.5" />
-            <span className="font-mono text-xs">VPS Droplet</span>
+            <span className="font-mono text-xs">VPS</span>
           </button>
 
           <button
+            type="button"
             onClick={handleResetDb}
-            className="flex items-center gap-1.5 text-xs text-zinc-300 hover:text-teal-400 bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/50 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg font-medium transition cursor-pointer"
-            title="Restablecer base de datos con leads demo"
+            className="flex items-center gap-1.5 text-xs text-zinc-300 hover:text-teal-300 bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl font-medium transition cursor-pointer"
+            title="Restablecer datos demo"
           >
             <RefreshCw className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Reiniciar Demo</span>
+            <span className="hidden sm:inline font-mono">Demo</span>
           </button>
           
           <button
+            type="button"
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-1.5 text-xs text-white bg-teal-600 hover:bg-teal-700 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg font-semibold transition cursor-pointer shadow-md shadow-teal-950/40"
+            className="flex items-center gap-1.5 text-xs text-black font-bold bg-gradient-to-r from-teal-400 to-emerald-400 hover:from-teal-300 hover:to-emerald-300 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl transition cursor-pointer shadow-[0_0_15px_rgba(45,212,191,0.3)]"
             title="Crear un nuevo lead"
           >
             <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Nuevo Lead</span>
+            <span className="font-semibold text-xs">Nuevo Lead</span>
           </button>
         </div>
       </header>
@@ -1397,93 +1420,66 @@ export default function App() {
             <div className="h-full">
               {/* TAB 1: CRM LEAD MANAGER */}
               {activeTab === "crm" && (
-                <div className="p-6 max-w-7xl mx-auto space-y-6">
-                  {/* Dashboard Hero stats */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-                    <div className="bg-[#121212]/90 p-3 sm:p-4 rounded-2xl border border-zinc-800/80 shadow-xs flex items-center justify-between">
-                      <div>
-                        <p className="text-[10px] sm:text-xs font-semibold text-zinc-400 uppercase tracking-wider">Total Leads</p>
-                        <h3 className="text-xl sm:text-2xl font-display font-bold text-white mt-1">{totalLeads}</h3>
-                      </div>
-                      <div className="bg-zinc-800/60 p-2 sm:p-2.5 rounded-xl text-zinc-300">
-                        <Users className="h-4 sm:h-5 w-4 sm:w-5" />
-                      </div>
-                    </div>
+                <div className="p-3 sm:p-6 max-w-7xl mx-auto space-y-4 sm:space-y-6">
+                  {/* Futuristic Metrics Bar & Social Reel Recording Helper */}
+                  <FuturisticMetricsBar
+                    totalLeads={totalLeads}
+                    activeSubscribers={activeSubscribers}
+                    pendingPayments={pendingPayments}
+                    potentialArr={potentialArr}
+                    conversionRate={conversionRate}
+                    socialReelMode={socialReelMode}
+                    onToggleSocialReelMode={() => setSocialReelMode(!socialReelMode)}
+                  />
 
-                    <div className="bg-[#121212]/90 p-3 sm:p-4 rounded-2xl border border-zinc-800/80 shadow-xs flex items-center justify-between">
-                      <div>
-                        <p className="text-[10px] sm:text-xs font-semibold text-zinc-400 uppercase tracking-wider">Tasa Conv.</p>
-                        <h3 className="text-xl sm:text-2xl font-display font-bold text-teal-400 mt-1">{conversionRate}%</h3>
-                      </div>
-                      <div className="bg-teal-950/40 p-2 sm:p-2.5 rounded-xl text-teal-400 border border-teal-900/30">
-                        <TrendingUp className="h-4 sm:h-5 w-4 sm:w-5" />
-                      </div>
-                    </div>
-
-                    <div className="bg-[#121212]/90 p-3 sm:p-4 rounded-2xl border border-zinc-800/80 shadow-xs flex items-center justify-between">
-                      <div>
-                        <p className="text-[10px] sm:text-xs font-semibold text-zinc-400 uppercase tracking-wider">Premium Act.</p>
-                        <h3 className="text-xl sm:text-2xl font-display font-bold text-teal-400 mt-1">{activeSubscribers}</h3>
-                      </div>
-                      <div className="bg-teal-950/40 p-2 sm:p-2.5 rounded-xl text-teal-400 border border-teal-900/30">
-                        <ShieldCheck className="h-4 sm:h-5 w-4 sm:w-5" />
-                      </div>
-                    </div>
-
-                    <div className="bg-[#121212]/90 p-3 sm:p-4 rounded-2xl border border-zinc-800/80 shadow-xs flex items-center justify-between">
-                      <div>
-                        <p className="text-[10px] sm:text-xs font-semibold text-zinc-400 uppercase tracking-wider">Pend. Pago</p>
-                        <h3 className="text-xl sm:text-2xl font-display font-bold text-amber-400 mt-1">{pendingPayments}</h3>
-                      </div>
-                      <div className="bg-amber-950/40 p-2 sm:p-2.5 rounded-xl text-amber-400 border border-amber-900/30">
-                        <CreditCard className="h-4 sm:h-5 w-4 sm:w-5" />
-                      </div>
-                    </div>
-
-                    <div className="col-span-2 sm:col-span-1 bg-[#121212]/90 p-3 sm:p-4 rounded-2xl border border-zinc-800/80 shadow-xs flex items-center justify-between">
-                      <div>
-                        <p className="text-[10px] sm:text-xs font-semibold text-zinc-400 uppercase tracking-wider">Ingreso Anual ARR</p>
-                        <h3 className="text-xl sm:text-2xl font-display font-bold text-white mt-1">${potentialArr} USD</h3>
-                      </div>
-                      <div className="bg-zinc-800/60 p-2 sm:p-2.5 rounded-xl text-zinc-300">
-                        <Sparkles className="h-4 sm:h-5 w-4 sm:w-5" />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Filter & Search Bar */}
-                  <div className="bg-[#121212]/90 p-4 rounded-2xl border border-zinc-800/80 flex flex-col sm:flex-row gap-3 items-center justify-between shadow-xs">
+                  {/* Filter & Search Bar - Futuristic Cyber Design */}
+                  <div className="cyber-card p-3 sm:p-4 rounded-2xl flex flex-col sm:flex-row gap-3 items-center justify-between">
                     {/* Search input */}
                     <div className="relative w-full sm:w-80">
-                      <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" />
+                      <Search className="absolute left-3 top-2.5 h-4 w-4 text-teal-400/80" />
                       <input
                         type="text"
-                        placeholder="Buscar por nombre o teléfono..."
+                        placeholder="Buscar por nombre, teléfono o ref..."
                         value={crmSearch}
                         onChange={(e) => setCrmSearch(e.target.value)}
-                        className="pl-9 pr-4 py-1.5 w-full bg-zinc-900/60 focus:bg-zinc-900 border border-zinc-800 focus:border-teal-500 focus:outline-hidden rounded-lg text-sm text-white placeholder-zinc-500 transition"
+                        className="pl-9 pr-8 py-2 w-full bg-zinc-950/80 focus:bg-zinc-900 border border-zinc-800 focus:border-teal-500/80 focus:ring-1 focus:ring-teal-500/50 rounded-xl text-xs sm:text-sm text-white placeholder-zinc-500 transition shadow-inner font-mono"
                       />
+                      {crmSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setCrmSearch("")}
+                          className="absolute right-2.5 top-2.5 text-zinc-500 hover:text-white p-0.5 cursor-pointer"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
 
-                    {/* Filter buttons */}
-                    <div className="flex gap-1 overflow-x-auto w-full sm:w-auto">
+                    {/* Filter buttons with live lead count badges */}
+                    <div className="flex gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 scrollbar-none">
                       {[
-                        { id: "all", label: "Todos" },
-                        { id: "prospect", label: "Prospectos" },
-                        { id: "interested", label: "Interesados" },
-                        { id: "payment_sent", label: "Pago Recibido" },
-                        { id: "approved", label: "Activos Premium" },
+                        { id: "all", label: "Todos", count: leads.length },
+                        { id: "prospect", label: "Prospectos", count: leads.filter((l) => l.status === "prospect").length },
+                        { id: "interested", label: "Interesados", count: leads.filter((l) => l.status === "interested").length },
+                        { id: "payment_sent", label: "Pagos", count: leads.filter((l) => l.status === "payment_sent").length },
+                        { id: "approved", label: "Premium", count: leads.filter((l) => l.status === "approved").length },
                       ].map((tab) => (
                         <button
                           key={tab.id}
+                          type="button"
                           onClick={() => setCrmFilter(tab.id)}
-                          className={`text-xs px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition cursor-pointer ${
+                          className={`text-xs px-3 py-1.5 rounded-xl font-semibold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 border ${
                             crmFilter === tab.id
-                              ? "bg-teal-600 text-white"
-                              : "bg-zinc-800/60 text-zinc-300 hover:bg-zinc-800 border border-zinc-700/50"
+                              ? "bg-teal-500 text-black border-teal-400 font-bold shadow-[0_0_15px_rgba(20,184,166,0.3)]"
+                              : "bg-zinc-900/90 text-zinc-300 hover:bg-zinc-800 border-zinc-800/80"
                           }`}
                         >
-                          {tab.label}
+                          <span>{tab.label}</span>
+                          <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full font-bold ${
+                            crmFilter === tab.id ? "bg-black/20 text-black" : "bg-zinc-800 text-zinc-400"
+                          }`}>
+                            {tab.count}
+                          </span>
                         </button>
                       ))}
                     </div>
@@ -1624,97 +1620,23 @@ export default function App() {
                           </table>
                         </div>
 
-                        {/* Mobile View Stacked Cards */}
-                        <div className="block md:hidden divide-y divide-zinc-800/40">
-                          {filteredLeads.map((lead) => {
-                            const lastMsg = lead.messages[lead.messages.length - 1];
-                            return (
-                              <div
-                                key={lead.id}
-                                onClick={() => {
-                                  setSelectedLeadId(lead.id);
-                                  setActiveTab("whatsapp");
-                                  setMobileChatView("chat");
-                                }}
-                                className="p-4 bg-[#121212]/40 active:bg-zinc-900/40 transition cursor-pointer flex flex-col gap-3"
-                              >
-                                <div className="flex justify-between items-start">
-                                  <div>
-                                    <h4 className="font-bold text-sm text-white">{lead.name}</h4>
-                                    <p className="text-xs text-zinc-400 mt-0.5">📱 {lead.phone}</p>
-                                  </div>
-                                  <span
-                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
-                                      lead.status === "approved"
-                                        ? "bg-teal-950/60 text-teal-300 border border-teal-800/30"
-                                        : lead.status === "payment_sent"
-                                        ? "bg-amber-950/60 text-amber-300 border border-amber-800/30"
-                                        : lead.status === "interested"
-                                        ? "bg-zinc-900 text-zinc-300 border border-zinc-800"
-                                        : "bg-zinc-900 text-zinc-400 border border-zinc-800/60"
-                                    }`}
-                                  >
-                                    {lead.status === "approved"
-                                      ? "Activo"
-                                      : lead.status === "payment_sent"
-                                      ? "Pago Recibido"
-                                      : lead.status === "interested"
-                                      ? "Interesado"
-                                      : "Prospecto"}
-                                  </span>
-                                </div>
-
-                                <div className="flex justify-between items-center text-xs">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="text-zinc-500">Ref:</span>
-                                    <code className="bg-zinc-950 border border-zinc-800 px-1.5 py-0.5 rounded text-[11px] font-mono font-bold text-teal-400">
-                                      {lead.assignedRef}
-                                    </code>
-                                  </div>
-                                  <span className="text-zinc-400 capitalize font-medium">Docenty PRO Premium</span>
-                                </div>
-
-                                {lastMsg ? (
-                                  <div className="bg-zinc-950/40 border border-zinc-800/50 p-2 rounded-lg text-xs text-zinc-400 truncate">
-                                    <span className="text-zinc-500 font-medium">Último:</span> {lastMsg.text}
-                                  </div>
-                                ) : (
-                                  <div className="text-xs text-zinc-500 italic">Sin mensajes todavía</div>
-                                )}
-
-                                <div className="flex items-center justify-end gap-2 pt-1 border-t border-zinc-800/20" onClick={(e) => e.stopPropagation()}>
-                                  {lead.status !== "approved" && (
-                                    <button
-                                      onClick={() => handleApprovePayment(lead.id)}
-                                      disabled={approvingLeadId === lead.id}
-                                      className="flex items-center gap-1 text-xs font-semibold text-emerald-400 hover:text-emerald-300 px-3 py-1.5 rounded-lg bg-emerald-950/30 hover:bg-emerald-950/50 border border-emerald-900/30 transition cursor-pointer disabled:opacity-40"
-                                    >
-                                      <CircleCheck className="h-3.5 w-3.5" />
-                                      Aprobar
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={() => {
-                                      setSelectedLeadId(lead.id);
-                                      setActiveTab("whatsapp");
-                                      setMobileChatView("chat");
-                                    }}
-                                    className="flex items-center gap-1 text-xs font-semibold text-teal-400 hover:text-teal-300 px-3 py-1.5 rounded-lg bg-teal-950/30 hover:bg-teal-950/50 border border-teal-900/30 transition cursor-pointer"
-                                  >
-                                    <MessageCircle className="h-3.5 w-3.5" />
-                                    Chatear
-                                  </button>
-                                  <button
-                                    onClick={(e) => handleDeleteLead(lead.id, e)}
-                                    className="p-2 text-zinc-500 hover:text-rose-400 hover:bg-rose-950/40 rounded-lg transition cursor-pointer"
-                                    title="Eliminar lead"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })}
+                        {/* Mobile View: Futuristic Cyber Lead Cards (Ultra-optimized for recording videos on mobile) */}
+                        <div className="block md:hidden p-3 space-y-3">
+                          {filteredLeads.map((lead) => (
+                            <FuturisticMobileLeadCard
+                              key={lead.id}
+                              lead={lead}
+                              onSelectLead={(id) => {
+                                setSelectedLeadId(id);
+                                setActiveTab("whatsapp");
+                                setMobileChatView("chat");
+                              }}
+                              onApprovePayment={handleApprovePayment}
+                              onDeleteLead={handleDeleteLead}
+                              onOpenDetails={(l) => setSelectedLeadForDetail(l)}
+                              approvingLeadId={approvingLeadId}
+                            />
+                          ))}
                         </div>
                       </>
                     )}
@@ -2615,66 +2537,114 @@ export default function App() {
           )}
         </main>
 
-        {/* Mobile Bottom Navigation Bar */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#121212]/95 backdrop-blur-md border-t border-zinc-800/80 z-40 flex justify-around items-center" id="mobile-bottom-nav">
+        {/* Mobile Bottom Navigation Bar - Futuristic Cyber Dock */}
+        <nav
+          className="md:hidden fixed bottom-2 left-3 right-3 h-16 bg-zinc-950/90 backdrop-blur-xl border border-teal-500/20 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.8)] z-40 flex justify-around items-center px-1"
+          id="mobile-bottom-nav"
+        >
           <button
+            type="button"
             onClick={() => setActiveTab("crm")}
-            className={`flex flex-col items-center justify-center gap-1 flex-1 py-2 text-center transition cursor-pointer ${
-              activeTab === "crm" ? "text-teal-400 font-semibold" : "text-zinc-500 hover:text-zinc-300"
+            className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 text-center transition-all duration-300 relative cursor-pointer ${
+              activeTab === "crm"
+                ? "text-teal-400 font-bold scale-105"
+                : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
+            {activeTab === "crm" && (
+              <span className="absolute -top-1.5 w-6 h-0.5 bg-teal-400 rounded-full shadow-[0_0_8px_rgba(45,212,191,1)]" />
+            )}
             <Users className="h-5 w-5" />
-            <span className="text-[10px]">CRM Leads</span>
+            <span className="text-[10px] tracking-tight">CRM Leads</span>
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab("whatsapp")}
-            className={`flex flex-col items-center justify-center gap-1 flex-1 py-2 text-center transition relative cursor-pointer ${
-              activeTab === "whatsapp" ? "text-teal-400 font-semibold" : "text-zinc-500 hover:text-zinc-300"
+            className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 text-center transition-all duration-300 relative cursor-pointer ${
+              activeTab === "whatsapp"
+                ? "text-teal-400 font-bold scale-105"
+                : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
+            {activeTab === "whatsapp" && (
+              <span className="absolute -top-1.5 w-6 h-0.5 bg-teal-400 rounded-full shadow-[0_0_8px_rgba(45,212,191,1)]" />
+            )}
             <div className="relative">
               <MessageSquare className="h-5 w-5" />
               {pendingPayments > 0 && (
-                <span className="absolute -top-1.5 -right-2 bg-amber-500 text-zinc-950 text-[8px] font-black px-1 rounded-full animate-pulse">
+                <span className="absolute -top-1.5 -right-2 bg-amber-500 text-zinc-950 text-[8px] font-black px-1 rounded-full animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.8)]">
                   {pendingPayments}
                 </span>
               )}
             </div>
-            <span className="text-[10px]">WhatsApp</span>
+            <span className="text-[10px] tracking-tight">WhatsApp</span>
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab("meta")}
-            className={`flex flex-col items-center justify-center gap-1 flex-1 py-2 text-center transition cursor-pointer ${
-              activeTab === "meta" ? "text-blue-400 font-semibold" : "text-zinc-500 hover:text-zinc-300"
+            className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 text-center transition-all duration-300 relative cursor-pointer ${
+              activeTab === "meta"
+                ? "text-cyan-400 font-bold scale-105"
+                : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
+            {activeTab === "meta" && (
+              <span className="absolute -top-1.5 w-6 h-0.5 bg-cyan-400 rounded-full shadow-[0_0_8px_rgba(34,211,238,1)]" />
+            )}
             <Server className="h-5 w-5" />
-            <span className="text-[10px]">VPS Droplet</span>
+            <span className="text-[10px] tracking-tight">VPS Droplet</span>
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab("config")}
-            className={`flex flex-col items-center justify-center gap-1 flex-1 py-2 text-center transition cursor-pointer ${
-              activeTab === "config" ? "text-teal-400 font-semibold" : "text-zinc-500 hover:text-zinc-300"
+            className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 text-center transition-all duration-300 relative cursor-pointer ${
+              activeTab === "config"
+                ? "text-teal-400 font-bold scale-105"
+                : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
+            {activeTab === "config" && (
+              <span className="absolute -top-1.5 w-6 h-0.5 bg-teal-400 rounded-full shadow-[0_0_8px_rgba(45,212,191,1)]" />
+            )}
             <Settings className="h-5 w-5" />
-            <span className="text-[10px]">Ajustes</span>
+            <span className="text-[10px] tracking-tight">Ajustes</span>
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab("about")}
-            className={`flex flex-col items-center justify-center gap-1 flex-1 py-2 text-center transition cursor-pointer ${
-              activeTab === "about" ? "text-teal-400 font-semibold" : "text-zinc-500 hover:text-zinc-300"
+            className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 text-center transition-all duration-300 relative cursor-pointer ${
+              activeTab === "about"
+                ? "text-teal-400 font-bold scale-105"
+                : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
+            {activeTab === "about" && (
+              <span className="absolute -top-1.5 w-6 h-0.5 bg-teal-400 rounded-full shadow-[0_0_8px_rgba(45,212,191,1)]" />
+            )}
             <BookOpen className="h-5 w-5" />
-            <span className="text-[10px]">Docenty</span>
+            <span className="text-[10px] tracking-tight">Docenty</span>
           </button>
         </nav>
       </div>
+
+      {/* MOBILE LEAD DETAIL DRAWER */}
+      <MobileLeadDetailDrawer
+        lead={selectedLeadForDetail}
+        onClose={() => setSelectedLeadForDetail(null)}
+        onApprovePayment={handleApprovePayment}
+        onGoToChat={(id) => {
+          setSelectedLeadId(id);
+          setActiveTab("whatsapp");
+          setMobileChatView("chat");
+          setSelectedLeadForDetail(null);
+        }}
+        onDeleteLead={handleDeleteLead}
+        approvingLeadId={approvingLeadId}
+      />
 
       {/* MODAL 1: CREATE NEW PROSPECT */}
       <AnimatePresence>

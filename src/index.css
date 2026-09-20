@@ -41,9 +41,80 @@
   background: #3f3f46;
 }
 
-/* Base resets */
+/* Base resets and futuristic theme */
 body {
   font-family: var(--font-sans);
-  background-color: #050505;
-  color: #f4f4f5;
+  background-color: #060709;
+  color: #f4f4f6;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Futuristic Cyber Grid & Neon Background */
+.bg-carbon {
+  background-color: #07090e;
+  background-image: 
+    radial-gradient(at 50% 0%, rgba(13, 148, 136, 0.12) 0px, transparent 60%),
+    radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.06) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
+  background-attachment: fixed;
+}
+
+/* Futuristic Glass Card */
+.cyber-card {
+  background: linear-gradient(135deg, rgba(18, 22, 31, 0.85) 0%, rgba(11, 14, 21, 0.92) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+}
+
+.cyber-card-active {
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%);
+  border: 1px solid rgba(20, 184, 166, 0.35);
+  box-shadow: 0 0 25px -5px rgba(13, 148, 136, 0.25), inset 0 1px 0 0 rgba(45, 212, 191, 0.2);
+}
+
+/* Neon Glow accents for mobile presentation & video recordings */
+.neon-glow-teal {
+  box-shadow: 0 0 20px rgba(13, 148, 136, 0.35);
+}
+
+.neon-glow-blue {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.35);
+}
+
+.neon-border {
+  border: 1px solid rgba(45, 212, 191, 0.3);
+  box-shadow: 0 0 15px rgba(20, 184, 166, 0.15);
+}
+
+/* Pulse animation for live badge */
+@keyframes livePulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.15);
+  }
+}
+
+.animate-live-pulse {
+  animation: livePulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Hide scrollbar for clean horizontal swipeable elements */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Safe area inset for mobile docks */
+.safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
