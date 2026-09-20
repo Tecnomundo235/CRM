@@ -8,7 +8,10 @@ set -e
 
 echo "🔄 [1/4] Actualizando repositorio git..."
 cd /var/www/docenty
+# Guardar cambios locales (como config_store.json con tokens activos) antes de actualizar
+git stash
 git pull origin main || git pull
+git stash pop || true
 
 echo "📦 [2/4] Instalando dependencias..."
 export NODE_OPTIONS="--max-old-space-size=1536"

@@ -1028,9 +1028,11 @@ async function sendWhatsAppMessage(targetPhone: string, textBody: string): Promi
 async function sendAdminNotification(messageText: string, fromLeadPhone?: string) {
   const adminPhone = "584144783204"; // Número personal del arquitecto Reymon Castillo
   
-  // Si el mensaje proviene del mismo número del administrador que está probando, no enviarle el eco de su propio mensaje
+  // Si el mensaje proviene del mismo número del administrador que está probando en su propio WhatsApp,
+  // omitimos la notificación de "alerta al admin" para evitar ruido redundante en su propio chat,
+  // pero Camila AI sí le responderá normalmente como a cualquier docente/cliente.
   if (fromLeadPhone && cleanPhoneNumber(fromLeadPhone) === cleanPhoneNumber(adminPhone)) {
-    console.log("[Admin Notification] Omitiendo notificación al admin para evitar eco en su propio chat de prueba.");
+    console.log("[Admin Notification] El mensaje proviene del admin testeando (" + adminPhone + "). Se omite alerta redundante, Camila le responderá directamente.");
     return;
   }
 
@@ -1659,11 +1661,11 @@ app.post(["/api/webhook", "/webhook"], async (req, res) => {
                 },
               };
 
-              console.log(`[Meta Webhook Depuración] Pasando mensaje a Camila AI para generación de respuesta...`);
+              console.log(`[Meta Webhook Depuración] Pasando mensaje a Camila AI para generación de respuesta (Destinatario respuesta: ${fromPhone})...`);
 
               // Procesar en segundo plano
               processWebhookInBackground(incoming).catch((err) => {
-                console.error("[Meta Background Processing] Error:", err);
+                console.error("[Meta Background Processing] Error crítico en background:", err);
               });
             }
 
