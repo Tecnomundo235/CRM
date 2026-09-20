@@ -43,6 +43,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { Lead, Message, BankDetails, SystemConfigs } from "./types";
 import { MetaCloudApiView } from "./components/MetaCloudApiView";
+import { DocentyKnowledgeView } from "./components/DocentyKnowledgeView";
 
 export default function App() {
   // Tabs: "crm", "whatsapp", "meta", "config", "about"
@@ -2603,150 +2604,12 @@ export default function App() {
                 />
               )}
 
-              {/* TAB 4: WHAT IS DOCENTY PRO */}
+              {/* TAB 4: WHAT IS DOCENTY PRO & KNOWLEDGE BASE */}
               {activeTab === "about" && (
-                <div className="p-6 max-w-4xl mx-auto space-y-6">
-                  {/* Digital Brochure */}
-                  <div className="bg-[#121212]/90 rounded-3xl border border-zinc-800/80 overflow-hidden shadow-xs">
-                    {/* Visual Hero Banner */}
-                    <div className="bg-gradient-to-r from-teal-950 to-zinc-900 px-8 py-10 text-white relative border-b border-zinc-800">
-                      <div className="max-w-2xl">
-                        <span className="bg-teal-900/80 text-teal-300 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider mb-2 inline-block border border-teal-800/50">
-                          SaaS para Educación de Vanguardia
-                        </span>
-                        <h2 className="font-display font-bold text-3xl leading-tight">Docenty PRO</h2>
-                        <p className="text-zinc-300 text-sm mt-2 max-w-xl leading-relaxed">
-                          La plataforma definitiva que simplifica la vida de los educadores, eliminando el caos administrativo para que puedan enfocarse en lo que realmente aman: enseñar.
-                        </p>
-                      </div>
-                      <div className="absolute right-8 bottom-6 opacity-10 hidden md:block">
-                        <Sparkles className="h-32 w-32" />
-                      </div>
-                    </div>
-
-                    <div className="p-8 space-y-8">
-                      {/* Section 1: Problem solved */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="space-y-2 p-4 bg-zinc-900 rounded-2xl border border-zinc-800">
-                          <div className="bg-zinc-800 text-teal-400 h-8 w-8 rounded-lg flex items-center justify-center font-bold text-sm border border-zinc-700/50">
-                            1
-                          </div>
-                          <h4 className="font-bold text-sm text-zinc-100">Adiós al Caos de Excel</h4>
-                          <p className="text-xs text-zinc-400 leading-relaxed">
-                            Centraliza asistencias, notas, reportes y planes didácticos en una sola interfaz limpia y visual, evitando hojas de cálculo infinitas.
-                          </p>
-                        </div>
-
-                        <div className="space-y-2 p-4 bg-zinc-900 rounded-2xl border border-zinc-800">
-                          <div className="bg-zinc-800 text-teal-400 h-8 w-8 rounded-lg flex items-center justify-center font-bold text-sm border border-zinc-700/50">
-                            2
-                          </div>
-                          <h4 className="font-bold text-sm text-zinc-100">Automatización de Tareas</h4>
-                          <p className="text-xs text-zinc-400 leading-relaxed">
-                            Ahorra hasta 10 horas de trabajo extra a la semana al automatizar la planeación de clases y la creación instantánea de exámenes.
-                          </p>
-                        </div>
-
-                        <div className="space-y-2 p-4 bg-zinc-900 rounded-2xl border border-zinc-800">
-                          <div className="bg-zinc-800 text-teal-400 h-8 w-8 rounded-lg flex items-center justify-center font-bold text-sm border border-zinc-700/50">
-                            3
-                          </div>
-                          <h4 className="font-bold text-sm text-zinc-100">Seguimiento Dinámico</h4>
-                          <p className="text-xs text-zinc-400 leading-relaxed">
-                            Ofrece gráficas automáticas y alertas sobre el progreso de cada alumno de manera visual para mejorar la calidad educativa.
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Section 2: Pricing Structure */}
-                      <div className="space-y-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-zinc-800 pb-2">
-                          <h3 className="font-display font-bold text-base text-zinc-100">Promoción Exclusiva de Temporada de Docenty PRO</h3>
-                          <span className="text-[11px] text-teal-400 font-medium">Precios en USD a tasa oficial BCV</span>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          {/* Plan 1: 30 días */}
-                          <div className="border border-zinc-800 p-5 rounded-2xl space-y-3 hover:border-zinc-700 transition bg-zinc-900">
-                            <span className="text-[10px] font-bold text-teal-400 uppercase tracking-wider">Acceso 30 Días</span>
-                            <h4 className="font-display font-bold text-base text-white">Plan 30 Días</h4>
-                            <div className="flex items-baseline gap-1">
-                              <span className="text-3xl font-display font-bold text-white">$2</span>
-                              <span className="text-xs text-zinc-400">USD</span>
-                            </div>
-                            <ul className="text-xs text-zinc-300 space-y-1.5 pt-1">
-                              <li className="flex items-center gap-1.5">✅ Registro de asistencias y notas</li>
-                              <li className="flex items-center gap-1.5">✅ Planeación y rúbricas con IA</li>
-                              <li className="flex items-center gap-1.5">✅ Acceso continuo durante 30 días</li>
-                            </ul>
-                          </div>
-
-                          {/* Plan 2: Extendido */}
-                          <div className="border-2 border-teal-500/60 p-5 rounded-2xl space-y-3 hover:border-teal-400 transition bg-teal-950/20 relative">
-                            <div className="absolute top-3 right-3 bg-teal-500 text-black text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
-                              Más Popular
-                            </div>
-                            <span className="text-[10px] font-bold text-teal-300 uppercase tracking-wider">Extendido</span>
-                            <h4 className="font-display font-bold text-base text-white">Hasta el 1 de Febrero</h4>
-                            <div className="flex items-baseline gap-1">
-                              <span className="text-3xl font-display font-bold text-teal-300">$8</span>
-                              <span className="text-xs text-zinc-400">USD</span>
-                            </div>
-                            <ul className="text-xs text-zinc-200 space-y-1.5 pt-1">
-                              <li className="flex items-center gap-1.5">✨ Cobertura extendida hasta Feb 2027</li>
-                              <li className="flex items-center gap-1.5">✨ Proyectos Pedagógicos y Rúbricas</li>
-                              <li className="flex items-center gap-1.5">✨ Soporte y actualizaciones continuas</li>
-                            </ul>
-                          </div>
-
-                          {/* Plan 3: Completo */}
-                          <div className="border border-zinc-800 p-5 rounded-2xl space-y-3 hover:border-zinc-700 transition bg-zinc-900">
-                            <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Año Escolar Completo</span>
-                            <h4 className="font-display font-bold text-base text-white">Hasta el 28 de Julio</h4>
-                            <div className="flex items-baseline gap-1">
-                              <span className="text-3xl font-display font-bold text-white">$15</span>
-                              <span className="text-xs text-zinc-400">USD</span>
-                            </div>
-                            <ul className="text-xs text-zinc-300 space-y-1.5 pt-1">
-                              <li className="flex items-center gap-1.5">🌟 Ciclo escolar completo hasta Jul 2027</li>
-                              <li className="flex items-center gap-1.5">🌟 Todas las funciones de IA ilimitadas</li>
-                              <li className="flex items-center gap-1.5">🌟 El mayor ahorro de temporada</li>
-                            </ul>
-                          </div>
-                        </div>
-
-                        {/* Pago Móvil info */}
-                        <div className="border border-teal-800/60 p-5 rounded-2xl space-y-2 relative overflow-hidden bg-teal-950/20">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-bold text-teal-300 uppercase">Datos de Pago Móvil Oficiales</span>
-                            <span className="bg-teal-600 text-white text-[9px] font-bold px-2.5 py-0.5 rounded-full uppercase">Tasa Oficial BCV</span>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs text-zinc-200">
-                            <div><strong className="text-zinc-400">Banco:</strong> Banco de Venezuela</div>
-                            <div><strong className="text-zinc-400">Cédula:</strong> 24755720</div>
-                            <div><strong className="text-zinc-400">Teléfono:</strong> 04262953484</div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Section 3: CRM AI value */}
-                      <div className="bg-[#121212] p-6 rounded-2xl border border-zinc-800 flex flex-col md:flex-row gap-6 items-center justify-between">
-                        <div className="space-y-2 max-w-xl">
-                          <h4 className="font-bold text-sm text-zinc-200">¿Cómo el CRM con IA impulsa este negocio?</h4>
-                          <p className="text-xs text-zinc-400 leading-relaxed">
-                            Dado que los profesores están sumamente ocupados y las instituciones educativas toman tiempo en decidir, este CRM automatiza el seguimiento en WhatsApp. Responde dudas, destaca el ahorro de tiempo, explica planes, provee datos de banco y confirma el pago reconociendo imágenes para crear cuentas de inmediato, escalando el negocio de forma masiva sin un equipo de ventas humano.
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => setActiveTab("whatsapp")}
-                          className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-5 py-3 rounded-xl transition flex items-center gap-2 flex-shrink-0 cursor-pointer shadow-md shadow-teal-950/40"
-                        >
-                          Ir al chat de venta
-                          <ArrowRight className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <DocentyKnowledgeView
+                  onGoToChat={() => setActiveTab("whatsapp")}
+                  showToast={showToast}
+                />
               )}
             </div>
           )}

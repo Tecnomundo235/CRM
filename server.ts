@@ -1167,15 +1167,39 @@ ${historyContext || "(Inicio de la conversación)"}
 [ÚLTIMO MENSAJE ENVIADO POR EL CLIENTE EN WHATSAPP]:
 "${promptInput}"
 
+[BASE DE CONOCIMIENTO PROFUNDA Y COMPLETA DE DOCENTY PRO - LAS 7 SECCIONES CLAVE]:
+1. PROYECTOS PEDAGÓGICOS DE AULA (PPA):
+   - Genera proyectos escolares completos alineados a currículo oficial (Inicial, Primaria, Media General y Técnica).
+   - Incluye: diagnóstico comunitario, justificación pedagógica, propósitos de formación, temas indispensables, líneas de investigación y plan de acción estructurado con actividades de inicio, desarrollo y cierre.
+   - Beneficio: Ahorra de 8 a 15 horas de redacción técnica.
+2. PLANIFICACIÓN SEMANAL Y DIARIA DE CLASES (SECUENCIAS DIDÁCTICAS):
+   - Secuencias didácticas completas por momentos: Inicio (activación de saberes previos), Desarrollo (construcción activa) y Cierre (evaluación y síntesis).
+   - Incluye dinámicas sugeridas, tiempo por actividad e indicadores de logro observables para cualquier materia.
+3. RÚBRICAS E INSTRUMENTOS DE EVALUACIÓN:
+   - Diseña Rúbricas Analíticas, Escalas de Estimación y Listas de Cotejo.
+   - Criterios conceptuales, procedimentales y actitudinales con descriptores de desempeño claros (escalas de 1 a 20 pts, 1 a 10 pts, o literales A, B, C, D).
+   - Beneficio: Calificaciones 100% objetivas sin reclamos de padres o alumnos.
+4. GENERADOR DE EXÁMENES, PRUEBAS ESCRITAS Y TALLERES:
+   - Exámenes estructurados (selección simple, verdadero/falso, desarrollo, pareo) con membrete institucional.
+   - Genera automáticamente la CLAVE DE RESPUESTAS para que el profesor corrija en segundos.
+5. CONTROL DE ASISTENCIA Y SÁBANA DE NOTAS:
+   - Registro de estudiantes por grado y sección, asistencia con un clic y cálculo automático de definitivas ponderadas. Cero errores matemáticos.
+6. GENERADOR DE BOLETINES E INFORMES PEDAGÓGICOS DESCRIPTIVOS:
+   - Redacción cualitativa y asertiva de observaciones para los boletines escolares y recomendaciones para el hogar.
+7. ADAPTACIONES CURRICULARES Y NECESIDADES ESPECIALES (NEAE):
+   - Estrategias de apoyo e inclusión pedagógica para estudiantes con TDAH, dislexia o ritmos específicos de aprendizaje.
+
+[ACCESO Y COMPATIBILIDAD]:
+- 100% online desde cualquier celular, tablet o computadora sin instalar programas pesados.
+- Todo es editable y listo para imprimir o enviar en PDF/Word.
+
 [DIRECTIVAS DE INTERACCIÓN DE CAMILA]:
-- Eres Camila, la asistente virtual de R-LTC. Tu arquitecto y creador es Reymon Castillo (también conocido como Antonio Castillo; son la misma persona).
-- Eres una experta en atención al cliente por WhatsApp: cálida, empática, profesional y muy humana. Cero robótica.
-- Utiliza un tono conversacional, fluido y cercano. Evita responder con bloques de texto excesivos o parecer un monólogo pregrabado.
+- Eres Camila, la asistente virtual de R-LTC y experta pedagógica de Docenty PRO. Tu creador es Reymon Castillo (también conocido como Antonio Castillo; son la misma persona).
+- Eres una experta en atención docente por WhatsApp: cálida, empática, profesional y muy humana. Cero robótica.
+- Utiliza un tono conversacional, fluido y cercano. Evita monólogos extensos; desglosa la información poco a poco e incluye una pregunta reflexiva o de cierre para mantener el diálogo vivo.
+- Si un profesor pregunta sobre una herramienta o duda concreta (ej: PPA, rúbricas, cómo planificar, exámenes, boletines), explícale con total claridad y entusiasmo pedagógico cómo funciona esa herramienta exacta en Docenty PRO y cómo le quita ese dolor de cabeza.
 - PROHIBICIÓN ESTRICTA: NUNCA envíes menús de opciones con números (por ejemplo: "1. Docenty PRO, 2. Desarrollo Digital, responde con el número 1 o 2"). Eso destruye la confianza y se siente como un robot. NUNCA menciones 'META TC', tu empresa es únicamente R-LTC y tu plataforma es Docenty PRO.
-- Si el cliente solo saluda (ej. "Hola", "Buenas"): responde con un saludo breve y cálido, preséntate brevemente y pregúntale amablemente en qué le puedes colaborar. NUNCA envíes listas de opciones al inicio.
-- Adapta tus respuestas al contexto de lo que el cliente te va diciendo, escuchando activamente y evitando repetir la misma información o preguntas que ya se plantearon antes.
-- Tu meta es guiar al usuario con naturalidad, resolviendo sus dudas paso a paso y orientándolo hacia la compra o adquisición de las soluciones de la empresa.
-- Tu plataforma insignia se llama Docenty PRO (anteriormente conocida como "Docente Pro"). Si un cliente pregunta por el nombre antiguo, infórmale con naturalidad que ha evolucionado a Docenty PRO para reflejar su capacidad avanzada.
+- Si el cliente solo saluda (ej. "Hola", "Buenas"): responde con un saludo breve y afectuoso, preséntate brevemente y pregúntale amablemente qué materia o nivel imparte para orientarlo mejor.
 - Promoción exclusiva de temporada para Docenty PRO:
   • Plan de 30 días: $2
   • Plan extendido (hasta el 1 de febrero): $8
@@ -1185,8 +1209,7 @@ ${historyContext || "(Inicio de la conversación)"}
   • Cédula: 24755720
   • Teléfono: 04262953484
   • Código único de reserva asignado: ${lead.assignedRef}
-- Si te piden más información, desglosa los detalles poco a poco en lugar de soltar todo de golpe, fomentando una charla bidireccional.
-- Si el cliente muestra interés, preséntale las opciones de precios de forma natural y guíalo hacia los pasos para concretar la suscripción facilitándole los datos de pago móvil cuando sea oportuno.`;
+- Cuando el cliente demuestre interés en adquirir la plataforma o pregunte costos, dale los planes y facilítale los datos de pago móvil con calidez.`;
 
         const response = await ai.models.generateContent({
           model: "gemini-3.8-flash",
@@ -1214,18 +1237,57 @@ ${historyContext || "(Inicio de la conversación)"}
       if (norm.includes("no entiendo") || norm.includes("confund")) {
         botReply = `¡Disculpa si te envié mucha información junta antes! 😊
 
-Te lo resumo con calma: Docenty PRO te ayuda a redactar tus proyectos de aula (PPA), planes semanales y rúbricas de evaluación en minutos, cumpliendo con los formatos oficiales. Así te ahorras horas de trasnocho con el papeleo.
+Te lo resumo con calma: Docenty PRO te ayuda a redactar tus proyectos de aula (PPA), planes semanales, exámenes y rúbricas de evaluación en minutos, cumpliendo con los formatos oficiales. Así te ahorras horas de trasnocho con el papeleo.
 
 ¿Qué materia o grado escolar estás dando en estos momentos?`;
-      } else if (norm.includes("en que me ayuda") || norm.includes("mas informacion") || norm.includes("para que sirve") || norm.includes("como funciona")) {
-        botReply = `Docenty PRO está diseñada para facilitarte la vida docente: te ayuda a generar planificaciones, documentación y reportes de forma automatizada y súper eficiente. 📝✨
+      } else if (norm.includes("ppa") || norm.includes("proyecto de aula") || norm.includes("proyecto pedagogico") || norm.includes("proyecto de aprendizaje")) {
+        botReply = `¡El generador de PPA de Docenty PRO es una maravilla! 📚✨
 
-Actualmente contamos con una promoción exclusiva de temporada:
-• Plan de 30 días: $2
+Te redacta el proyecto escolar completo con todos sus componentes oficiales: diagnóstico del aula, justificación, propósitos, temas indispensables, líneas de investigación y el plan de acción (actividades de inicio, desarrollo y cierre con sus recursos).
+
+Aplica para Inicial, Primaria, Media General y Técnica, ahorrándote hasta 15 horas de redacción. ¿Para qué grado o tema te gustaría probarlo?`;
+      } else if (norm.includes("rubrica") || norm.includes("escala de estimacion") || norm.includes("lista de cotejo") || norm.includes("evaluacion") || norm.includes("evaluar")) {
+        botReply = `¡Diseñar instrumentos de evaluación con Docenty PRO es súper rápido y transparente! 📝🎯
+
+La plataforma crea:
+1. Rúbricas analíticas con descriptores de logro claros (Excelente, Bueno, Regular, Requiere apoyo).
+2. Escalas de estimación numéricas (1 a 20 pts o 1 a 10 pts) o cualitativas (A, B, C, D).
+3. Listas de cotejo para actividades prácticas o exposiciones.
+
+Así evitas reclamos de notas y respaldarás cada calificación ante directivos y representantes. ¿Qué actividad necesitas evaluar próximamente?`;
+      } else if (norm.includes("examen") || norm.includes("prueba") || norm.includes("taller") || norm.includes("cuestionario")) {
+        botReply = `¡Crear exámenes te tomará solo 30 segundos! ⏱️📄
+
+Solo indicas el tema y el nivel, y Docenty PRO genera la prueba con membrete escolar listo para imprimir. Incluye preguntas de selección simple, verdadero/falso, desarrollo analítico y emparejamiento.
+
+Y lo mejor para ti como profe: ¡te entrega la **clave de respuestas** para corregir en tiempo récord! ¿De qué materia necesitas exámenes?`;
+      } else if (norm.includes("asistencia") || norm.includes("sabana") || norm.includes("calificaciones") || norm.includes("notas")) {
+        botReply = `¡Olvídate del dolor de cabeza de las hojas de Excel y las libretas de papel! 📊
+
+En Docenty PRO registras la asistencia diaria con un solo toque y vas cargando las notas por porcentajes. La plataforma calcula automáticamente los acumulados, promedios definitivos y condición de aprobación sin margen de error.
+
+¿Cuántas secciones o alumnos atiendes actualmente?`;
+      } else if (norm.includes("boletin") || norm.includes("informe descriptivo") || norm.includes("observaciones")) {
+        botReply = `¡Los cierres de lapso ya no serán una pesadilla! 🌟
+
+Docenty PRO formula las observaciones cualitativas para los boletines escolares con lenguaje pedagógico asertivo, positivo y motivador, además de sugerencias constructivas para los padres. Generar el informe de cada estudiante te tomará menos de un minuto.`;
+      } else if (norm.includes("en que me ayuda") || norm.includes("mas informacion") || norm.includes("para que sirve") || norm.includes("como funciona") || norm.includes("secciones") || norm.includes("herramientas")) {
+        botReply = `Docenty PRO cuenta con 7 herramientas integradas diseñadas especialmente para facilitarte la vida docente: 📝✨
+
+1. **Generador de PPA**: Proyectos de aula completos según currículo oficial.
+2. **Planificación Diaria y Semanal**: Secuencias didácticas (inicio, desarrollo y cierre).
+3. **Rúbricas y Escalas de Estimación**: Instrumentos de evaluación objetivos.
+4. **Generador de Exámenes**: Pruebas con clave de corrección instantánea.
+5. **Control de Asistencia y Notas**: Cálculos de promedios automáticos.
+6. **Informes y Boletines**: Redacción descriptiva en minutos.
+7. **Adaptaciones Curriculares**: Inclusión pedagógica para estudiantes con NEAE/TDAH.
+
+Todo funciona 100% online desde tu teléfono o computadora. Actualmente tenemos una súper promoción de temporada:
+• Plan 30 días: $2
 • Plan extendido (hasta el 1 de febrero): $8
 • Plan completo (hasta el 28 de julio): $15
 
-¿Qué grado o área impartes actualmente para contarte cómo te ayudaría?`;
+¿Cuál de estas herramientas te aliviaría más trabajo hoy mismo?`;
       } else if (norm.includes("pago") || norm.includes("pagar") || norm.includes("precio") || norm.includes("costo") || norm.includes("cuenta") || norm.includes("bcv") || norm.includes("planes") || norm.includes("plan")) {
         botReply = `¡Con gusto! Contamos con estas opciones de promoción para Docenty PRO:
 • **Plan de 30 días:** $2
