@@ -1169,6 +1169,8 @@ ${historyContext || "(Inicio de la conversación)"}
 - Eres Camila, la asistente virtual de R-LTC. Tu arquitecto y creador es Reymon Castillo (también conocido como Antonio Castillo; son la misma persona).
 - Eres una experta en atención al cliente por WhatsApp: cálida, empática, profesional y muy humana. Cero robótica.
 - Utiliza un tono conversacional, fluido y cercano. Evita responder con bloques de texto excesivos o parecer un monólogo pregrabado.
+- PROHIBICIÓN ESTRICTA: NUNCA envíes menús de opciones con números (por ejemplo: "1. Docenty PRO, 2. Desarrollo Digital, responde con el número 1 o 2"). Eso destruye la confianza y se siente como un robot. NUNCA menciones 'META TC', tu empresa es únicamente R-LTC y tu plataforma es Docenty PRO.
+- Si el cliente solo saluda (ej. "Hola", "Buenas"): responde con un saludo breve y cálido, preséntate brevemente y pregúntale amablemente en qué le puedes colaborar. NUNCA envíes listas de opciones al inicio.
 - Adapta tus respuestas al contexto de lo que el cliente te va diciendo, escuchando activamente y evitando repetir la misma información o preguntas que ya se plantearon antes.
 - Tu meta es guiar al usuario con naturalidad, resolviendo sus dudas paso a paso y orientándolo hacia la compra o adquisición de las soluciones de la empresa.
 - Tu plataforma insignia se llama Docenty PRO (anteriormente conocida como "Docente Pro"). Si un cliente pregunta por el nombre antiguo, infórmale con naturalidad que ha evolucionado a Docenty PRO para reflejar su capacidad avanzada.
@@ -1239,10 +1241,10 @@ Puedes realizar tu Pago Móvil a estos datos:
 En cuanto realices el pago, me envías el comprobante por acá para validarlo de una vez. ¿Cuál opción se adapta mejor a lo que necesitas?`;
       } else if (norm.includes("web") || norm.includes("software") || norm.includes("desarrollo") || norm.includes("tienda") || norm.includes("pos")) {
         botReply = `Para requerimientos especiales de software o desarrollo a la medida, puedo ponerte en contacto directo con mi creador, **Reymon Castillo** (+58 414-4783204). ¿Te gustaría que le comparta tus datos o prefieres escribirle?`;
-      } else if (!hasPreviousMessages) {
-        botReply = `¡Hola! Qué gusto saludarte. Soy Camila, la asistente virtual de R-LTC. 😊
+      } else if (!hasPreviousMessages || norm === "hola" || norm === "buenas" || norm === "buen dia" || norm === "buenas tardes" || norm === "hola camila") {
+        botReply = `¡Hola! 😊 Qué gusto saludarte. Soy Camila, la asistente virtual de R-LTC. ¿Cómo estás hoy?
 
-Cuéntame, ¿cómo va tu carga académica últimamente? ¿Te interesaría simplificar la redacción de tus planificaciones y reportes escolares con Docenty PRO?`;
+Cuéntame, ¿en qué te puedo apoyar o te gustaría conocer cómo Docenty PRO te ayuda a redactar tus planificaciones y reportes escolares?`;
       } else {
         botReply = `¡Con gusto te oriento! Cuéntame qué duda tienes sobre Docenty PRO y la vamos resolviendo paso a paso. Y si requieres hablar con mi creador Reymon Castillo, avísame con total confianza. 😊`;
       }
@@ -2359,7 +2361,7 @@ Recuerda que la referencia asignada a este cliente es: ${lead.assignedRef}.\nNo 
         }
       } else {
         // Standard text reply
-        const prompt = `Historial de la conversación de WhatsApp hasta ahora:\n${historyContext}\n\nResponde el último mensaje del cliente en WhatsApp con tu personalidad de Camila. Recuerda que la referencia asignada a este cliente es: ${lead.assignedRef}.\nNo inventes referencias de otros clientes. Si el cliente pregunta qué planes tiene disponibles, preséntale las opciones de temporada ($2 por 30 días, $8 hasta el 1 de febrero, $15 hasta el 28 de julio) y datos de Pago Móvil cuando sea oportuno.`;
+        const prompt = `Historial de la conversación de WhatsApp hasta ahora:\n${historyContext}\n\nResponde el último mensaje del cliente en WhatsApp con tu personalidad de Camila (asistente de R-LTC). Eres cálida, cercana y cero robótica. PROHIBIDO enviar menús numerados (ej: "1. Docenty PRO, 2. Desarrollo Digital, responde 1 o 2"). Si el cliente saluda brevemente, responde con calidez y brevedad. Recuerda que la referencia asignada a este cliente es: ${lead.assignedRef}.\nNo inventes referencias de otros clientes. Si el cliente pregunta qué planes tiene disponibles, preséntale las opciones de temporada ($2 por 30 días, $8 hasta el 1 de febrero, $15 hasta el 28 de julio) y datos de Pago Móvil cuando sea oportuno.`;
 
         response = await ai.models.generateContent({
           model: "gemini-3.8-flash",
